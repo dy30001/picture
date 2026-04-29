@@ -71,7 +71,7 @@ export async function testOpenAIConnection(settings: Settings): Promise<ApiTestR
 }
 
 export function normalizeApiBaseUrl(value: string): string {
-  const trimmed = value.trim() || "https://api.openai.com/v1";
+  const trimmed = value.trim() || "https://alexai.work/v1";
   try {
     const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
     url.search = "";
@@ -242,7 +242,7 @@ async function parseJson<T>(response: Response): Promise<T> {
   } catch {
     const contentType = response.headers.get("content-type") ?? "";
     if (/html/i.test(contentType) || /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) {
-      throw new Error("接口返回了网页 HTML，不是 JSON。请确认 API URL 使用 OpenAI 兼容地址，例如 https://api.openai.com/v1");
+      throw new Error("接口返回了网页 HTML，不是 JSON。请确认 API URL 使用 OpenAI 兼容地址，例如 https://alexai.work/v1");
     }
     throw new Error(text.slice(0, 300));
   }

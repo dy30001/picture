@@ -59,7 +59,7 @@ export type AppState = {
 };
 
 export const defaultSettings: Settings = {
-  apiUrl: "https://api.openai.com/v1",
+  apiUrl: "https://alexai.work/v1",
   apiKey: "",
   codexCli: false,
   apiMode: "images",

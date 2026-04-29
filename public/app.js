@@ -9,7 +9,7 @@ const appVersion = "20260429-chinese-release";
 const legacyHistoryKeys = ["alexai-replica-tasks", "gpt-image-node-tasks"];
 
 const defaults = {
-  settings: { apiUrl: "https://api.openai.com/v1", apiKey: "", apiMode: "images", mainModelId: "gpt-5.5", modelId: "gpt-image-2", timeoutSeconds: 120 },
+  settings: { apiUrl: "https://alexai.work/v1", apiKey: "", apiMode: "images", mainModelId: "gpt-5.5", modelId: "gpt-image-2", timeoutSeconds: 120 },
   params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 }
 };
 
@@ -746,8 +746,9 @@ function openSettings() {
     <section class="modal-card">
       <div class="section-head compact"><div><h2>设置</h2><p>保存在本机 localStorage · ${esc(appVersion)}</p></div><button class="icon-btn" data-close-modal type="button">×</button></div>
       <div class="settings-form">
-        <label><span>API URL</span><input id="modalApiUrl" value="${attr(state.settings.apiUrl)}" placeholder="https://api.openai.com/v1" /></label>
+        <label><span>API URL</span><input id="modalApiUrl" value="${attr(state.settings.apiUrl)}" placeholder="https://alexai.work/v1" /></label>
         <label><span>API Key</span><input id="modalApiKey" value="${attr(state.settings.apiKey)}" type="password" placeholder="不会硬编码，仅本机保存" /></label>
+        <div class="settings-help">没有 Key？<a href="https://alexai.work/register?aff=6019d650" target="_blank" rel="noreferrer">注册获取 Key</a></div>
         <label><span>接口模式</span><select id="modalApiMode"><option value="images">images</option><option value="responses">responses</option></select></label>
         <label><span>主模型</span><input id="modalMainModelId" value="${attr(state.settings.mainModelId || defaults.settings.mainModelId)}" /></label>
         <label><span>图像模型</span><input id="modalModelId" value="${attr(state.settings.modelId)}" /></label>
@@ -982,7 +983,7 @@ function applyQuerySettings(settings) {
 }
 
 function normalizeApiBaseUrl(value) {
-  const trimmed = String(value || defaults.settings.apiUrl || "https://api.openai.com/v1").trim();
+  const trimmed = String(value || defaults.settings.apiUrl || "https://alexai.work/v1").trim();
   try {
     const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
     url.search = "";

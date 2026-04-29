@@ -187,6 +187,31 @@ h3 {
   overflow-wrap: anywhere;
 }
 
+.settings-help {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  border: 1px dashed rgba(31, 111, 97, 0.3);
+  border-radius: 7px;
+  padding: 6px 10px;
+  background: rgba(232, 242, 236, 0.58);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-help a {
+  color: var(--jade);
+  text-decoration: none;
+}
+
+.settings-help a:hover {
+  text-decoration: underline;
+}
+
 .primary-btn,
 .ghost-btn,
 .load-more,
