@@ -1,0 +1,48 @@
+{
+  "name": "mojing-image-workbench",
+  "version": "0.1.0",
+  "description": "A local GPT Image 2 / gpt-image-2 image generation workbench with prompt templates and OpenAI-compatible relay API support.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dy30001/picture.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dy30001/picture/issues"
+  },
+  "homepage": "https://github.com/dy30001/picture#readme",
+  "keywords": [
+    "gpt-image-2",
+    "gpt-image",
+    "gpt image 2",
+    "openai-compatible",
+    "image-generation",
+    "prompt-templates",
+    "api-relay",
+    "ai-image",
+    "中转站",
+    "图片生成"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server/index.mjs --host 127.0.0.1 --port 4174",
+    "start": "node server/index.mjs --host 127.0.0.1 --port 4174",
+    "open": "node scripts/open-workbench.mjs",
+    "assets:brand": "node scripts/generate-brand-assets.mjs",
+    "build": "node scripts/build-node-app.mjs",
+    "preview": "node server/index.mjs --host 127.0.0.1 --port 4174",
+    "lint:strict": "node scripts/lint-strict.mjs",
+    "test": "node --import tsx --test tests/playground.test.ts tests/node-server.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "verify:visual": "node scripts/visual-check.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}

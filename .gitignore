@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Build and local runtime output
+dist/
+logs/
+data/logs/
+data/generated-history/
+data/history.json
+review/
+
+# Local generated projects and source material
+generated/
+final_4k/
+成片/
+reference/
+planning/
+
+# Local notes and source captures
+NEXT_*.md
+
+# Environment and OS files
+.env
+.env.*
+!.env.example
+.DS_Store
+npm-debug.log*

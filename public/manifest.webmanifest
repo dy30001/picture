@@ -1,0 +1,24 @@
+{
+  "name": "墨境图像工作台",
+  "short_name": "墨境",
+  "description": "本地运行的 OpenAI 兼容图像生成工作台",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7efe0",
+  "theme_color": "#a93127",
+  "icons": [
+    {
+      "src": "./assets/mojing-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/mojing-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

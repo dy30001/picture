@@ -1,0 +1,53 @@
+import { access, chmod, copyFile, mkdir, readdir, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+const root = process.cwd();
+const dist = join(root, "dist");
+
+await rm(dist, { recursive: true, force: true });
+await mkdir(dist, { recursive: true });
+await mkdir(join(dist, "public"), { recursive: true });
+await mkdir(join(dist, "public", "assets"), { recursive: true });
+await mkdir(join(dist, "server"), { recursive: true });
+await mkdir(join(dist, "scripts"), { recursive: true });
+
+for (const file of ["index.html", "app.js", "styles.css", "README_zh.md", "sorry-templates.json", "manifest.webmanifest"]) {
+  await copyIfExists(join(root, "public", file), join(dist, "public", file));
+}
+await copyPublicAssets(join(root, "public", "assets"), join(dist, "public", "assets"));
+await copyIfExists(join(root, "index.html"), join(dist, "index.html"));
+await copyIfExists(join(root, "manifest.webmanifest"), join(dist, "manifest.webmanifest"));
+for (const file of ["index.mjs", "template-store.mjs"]) {
+  await copyIfExists(join(root, "server", file), join(dist, "server", file));
+}
+await copyIfExists(join(root, "scripts", "open-workbench.mjs"), join(dist, "scripts", "open-workbench.mjs"));
+await copyIfExists(join(root, "启动图片生成工作台.command"), join(dist, "启动图片生成工作台.command"));
+await chmod(join(dist, "启动图片生成工作台.command"), 0o755);
+await writeFile(join(dist, "package.json"), `${JSON.stringify({
+  name: "mojing-image-workbench-dist",
+  version: "0.1.0",
+  private: true,
+  description: "墨境图像工作台独立运行包",
+  type: "module",
+  scripts: { start: "node server/index.mjs --host 127.0.0.1 --port 4174", open: "node scripts/open-workbench.mjs" },
+  dependencies: { express: "^5.2.1" }
+}, null, 2)}\n`);
+
+console.log("node app build passed");
+
+async function copyIfExists(from, to) {
+  try {
+    await access(from);
+    await copyFile(from, to);
+  } catch {
+    throw new Error(`missing required public asset: ${from}`);
+  }
+}
+
+async function copyPublicAssets(fromDir, toDir) {
+  const entries = await readdir(fromDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    await copyIfExists(join(fromDir, entry.name), join(toDir, entry.name));
+  }
+}

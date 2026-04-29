@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#a93127" />
+    <title>墨境图像工作台</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/mojing-icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="./assets/mojing-icon-192.png" />
+    <meta property="og:image" content="./assets/mojing-share-card.png" />
+    <link rel="stylesheet" href="./styles.css?v=20260429-chinese-release" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <img class="brand-mark" src="./assets/mojing-icon-192.png" alt="" aria-hidden="true" />
+          <div>
+            <span class="eyebrow">本地图像创作</span>
+            <h1>墨境图像工作台</h1>
+            <p id="statusLine">模板读取中</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="ghost-btn" id="testConnectionBtn" type="button">测试连接</button>
+          <button class="primary-btn" id="openSettingsBtn" type="button">设置</button>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="功能区">
+        <button class="tab active" data-tab="templates" type="button">模板库</button>
+        <button class="tab" data-tab="generate" type="button">生成图片</button>
+      </nav>
+
+      <section class="panel active" id="templatesPanel">
+        <div class="filters">
+          <label><span>搜索</span><input id="templateSearch" type="search" placeholder="标题、场景、关键词" /></label>
+          <label><span>分类</span><select id="categoryFilter"><option value="all">全部分类</option></select></label>
+          <label class="check-line"><input id="featuredOnly" type="checkbox" /><span>只看精选</span></label>
+        </div>
+        <div class="template-summary">
+          <strong id="templateCount">0 个模板</strong>
+          <span id="templateHint">支持搜索、分类和精选筛选</span>
+        </div>
+        <section class="template-grid" id="templateGrid" aria-live="polite"></section>
+        <button class="load-more" id="loadMoreBtn" type="button">加载更多</button>
+      </section>
+
+      <section class="panel generate-layout" id="generatePanel" hidden>
+        <section class="composer">
+          <div class="section-head">
+            <div>
+              <h2>生成图片</h2>
+              <p>选择模板后可继续编辑提示词</p>
+            </div>
+            <button class="ghost-btn" id="openSizeBtn" type="button">尺寸</button>
+          </div>
+          <label class="prompt-box"><span>Prompt</span><textarea id="promptInput" rows="10" placeholder="输入你想生成的画面、风格、镜头和约束"></textarea></label>
+          <div class="quick-params">
+            <label><span>质量</span><select id="qualitySelect"><option value="auto">auto</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></label>
+            <label><span>格式</span><select id="formatSelect"><option value="png">png</option><option value="jpeg">jpeg</option><option value="webp">webp</option></select></label>
+            <label><span>数量</span><input id="countInput" min="1" max="4" type="number" value="1" /></label>
+            <label><span>尺寸</span><input id="sizeInput" type="text" value="auto" readonly /></label>
+          </div>
+          <section class="reference-box">
+            <div class="section-head compact">
+              <div><h3>参考图</h3><p>支持多图上传，随生成请求提交</p></div>
+              <label class="file-btn">上传<input id="referenceInput" type="file" accept="image/*" multiple /></label>
+            </div>
+            <div class="reference-list" id="referenceList"></div>
+          </section>
+          <div class="generate-submit-row">
+            <div class="generation-timer"><span>生成耗时</span><strong id="generationTimer">未开始</strong></div>
+            <button class="primary-btn wide" id="generateBtn" type="button">生成</button>
+          </div>
+        </section>
+        <aside class="history">
+          <div class="section-head compact">
+            <div><h2>历史记录</h2><p id="historyCount">0 条</p></div>
+            <div class="history-actions">
+              <button class="ghost-btn" id="deletedHistoryBtn" type="button">已删除</button>
+              <button class="ghost-btn" id="clearHistoryBtn" type="button">清空</button>
+            </div>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </aside>
+      </section>
+    </main>
+    <div class="modal-root" id="modalRoot" hidden></div>
+    <script src="./app.js?v=20260429-chinese-release" defer></script>
+  </body>
+</html>
