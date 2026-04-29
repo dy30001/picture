@@ -205,7 +205,7 @@ function shareCard() {
         <text x="246" y="240" fill="#172033" font-size="64" font-weight="900">墨境图像工作台</text>
         <text x="246" y="304" fill="#5f5a51" font-size="30">模板、参考图、生成历史和下载整理在一个紧凑界面里</text>
         <g transform="translate(246 372)" font-size="24" font-weight="800">
-          <rect width="178" height="48" rx="12" fill="#a93127"/><text x="28" y="32" fill="#fffaf0">2321 模板</text>
+          <rect width="178" height="48" rx="12" fill="#a93127"/><text x="28" y="32" fill="#fffaf0">2300+ 模板</text>
           <rect x="196" width="166" height="48" rx="12" fill="#1f6f61"/><text x="224" y="32" fill="#fffaf0">本地运行</text>
           <rect x="382" width="192" height="48" rx="12" fill="#172033"/><text x="410" y="32" fill="#fffaf0">一键保存</text>
         </g>

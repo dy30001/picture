@@ -18,7 +18,7 @@ English keywords: GPT Image 2, `gpt-image-2`, OpenAI-compatible image generation
 - **GPT Image 2 优先**：默认图像模型是 `gpt-image-2`。
 - **兼容中转站 API**：只要接口兼容 OpenAI `/v1`，就可以在设置里填写 Base URL 和 API Key。
 - **两种调用模式**：支持 `/v1/images/generations`、`/v1/images/edits`，也支持 `/v1/responses` + `image_generation` 工具模式。
-- **2321 个提示词模板**：内置模板库，支持搜索、分类、精选筛选，分类会显示数量。
+- **2300+ 个提示词模板**：内置模板库，支持搜索、分类、精选筛选，分类会显示数量。
 - **轻量模板加载**：列表只加载摘要，点“使用模板”时再取完整 prompt。
 - **参考图编辑**：上传参考图后自动走图片编辑流程。
 - **本机历史记录**：生成历史保存在本机 JSON 文件和图片目录里，不依赖数据库。
