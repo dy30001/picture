@@ -522,7 +522,7 @@ button:disabled {
   position: relative;
   display: grid;
   gap: 2px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   overflow: hidden;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(255, 250, 242, 0.78)),
@@ -551,7 +551,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   margin: 5px 0;
-  padding: 8px 10px;
+  padding: 7px 10px;
   background:
     linear-gradient(105deg, rgba(25, 33, 50, 0.96), rgba(38, 49, 69, 0.96) 58%, rgba(37, 99, 235, 0.88)),
     #192132;
@@ -614,8 +614,8 @@ button:disabled {
   grid-template-columns: 26px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
-  min-height: 48px;
-  padding: 6px 8px;
+  min-height: 42px;
+  padding: 5px 8px;
   color: var(--ink);
   text-align: left;
 }
@@ -685,8 +685,8 @@ button:disabled {
   position: relative;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 5px;
-  margin-bottom: 5px;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 .stage-rail::before {
@@ -742,15 +742,15 @@ button:disabled {
   align-content: center;
   gap: 2px;
   min-width: 0;
-  min-height: 44px;
-  padding: 6px 8px;
+  min-height: 32px;
+  padding: 4px 8px;
   border-left: 3px solid #94a3b8;
   cursor: pointer;
 }
 
 .stage::before {
   position: absolute;
-  top: 8px;
+  top: 6px;
   right: 8px;
   width: 10px;
   height: 10px;
@@ -766,7 +766,11 @@ button:disabled {
 }
 
 .stage strong {
-  font-size: 13px;
+  font-size: 12px;
+}
+
+.stage small {
+  display: none;
 }
 
 .stage.ready {
@@ -1124,7 +1128,20 @@ body[data-scene="wedding"] .scene-card[data-scene="wedding"] em {
 .outfit-card em {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.outfit-card strong,
+.outfit-card small {
   white-space: nowrap;
+}
+
+.outfit-card em {
+  display: -webkit-box;
+  min-height: 26px;
+  line-height: 1.2;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .outfit-card strong {
@@ -1170,6 +1187,7 @@ label {
   border: 1px solid rgba(216, 225, 237, 0.96);
   border-radius: 8px;
   padding: 7px 8px 35px;
+  contain: layout paint;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 234, 209, 0.42)),
     rgba(248, 250, 252, 0.92);
@@ -2140,24 +2158,29 @@ input[type="file"] {
   }
 
   .topbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 0;
     gap: 6px;
   }
 
   body[data-scene="wedding"] .topbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 0;
   }
 
   .top-actions {
-    align-items: flex-end;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
   }
 
   .hero-brief {
-    width: min(100%, 220px);
-    max-width: 220px;
+    max-width: 150px;
+    padding: 5px 7px;
+  }
+
+  .hero-brief span {
+    display: none;
   }
 
   .auth-bar {
@@ -2190,8 +2213,10 @@ input[type="file"] {
   }
 
   .customer-step-panel {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: stretch;
+    gap: 6px;
+    padding: 8px;
   }
 
   .customer-step-main p,
@@ -2200,30 +2225,113 @@ input[type="file"] {
   }
 
   .customer-step-proof {
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-    border-left: 0;
-    padding-top: 6px;
-    padding-left: 0;
+    display: none;
   }
 
   .customer-step-panel .primary-btn {
-    width: 100%;
+    width: auto;
+    min-width: 82px;
   }
 
   .customer-flow-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: 138px;
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .customer-flow-step {
+    min-height: 44px;
   }
 
   .scene-rail {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: 148px;
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .scene-card {
+    min-height: 64px;
+  }
+
+  .scene-card small {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .scene-card {
+    min-height: 72px;
+  }
+
+  .scene-card small {
+    display: -webkit-box;
+    line-height: 1.25;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .upload-card::after {
+    display: none;
   }
 
   .scene-campaign-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .campaign-card {
+    padding: 6px;
+  }
+
+  .campaign-card strong {
+    font-size: 12px;
+  }
+
+  .campaign-card small {
+    display: none;
+  }
+
+  .upload-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .upload-card {
+    min-height: 66px;
+    padding: 7px 7px 32px;
+  }
+
+  .upload-card span,
+  .upload-card small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .upload-card::after {
+    display: none;
+  }
+
+  .reference-strip {
     grid-template-columns: 1fr;
+    min-height: 44px;
+  }
+
+  .side-card {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .side-card p {
+    display: none;
   }
 
   .stage-rail {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: none;
   }
 
   .module-tabs {
@@ -2321,8 +2429,18 @@ input[type="file"] {
   }
 
   .wardrobe-grid {
+    grid-auto-flow: column;
+    grid-auto-columns: 142px;
+    grid-template-columns: none;
+    max-height: 86px;
+  }
+
+  .wardrobe-head {
     grid-template-columns: 1fr;
-    max-height: 380px;
+  }
+
+  .wardrobe-head > div:first-child p {
+    display: none;
   }
 
   .batch-row.has-cover {

@@ -9,7 +9,7 @@
     <link rel="icon" href="./assets/mojing-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="./assets/mojing-icon-192.png" />
     <meta property="og:image" content="./assets/mojing-share-card.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260430-known-upload" />
+    <link rel="stylesheet" href="./styles.css?v=20260502-personal-studio" />
   </head>
   <body>
     <main class="app-shell">
@@ -17,9 +17,9 @@
         <div class="brand-block">
           <img class="brand-mark" src="./assets/mojing-icon-192.png" alt="" aria-hidden="true" />
           <div>
-            <span class="eyebrow">本地图像创作</span>
-            <h1>墨境图像工作台</h1>
-            <p id="statusLine">模板读取中</p>
+            <span class="eyebrow">个人 AI 摄影棚</span>
+            <h1>墨境个人 AI 摄影棚</h1>
+            <p id="statusLine">摄影棚准备中</p>
           </div>
         </div>
         <div class="top-actions">
@@ -30,12 +30,75 @@
       </header>
 
       <nav class="tabs" aria-label="功能区">
-        <button class="tab active" data-tab="templates" type="button">模板库</button>
+        <button class="tab active" data-tab="studio" type="button">摄影棚</button>
+        <button class="tab" data-tab="templates" type="button">模板库</button>
         <button class="tab" data-tab="generate" type="button">生成图片</button>
         <button class="tab" data-tab="credits" type="button">积分</button>
       </nav>
 
-      <section class="panel active" id="templatesPanel">
+      <section class="panel active" id="studioPanel">
+        <section class="studio-dashboard">
+          <section class="studio-main">
+            <div class="studio-hero">
+              <div>
+                <span class="eyebrow">上传本人参考照，确认数字底片，再按场景包出片</span>
+                <h2>先定身份，再拍样片，最后批量交付</h2>
+              </div>
+              <button class="primary-btn" id="studioStartBtn" type="button">选择场景</button>
+            </div>
+            <div class="studio-flow" id="studioFlow" aria-label="摄影棚流程"></div>
+            <div class="studio-section-head">
+              <div>
+                <h2>场景包</h2>
+                <p>先选业务场景，不直接进入完整模板库</p>
+              </div>
+              <button class="ghost-btn" id="openTemplateLibraryBtn" type="button">完整模板库</button>
+            </div>
+            <div class="scene-pack-grid" id="scenePackGrid"></div>
+          </section>
+          <aside class="studio-side">
+            <section class="studio-card identity-card">
+              <div class="studio-section-head compact">
+                <div>
+                  <h2>数字底片</h2>
+                  <p id="identitySummary">待上传参考照</p>
+                </div>
+                <span class="status-chip pending" id="identityStatusChip">待上传</span>
+              </div>
+              <div class="identity-check-grid" id="identityCheckGrid"></div>
+              <div class="identity-actions">
+                <label class="file-btn">上传参考照<input id="studioReferenceInput" type="file" accept="image/*" multiple /></label>
+                <button class="ghost-btn" id="confirmIdentityBtn" type="button">确认数字底片</button>
+              </div>
+            </section>
+            <section class="studio-card">
+              <div class="studio-section-head compact">
+                <div>
+                  <h2>样片方向</h2>
+                  <p id="sampleSummary">选择场景后推荐 3 个方向</p>
+                </div>
+              </div>
+              <div class="sample-direction-list" id="sampleDirectionList"></div>
+            </section>
+            <section class="studio-card delivery-card">
+              <div class="studio-section-head compact">
+                <div>
+                  <h2>成片交付</h2>
+                  <p>样片确认后再批量生成</p>
+                </div>
+              </div>
+              <div class="delivery-grid">
+                <span><strong id="deliverySceneCount">0</strong> 场景</span>
+                <span><strong id="deliverySampleCount">0</strong> 样片方向</span>
+                <span><strong id="deliveryReadyCount">0</strong> 可交付</span>
+              </div>
+              <button class="primary-btn wide" id="studioGenerateBtn" type="button">用样片方向生成</button>
+            </section>
+          </aside>
+        </section>
+      </section>
+
+      <section class="panel" id="templatesPanel" hidden>
         <div class="filters">
           <label><span>搜索</span><input id="templateSearch" type="search" placeholder="标题、场景、关键词" /></label>
           <label><span>分类</span><select id="categoryFilter"><option value="all">全部分类</option></select></label>
@@ -79,6 +142,13 @@
             </div>
             <div class="reference-list" id="referenceList"></div>
           </section>
+          <div class="credit-cost-bar" id="creditCostBar">
+            <div>
+              <span>预计消耗</span>
+              <strong id="creditCostStatus">读取中</strong>
+            </div>
+            <button class="ghost-btn" id="creditRechargeShortcut" type="button">充值积分</button>
+          </div>
           <div class="generate-submit-row">
             <div class="generation-timer"><span>生成耗时</span><strong id="generationTimer">未开始</strong></div>
             <button class="primary-btn wide" id="generateBtn" type="button">生成</button>
@@ -125,6 +195,6 @@
       </section>
     </main>
     <div class="modal-root" id="modalRoot" hidden></div>
-    <script src="./app.js?v=20260430-known-upload" defer></script>
+    <script src="./app.js?v=20260502-personal-studio" defer></script>
   </body>
 </html>

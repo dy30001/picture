@@ -106,9 +106,9 @@ const sceneThemes = {
     tone: "高定旅拍",
     proof: "身份、礼服、场景一起复核",
     cards: [
-      { label: "身份", title: "新人原片", copy: "新娘、新郎、合照分开锁定" },
-      { label: "礼服", title: "主纱/轻纱", copy: "材质、裙摆、头纱先定调" },
-      { label: "出片", title: "9 张样片", copy: "封面、互动、细节同步看" }
+      { label: "身份", title: "新人锁脸", copy: "新娘、新郎、合照分开锁定" },
+      { label: "礼服", title: "主纱选款", copy: "材质、裙摆、头纱先定调" },
+      { label: "样片", title: "9 张预览", copy: "封面、互动、细节同步看" }
     ]
   },
   friendsWedding: {
@@ -1258,11 +1258,11 @@ function customerFlowItems() {
     hasDelivery ? "done" : hasSamples ? "active" : "locked"
   ];
   return [
-    { index: "1", title: "选场景/传素材", caption: count ? `${count} 张素材` : "等待上传", tab: "recognition", state: states[0] },
-    { index: "2", title: "确认人物", caption: gate.detected ? "已确认" : "待确认", tab: "recognition", state: states[1] },
-    { index: "3", title: "确认三视图", caption: gate.baseline ? "已通过" : gate.turnaround ? "待确认" : "待复核", tab: "turnaround", state: states[2] },
-    { index: "4", title: "选模板样片", caption: hasSamples ? `${countBatchImages(sceneResultBatches())} 张` : "待生成", tab: "recognition", state: states[3] },
-    { index: "5", title: "看成片交付", caption: hasDelivery ? `${state.workflow?.totals?.chengpin || 0} 张` : "待交付", tab: "delivery", state: states[4] }
+    { index: "1", title: "素材", caption: count ? `${count} 张` : "待传", tab: "recognition", state: states[0] },
+    { index: "2", title: "人物", caption: gate.detected ? "已确认" : "待确认", tab: "recognition", state: states[1] },
+    { index: "3", title: "三视图", caption: gate.baseline ? "已通过" : gate.turnaround ? "待确认" : "待复核", tab: "turnaround", state: states[2] },
+    { index: "4", title: "样片", caption: hasSamples ? `${countBatchImages(sceneResultBatches())} 张` : "待生成", tab: "recognition", state: states[3] },
+    { index: "5", title: "交付", caption: hasDelivery ? `${state.workflow?.totals?.chengpin || 0} 张` : "待交付", tab: "delivery", state: states[4] }
   ];
 }
 

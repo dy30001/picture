@@ -68,6 +68,9 @@ button {
 .tabs,
 .filters,
 .template-summary,
+.studio-card,
+.scene-pack-card,
+.sample-direction-card,
 .composer,
 .history,
 .modal-card,
@@ -298,7 +301,7 @@ h3 {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 5px;
   margin: 10px 0;
   padding: 5px;
@@ -352,6 +355,282 @@ h3 {
 
 .panel.active {
   display: block !important;
+}
+
+.studio-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) 420px;
+  gap: 10px;
+}
+
+.studio-main,
+.studio-side {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.studio-hero,
+.studio-flow,
+.studio-section-head,
+.scene-pack-grid,
+.identity-check-grid,
+.identity-actions,
+.sample-direction-list,
+.delivery-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.studio-hero {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 96px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 13px 14px;
+  background:
+    linear-gradient(95deg, rgba(255, 253, 247, 0.96), rgba(225, 238, 230, 0.88)),
+    url("./assets/mojing-panel-wash.png") center / cover;
+  box-shadow: var(--shadow);
+}
+
+.studio-hero h2 {
+  margin-top: 3px;
+  font-size: 25px;
+  line-height: 1.15;
+}
+
+.studio-flow {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.studio-flow-step {
+  min-height: 68px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px;
+  background: rgba(255, 253, 247, 0.9);
+  box-shadow: var(--soft-shadow);
+}
+
+.studio-flow-step strong,
+.studio-flow-step span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-flow-step strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.studio-flow-step span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.studio-flow-step.active {
+  border-color: rgba(169, 49, 39, 0.42);
+  background: #fff3ec;
+}
+
+.studio-flow-step.complete {
+  border-color: rgba(31, 111, 97, 0.3);
+  background: var(--jade-soft);
+}
+
+.studio-section-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: var(--soft-shadow);
+}
+
+.studio-section-head.compact {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.studio-section-head p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.scene-pack-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scene-pack-card,
+.studio-card {
+  background:
+    linear-gradient(180deg, rgba(255, 253, 247, 0.96), rgba(255, 255, 255, 0.9)),
+    url("./assets/mojing-panel-wash.png") center / cover;
+  box-shadow: var(--soft-shadow);
+}
+
+.scene-pack-card {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+}
+
+.scene-pack-card.selected {
+  border-color: rgba(169, 49, 39, 0.44);
+  background: linear-gradient(180deg, rgba(255, 246, 240, 0.96), rgba(255, 253, 247, 0.92));
+}
+
+.scene-pack-head,
+.scene-pack-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.scene-pack-head span,
+.scene-pack-head em,
+.scene-pack-meta span,
+.status-chip {
+  border-radius: 999px;
+  padding: 3px 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.scene-pack-head span,
+.scene-pack-meta span {
+  background: var(--jade-soft);
+  color: var(--jade-dark);
+}
+
+.scene-pack-head em {
+  background: #fff3ec;
+  color: var(--cinnabar-dark);
+  font-style: normal;
+}
+
+.scene-pack-card h3 {
+  font-size: 18px;
+}
+
+.scene-pack-card p {
+  min-height: 36px;
+  color: #4d4a42;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.studio-card {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.status-chip {
+  background: #fff3ec;
+  color: var(--cinnabar-dark);
+}
+
+.status-chip.ready {
+  background: var(--jade-soft);
+  color: var(--jade-dark);
+}
+
+.status-chip.danger {
+  background: #fae4df;
+  color: var(--cinnabar-dark);
+}
+
+.identity-check-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.identity-check {
+  display: grid;
+  gap: 3px;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(255, 253, 247, 0.88);
+  text-align: left;
+}
+
+.identity-check.active {
+  border-color: rgba(169, 49, 39, 0.44);
+  background: #fff3ec;
+}
+
+.identity-check span,
+.sample-direction-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.identity-actions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.sample-direction-list {
+  max-height: 278px;
+  overflow: auto;
+}
+
+.sample-direction-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 8px;
+  background: rgba(255, 253, 247, 0.9);
+  box-shadow: none;
+}
+
+.sample-direction-card.selected {
+  border-color: rgba(31, 111, 97, 0.36);
+  background: var(--jade-soft);
+}
+
+.sample-direction-card div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sample-direction-card strong,
+.sample-direction-card span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.delivery-grid span {
+  display: grid;
+  place-items: center;
+  min-height: 58px;
+  border: 1px solid rgba(31, 111, 97, 0.2);
+  border-radius: 8px;
+  background: rgba(232, 242, 236, 0.62);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.delivery-grid strong {
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1;
 }
 
 .generate-layout.active {
@@ -1262,11 +1541,27 @@ textarea:focus {
   }
 
   .filters,
+  .studio-dashboard,
+  .studio-hero,
+  .studio-section-head,
   .generate-layout.active,
   .credits-layout,
   .edit-module,
   .quick-params,
   .settings-form {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scene-pack-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .identity-actions,
+  .delivery-grid {
     grid-template-columns: 1fr;
   }
 

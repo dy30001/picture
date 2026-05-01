@@ -20,6 +20,7 @@ await copyIfExists(join(root, "manifest.webmanifest"), join(dist, "manifest.webm
 for (const file of ["index.mjs", "template-store.mjs"]) {
   await copyIfExists(join(root, "server", file), join(dist, "server", file));
 }
+await copyServerCredits(join(root, "server", "credits"), join(dist, "server", "credits"));
 await copyIfExists(join(root, "scripts", "open-workbench.mjs"), join(dist, "scripts", "open-workbench.mjs"));
 await copyIfExists(join(root, "启动图片生成工作台.command"), join(dist, "启动图片生成工作台.command"));
 await chmod(join(dist, "启动图片生成工作台.command"), 0o755);
@@ -45,6 +46,15 @@ async function copyIfExists(from, to) {
 }
 
 async function copyPublicAssets(fromDir, toDir) {
+  const entries = await readdir(fromDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    await copyIfExists(join(fromDir, entry.name), join(toDir, entry.name));
+  }
+}
+
+async function copyServerCredits(fromDir, toDir) {
+  await mkdir(toDir, { recursive: true });
   const entries = await readdir(fromDir, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isFile()) continue;

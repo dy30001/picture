@@ -158,13 +158,23 @@ function normalizeTemplateKey(value) {
     .slice(0, 220);
 }
 
-function promptTemplateCategories(templates, max = 12) {
+const priorityCategories = ["婚纱照", "人像基准", "情侣照", "闺蜜照", "女生写真", "10 岁照", "夕阳红"];
+
+function promptTemplateCategories(templates, max = 16) {
   const counts = new Map();
   for (const template of templates) counts.set(template.category, (counts.get(template.category) ?? 0) + 1);
-  return [...counts.entries()]
+  const byCount = [...counts.entries()]
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "zh-CN"))
-    .slice(0, max)
     .map(([category]) => category);
+  const result = [];
+  for (const category of priorityCategories) {
+    if (counts.has(category)) result.push(category);
+  }
+  for (const category of byCount) {
+    if (!result.includes(category)) result.push(category);
+    if (result.length >= max) break;
+  }
+  return result;
 }
 
 function extractPrompt(section) {

@@ -34,6 +34,9 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     await waitForHttp(baseUrl, child, output);
     const html = await fetchText(baseUrl);
     assert.match(html, /图片生成工作台|id="templatesPanel"/);
+    assert.match(html, /data-tab="studio"/);
+    assert.match(html, /id="studioPanel"/);
+    assert.match(html, /婚纱照/);
 
     const health = await fetchJson(`${baseUrl}/api/health`);
     assert.equal(health.ok, true);
@@ -67,6 +70,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.ok(templates.total > 100);
     assert.ok(templates.templates[0]?.promptPreview);
     assert.equal("prompt" in templates.templates[0], false);
+    assert.ok(templates.categories.includes("婚纱照"), "catalog categories should include the wedding photo bucket");
 
     const templateDetail = await fetchJson(`${baseUrl}/api/templates/${encodeURIComponent(templates.templates[0].id)}`);
     assert.equal(templateDetail.ok, true);
@@ -82,6 +86,11 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(bestFriendsTemplate.ok, true);
     assert.equal(bestFriendsTemplate.template.category, "闺蜜照");
     assert.match(bestFriendsTemplate.template.prompt, /亲密朋友/);
+
+    const weddingTemplate = await fetchJson(`${baseUrl}/api/templates/portrait-wedding-couture-cover-v01`);
+    assert.equal(weddingTemplate.ok, true);
+    assert.equal(weddingTemplate.template.category, "婚纱照");
+    assert.match(weddingTemplate.template.prompt, /婚纱/);
 
     const fullCatalog = await fetchJson(`${baseUrl}/api/templates?full=1`);
     assert.equal(fullCatalog.ok, true);
@@ -139,8 +148,10 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 test("Node server logs upstream HTML generation failures", { skip: !existsSync(serverEntryPath) }, async () => {
   const port = await getOpenPort();
   const htmlTaskId = `html-upstream-${port}`;
-  const htmlClient = historyClientKey(`203.0.113.${port % 200}`);
+  const htmlIp = `203.0.113.${port % 200}`;
+  const htmlClient = historyClientKey(htmlIp);
   cleanupHistoryClient(htmlClient);
+  cleanupCreditClient(htmlClient);
   const upstream = createHttpServer((request, response) => {
     if (request.url === "/v1/images/generations") {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
@@ -164,9 +175,15 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
   try {
     const baseUrl = `http://127.0.0.1:${port}`;
     await waitForHttp(baseUrl, child, output);
+    const recharge = await fetchJson(`${baseUrl}/api/credits/recharge`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": htmlIp },
+      body: JSON.stringify({ packageId: "trial" })
+    });
+    assert.equal(recharge.ok, true);
     const response = await fetch(`${baseUrl}/api/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": `203.0.113.${port % 200}` },
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": htmlIp },
       body: JSON.stringify({
         taskId: htmlTaskId,
         prompt: "html upstream failure",
@@ -201,6 +218,7 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
     await Promise.race([once(child, "exit"), delay(1500)]);
     if (child.exitCode === null) child.kill("SIGKILL");
     cleanupHistoryClient(htmlClient);
+    cleanupCreditClient(htmlClient);
   }
 
   assert.notEqual(child.exitCode, 1, output());

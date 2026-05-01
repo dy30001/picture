@@ -26,12 +26,28 @@ for (const item of cases) {
     localStorage.removeItem("pic.native.params");
     localStorage.removeItem("pic.native.history");
     localStorage.removeItem("pic.native.deletedHistory");
+    localStorage.removeItem("pic.native.studio");
   });
   await page.goto(url, { waitUntil: "domcontentloaded" });
   if (pageErrors.length) throw new Error(`${item.name}: page script error: ${pageErrors.join("; ")}`);
   await page.waitForSelector("body", { timeout: 15_000 });
+  await expectVisibleAny(page, ["#studioPanel", "text=个人 AI 摄影棚"], `${item.name}: missing studio home`);
+  await expectText(page, "#studioPanel", "数字底片", `${item.name}: missing identity baseline block`);
+  await expectText(page, "#studioPanel", "婚纱照", `${item.name}: missing wedding scene pack`);
+  await clickFirst(page, "[data-studio-scene='couple']", `${item.name}: missing couple scene pack`);
+  await expectText(page, "#sampleSummary", "情侣照", `${item.name}: scene selection did not update sample summary`);
+  await clickFirst(page, "[data-studio-sample='daily']", `${item.name}: missing studio sample direction`);
+  await clickFirst(page, "[data-identity-status='已确认']", `${item.name}: missing identity confirmation action`);
+  await clickFirst(page, "#studioGenerateBtn", `${item.name}: missing studio generate action`);
+  await page.waitForFunction(() => {
+    const input = document.querySelector("#promptInput");
+    return input && input.value.includes("场景包：情侣照") && input.value.includes("样片方向：日常胶片");
+  });
+  await clickFirst(page, "[data-tab='studio']", `${item.name}: missing studio tab`);
   await expectVisibleAny(page, ["[data-template-panel]", "#templatesPanel", "text=模板库"], `${item.name}: missing template library`);
   await clickFirst(page, "[data-tab='templates']", `${item.name}: missing templates tab`);
+  await page.waitForFunction(() => [...document.querySelectorAll("#categoryFilter option")].some((option) => option.value === "婚纱照"));
+  await page.selectOption("#categoryFilter", "婚纱照");
   await page.waitForSelector("[data-use-template]", { timeout: 15_000 });
   await clickFirst(page, "[data-use-template]", `${item.name}: template action missing`);
   await page.waitForFunction(() => {
@@ -67,7 +83,7 @@ for (const item of cases) {
       toolbarHeight: Math.round(toolbar?.height ?? 0)
     };
   });
-  if (!/墨境|AlexAI|GPT Image|图片生成|图像工作台|模板/.test(metrics.title)) throw new Error(`${item.name}: missing page title`);
+  if (!/墨境|AlexAI|GPT Image|图片生成|图像工作台|模板|摄影棚/.test(metrics.title)) throw new Error(`${item.name}: missing page title`);
   if (metrics.inputHeight <= 0) throw new Error(`${item.name}: prompt input is not visible`);
   if (metrics.inputHeight > (item.name === "mobile" ? 520 : 420)) throw new Error(`${item.name}: input area is too tall (${metrics.inputHeight}px)`);
   if (metrics.toolbarHeight > 0 && metrics.toolbarHeight > 54) throw new Error(`${item.name}: toolbar is too tall (${metrics.toolbarHeight}px)`);

@@ -2,6 +2,8 @@ import express from "express";
 import { access, appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createCreditService, CreditServiceError } from "./credits/service.mjs";
+import { createCreditStore } from "./credits/store.mjs";
 import { createTemplateStore } from "./template-store.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -9,16 +11,11 @@ const publicDir = join(root, "public");
 const dataDir = join(root, "data");
 const historyImageDir = join(dataDir, "generated-history");
 const historyStoreDir = join(dataDir, "history");
-const creditStoreDir = join(dataDir, "credits");
 const logDir = join(dataDir, "logs");
 const generationErrorLogFile = join(logDir, "generation-errors.ndjson");
 const templateStore = createTemplateStore({ publicDir });
-const creditPackages = [
-  { id: "trial", name: "试用包", credits: 100, bonus: 0, amountCny: 9.9, badge: "体验" },
-  { id: "starter", name: "创作包", credits: 300, bonus: 30, amountCny: 29.9, badge: "常用" },
-  { id: "studio", name: "工作室包", credits: 800, bonus: 120, amountCny: 79.9, badge: "推荐" },
-  { id: "pro", name: "批量包", credits: 1800, bonus: 360, amountCny: 169, badge: "批量" }
-];
+const creditStore = createCreditStore({ dataDir, safeClientKey });
+const creditService = createCreditService({ store: creditStore, safeId });
 const defaultSettings = {
   apiUrl: "https://alexai.work/v1",
   apiKey: "",
@@ -88,8 +85,18 @@ app.post("/api/test-connection", async (request, response) => {
 app.get("/api/credits", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
-    const store = await readCreditStore(clientKey);
-    response.json({ ok: true, clientKey, ...creditSummary(store), packages: publicCreditPackages() });
+    response.json({ ok: true, clientKey, ...await creditService.getCredits(clientKey) });
+  } catch (error) {
+    response.status(503).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.post("/api/credits/estimate", async (request, response) => {
+  try {
+    const clientKey = clientKeyFromRequest(request);
+    const params = sanitizeParams(request.body?.params);
+    const references = requestReferences(request.body?.references);
+    response.json({ ok: true, clientKey, ...await creditService.estimate(params, references, clientKey) });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
   }
@@ -99,22 +106,9 @@ app.post("/api/credits/recharge", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
     const packageId = String(request.body?.packageId || "");
-    const selected = creditPackages.find((item) => item.id === packageId);
-    if (!selected) {
-      response.status(400).json({ ok: false, message: "充值档位不存在" });
-      return;
-    }
-    const entry = creditRechargeEntry(selected);
-    const store = await mutateCreditStore((draft) => {
-      draft.balance += entry.credits;
-      draft.ledger.unshift(entry);
-      draft.updatedAt = entry.createdAt;
-      trimCreditLedger(draft);
-      return draft;
-    }, clientKey);
-    response.json({ ok: true, clientKey, entry, ...creditSummary(store), packages: publicCreditPackages() });
+    response.json({ ok: true, clientKey, ...await creditService.recharge(packageId, clientKey) });
   } catch (error) {
-    response.status(503).json({ ok: false, message: errorMessage(error) });
+    response.status(errorStatus(error, 503)).json({ ok: false, message: errorMessage(error) });
   }
 });
 
@@ -135,9 +129,18 @@ app.post("/api/generate", async (request, response) => {
     response.status(400).json({ ok: false, message: "请输入提示词" });
     return;
   }
+  let creditEstimate = null;
   try {
+    creditEstimate = await creditService.assertEnough(params, references, clientKey);
     const result = await generateOpenAIImage(settings, prompt, params, references);
     const images = await persistHistoryImages(result.images, taskId, params.outputFormat, clientKey);
+    const creditSpend = await creditService.spendForGeneration({
+      taskId,
+      params,
+      references,
+      imageCount: images.length,
+      clientKey
+    });
     const task = {
       id: taskId,
       prompt,
@@ -147,13 +150,30 @@ app.post("/api/generate", async (request, response) => {
       images,
       error: "",
       revisedPrompt: result.revisedPrompt || "",
+      creditCost: creditSpend.finalCost,
+      creditUnitCost: creditSpend.unitCost,
+      creditLedgerId: creditSpend.entry?.id || "",
       createdAt: createdAt.getTime(),
       finishedAt: Date.now()
     };
     const historySaved = await saveHistoryTaskSafely(task, clientKey);
-    response.json({ ok: true, ...result, images, historySaved });
+    response.json({
+      ok: true,
+      ...result,
+      images,
+      historySaved,
+      creditCost: creditSpend.finalCost,
+      creditUnitCost: creditSpend.unitCost,
+      creditBalance: creditSpend.balance,
+      creditLedgerId: creditSpend.entry?.id || "",
+      creditEstimate
+    });
   } catch (error) {
     const message = errorMessage(error);
+    if (error instanceof CreditServiceError) {
+      response.status(errorStatus(error, 402)).json({ ok: false, message, credit: error.details || null });
+      return;
+    }
     await writeGenerationErrorLog({
       requestId,
       clientKey,
@@ -173,6 +193,9 @@ app.post("/api/generate", async (request, response) => {
       images: [],
       error: message,
       revisedPrompt: "",
+      creditCost: 0,
+      creditUnitCost: creditEstimate?.unitCost || 0,
+      creditLedgerId: "",
       createdAt: createdAt.getTime(),
       finishedAt: Date.now()
     }, clientKey);
@@ -531,6 +554,9 @@ function normalizeClientHistoryTask(task) {
     images: Array.isArray(task.images) ? task.images : Array.isArray(task.outputImages) ? task.outputImages : [],
     error: String(task.error || ""),
     revisedPrompt: String(task.revisedPrompt || task.revised_prompt || ""),
+    creditCost: Math.max(0, Number(task.creditCost) || 0),
+    creditUnitCost: Math.max(0, Number(task.creditUnitCost) || 0),
+    creditLedgerId: String(task.creditLedgerId || ""),
     createdAt: safeDate(task.createdAt, new Date()).getTime(),
     finishedAt: task.finishedAt ? safeDate(task.finishedAt, new Date()).getTime() : null
   };
@@ -692,125 +718,6 @@ function mutateHistoryStore(mutator, clientKey = "local") {
   return run;
 }
 
-const creditReadyPromises = new Map();
-let creditWriteQueue = Promise.resolve();
-
-function ensureCreditStore(clientKey = "local") {
-  const key = safeClientKey(clientKey);
-  if (!creditReadyPromises.has(key)) creditReadyPromises.set(key, initializeCreditStore(key));
-  return creditReadyPromises.get(key);
-}
-
-async function initializeCreditStore(clientKey = "local") {
-  await mkdir(dataDir, { recursive: true });
-  await mkdir(creditStoreDir, { recursive: true });
-  const storeFile = creditStoreFileForClient(clientKey);
-  try {
-    await access(storeFile);
-  } catch {
-    await writeFile(storeFile, `${JSON.stringify(emptyCreditStore(), null, 2)}\n`);
-  }
-}
-
-async function readCreditStore(clientKey = "local") {
-  await ensureCreditStore(clientKey);
-  try {
-    const text = await readFile(creditStoreFileForClient(clientKey), "utf8");
-    return normalizeCreditStore(JSON.parse(text || "{}"));
-  } catch (error) {
-    if (error?.code === "ENOENT") return emptyCreditStore();
-    throw error;
-  }
-}
-
-async function writeCreditStore(store, clientKey = "local") {
-  await ensureCreditStore(clientKey);
-  await writeFile(creditStoreFileForClient(clientKey), `${JSON.stringify(normalizeCreditStore(store), null, 2)}\n`);
-}
-
-function mutateCreditStore(mutator, clientKey = "local") {
-  const run = creditWriteQueue.then(async () => {
-    const store = await readCreditStore(clientKey);
-    const result = await mutator(store);
-    trimCreditLedger(store);
-    await writeCreditStore(store, clientKey);
-    return result || store;
-  });
-  creditWriteQueue = run.catch(() => {});
-  return run;
-}
-
-function emptyCreditStore() {
-  const now = new Date().toISOString();
-  return { balance: 0, ledger: [], createdAt: now, updatedAt: now };
-}
-
-function normalizeCreditStore(value) {
-  const now = new Date().toISOString();
-  const store = value && typeof value === "object" ? value : {};
-  const ledger = Array.isArray(store.ledger) ? store.ledger.map(normalizeCreditEntry).filter(Boolean) : [];
-  return {
-    balance: Math.max(0, Number(store.balance) || 0),
-    ledger: ledger.slice(0, 120),
-    createdAt: String(store.createdAt || now),
-    updatedAt: String(store.updatedAt || store.createdAt || now)
-  };
-}
-
-function normalizeCreditEntry(entry) {
-  if (!entry || typeof entry !== "object") return null;
-  return {
-    id: safeId(entry.id || `credit-${Date.now().toString(36)}`),
-    type: entry.type === "spend" ? "spend" : "recharge",
-    packageId: String(entry.packageId || ""),
-    title: String(entry.title || ""),
-    credits: Number(entry.credits) || 0,
-    amountCny: Number(entry.amountCny) || 0,
-    status: String(entry.status || "succeeded"),
-    createdAt: String(entry.createdAt || new Date().toISOString())
-  };
-}
-
-function creditSummary(store) {
-  const normalized = normalizeCreditStore(store);
-  return {
-    balance: normalized.balance,
-    ledger: normalized.ledger.slice(0, 20),
-    updatedAt: normalized.updatedAt
-  };
-}
-
-function creditRechargeEntry(selected) {
-  const credits = Number(selected.credits) + Number(selected.bonus || 0);
-  return {
-    id: `recharge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-    type: "recharge",
-    packageId: selected.id,
-    title: selected.name,
-    credits,
-    amountCny: selected.amountCny,
-    status: "succeeded",
-    createdAt: new Date().toISOString()
-  };
-}
-
-function publicCreditPackages() {
-  return creditPackages.map((item) => ({
-    id: item.id,
-    name: item.name,
-    credits: item.credits,
-    bonus: item.bonus,
-    amountCny: item.amountCny,
-    badge: item.badge
-  }));
-}
-
-function trimCreditLedger(store) {
-  if (!Array.isArray(store.ledger)) store.ledger = [];
-  store.ledger.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
-  if (store.ledger.length > 120) store.ledger.splice(120);
-}
-
 function normalizeHistoryRecord(task) {
   return {
     id: safeId(task?.id),
@@ -821,6 +728,9 @@ function normalizeHistoryRecord(task) {
     images: Array.isArray(task?.images) ? task.images.map(String) : [],
     error: String(task?.error || ""),
     revisedPrompt: String(task?.revisedPrompt || task?.revised_prompt || ""),
+    creditCost: Math.max(0, Number(task?.creditCost) || 0),
+    creditUnitCost: Math.max(0, Number(task?.creditUnitCost) || 0),
+    creditLedgerId: String(task?.creditLedgerId || ""),
     createdAt: safeDate(task?.createdAt, new Date()).getTime(),
     finishedAt: task?.finishedAt ? safeDate(task.finishedAt, new Date()).getTime() : null,
     deletedAt: task?.deletedAt ? safeDate(task.deletedAt, new Date()).getTime() : null
@@ -855,10 +765,6 @@ function historyStoreFileForClient(clientKey = "local") {
 
 function historyImageDirForClient(clientKey = "local") {
   return join(historyImageDir, safeClientKey(clientKey));
-}
-
-function creditStoreFileForClient(clientKey = "local") {
-  return join(creditStoreDir, `${safeClientKey(clientKey)}.json`);
 }
 
 function clientKeyFromRequest(request) {
@@ -1019,4 +925,8 @@ function clampNumber(value, min, max) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function errorStatus(error, fallback = 500) {
+  return Number.isFinite(error?.status) ? error.status : fallback;
 }

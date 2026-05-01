@@ -36,7 +36,7 @@ test("identity workflow runs as a separate local program", { skip: !existsSync(s
     await waitForHttp(baseUrl, child, output);
     const html = await fetchText(baseUrl);
     const appJs = await fetchText(`${baseUrl}/app.js`);
-    assert.match(html, /写真选片交付流程/);
+    assert.match(html, /婚纱照选片交付台/);
     assert.match(html, /id="customerStepPanel"/);
     assert.match(html, /id="customerFlowRail"/);
     assert.match(html, /id="customerNextBtn"/);
@@ -73,7 +73,7 @@ test("identity workflow runs as a separate local program", { skip: !existsSync(s
     assert.match(html, /id="lightbox"/);
     assert.match(html, /id="viewerZoomBtn"/);
     assert.match(html, /id="lightboxZoomLabel"/);
-    assert.match(html, /客户选片流程台/);
+    assert.match(html, /婚纱客户选片台/);
     assert.match(html, /id="heroImageMain"/);
     assert.match(html, /id="heroSceneTone"/);
     assert.match(html, /id="sceneCampaignStrip"/);
