@@ -1,19 +1,23 @@
 :root {
   color-scheme: light;
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --paper: #fffaf0;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --paper: #fff8e8;
   --paper-strong: #ffffff;
-  --paper-soft: #f7efe0;
-  --ink: #172033;
-  --muted: #6f6a5f;
-  --line: #e2d5bd;
-  --line-strong: #c9ad7a;
+  --paper-soft: #efe3cf;
+  --ink: #151b29;
+  --ink-soft: #202a3b;
+  --muted: #665f55;
+  --line: #d8c49d;
+  --line-strong: #b89154;
   --cinnabar: #a93127;
   --cinnabar-dark: #7f251f;
   --jade: #1f6f61;
-  --jade-soft: #e8f2ec;
+  --jade-dark: #155244;
+  --jade-soft: #e1eee6;
   --gold: #b88945;
-  --shadow: 0 14px 34px rgba(54, 43, 28, 0.08);
+  --gold-soft: #efe2bf;
+  --shadow: 0 18px 42px rgba(40, 32, 22, 0.12);
+  --soft-shadow: 0 8px 22px rgba(40, 32, 22, 0.08);
   background: var(--paper-soft);
   color: var(--ink);
 }
@@ -26,8 +30,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.92), rgba(247, 239, 224, 0.94)),
-    url("./assets/mojing-ink-hero.png") top center / 100% 380px no-repeat,
+    linear-gradient(180deg, rgba(255, 248, 232, 0.84) 0%, rgba(239, 227, 207, 0.92) 58%, rgba(231, 238, 229, 0.94) 100%),
+    url("./assets/mojing-workbench-bg.png") top center / cover fixed,
     var(--paper-soft);
 }
 
@@ -37,10 +41,10 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(54, 43, 28, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(54, 43, 28, 0.02) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(to bottom, #000, transparent 70%);
+    linear-gradient(rgba(54, 43, 28, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(54, 43, 28, 0.028) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, #000, transparent 74%);
 }
 
 button,
@@ -55,9 +59,9 @@ button {
 }
 
 .app-shell {
-  width: min(1440px, calc(100vw - 28px));
+  width: min(1460px, calc(100vw - 28px));
   margin: 0 auto;
-  padding: 14px 0 22px;
+  padding: 12px 0 22px;
 }
 
 .topbar,
@@ -78,18 +82,44 @@ button {
 }
 
 .topbar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 14px;
+  min-height: 86px;
+  padding: 12px 14px 12px 16px;
   overflow: hidden;
   background:
-    linear-gradient(95deg, rgba(255, 250, 240, 0.95), rgba(255, 255, 255, 0.88) 58%, rgba(232, 242, 236, 0.82)),
+    linear-gradient(96deg, rgba(255, 253, 247, 0.96), rgba(255, 255, 255, 0.9) 48%, rgba(225, 238, 230, 0.86)),
     url("./assets/mojing-panel-wash.png") center / cover;
 }
 
+.topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: linear-gradient(180deg, var(--cinnabar), var(--gold), var(--jade));
+}
+
+.topbar::after {
+  content: "";
+  position: absolute;
+  right: 150px;
+  top: 13px;
+  width: 162px;
+  height: 56px;
+  border: 1px solid rgba(184, 137, 69, 0.24);
+  border-inline-width: 0;
+  background:
+    linear-gradient(90deg, transparent 0 15%, rgba(127, 37, 31, 0.12) 15% 16%, transparent 16% 32%, rgba(127, 37, 31, 0.12) 32% 33%, transparent 33% 49%, rgba(127, 37, 31, 0.12) 49% 50%, transparent 50% 66%, rgba(127, 37, 31, 0.12) 66% 67%, transparent 67%);
+  opacity: 0.72;
+}
+
 .brand-block {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -97,12 +127,12 @@ button {
 }
 
 .brand-mark {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   flex: 0 0 auto;
-  border-radius: 12px;
+  border-radius: 14px;
   object-fit: cover;
-  box-shadow: 0 8px 20px rgba(127, 37, 31, 0.18);
+  box-shadow: 0 10px 24px rgba(127, 37, 31, 0.22);
 }
 
 .eyebrow {
@@ -121,13 +151,15 @@ p {
 }
 
 h1 {
-  font-size: 21px;
-  line-height: 1.18;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 27px;
+  line-height: 1.08;
   letter-spacing: 0;
 }
 
 h2 {
-  font-size: 18px;
+  font-family: "Songti SC", "STSong", "Noto Serif CJK SC", serif;
+  font-size: 19px;
 }
 
 h3 {
@@ -153,6 +185,8 @@ h3 {
 .modal-actions,
 .history-actions,
 .row-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -216,26 +250,31 @@ h3 {
 .ghost-btn,
 .load-more,
 .file-btn,
+.credit-pill,
 .row-actions button,
 .reference-item button,
 .icon-btn {
   min-height: 34px;
   border: 1px solid var(--line-strong);
   border-radius: 7px;
-  padding: 0 12px;
-  background: rgba(255, 250, 240, 0.88);
+  padding: 0 13px;
+  background: rgba(255, 253, 247, 0.9);
   color: var(--ink);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
 .primary-btn {
   border-color: var(--cinnabar);
-  background: var(--cinnabar);
+  background: linear-gradient(180deg, #b83b31, var(--cinnabar));
   color: #fffaf0;
   font-weight: 800;
+  box-shadow: 0 10px 20px rgba(169, 49, 39, 0.16);
 }
 
 .primary-btn:hover {
   background: var(--cinnabar-dark);
+  transform: translateY(-1px);
 }
 
 .primary-btn.small {
@@ -254,28 +293,57 @@ h3 {
 .reference-item button:hover {
   background: var(--jade-soft);
   border-color: rgba(31, 111, 97, 0.32);
+  transform: translateY(-1px);
 }
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
   margin: 10px 0;
-  padding: 6px;
+  padding: 5px;
+  background:
+    linear-gradient(90deg, rgba(21, 27, 41, 0.96), rgba(32, 42, 59, 0.94)),
+    url("./assets/mojing-panel-wash.png") center / cover;
+  border-color: rgba(184, 137, 69, 0.34);
+}
+
+.credit-pill {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 132px;
+  border-color: rgba(31, 111, 97, 0.32);
+  background: linear-gradient(180deg, rgba(225, 238, 230, 0.94), rgba(255, 253, 247, 0.92));
+  color: var(--jade-dark);
+}
+
+.credit-pill span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.credit-pill strong {
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .tab {
   border: 0;
   border-radius: 6px;
-  min-height: 38px;
+  min-height: 40px;
   background: transparent;
-  color: var(--muted);
+  color: rgba(255, 250, 240, 0.72);
   font-weight: 800;
 }
 
 .tab.active {
-  background: var(--ink);
+  background: linear-gradient(180deg, #fffdf7, #f2e5ca);
   color: #fffaf0;
+  color: var(--ink);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
 }
 
 .panel {
@@ -292,11 +360,20 @@ h3 {
   gap: 10px;
 }
 
+.credits-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 1.18fr) minmax(320px, 0.92fr);
+  gap: 10px;
+}
+
 .filters {
   display: grid;
   grid-template-columns: minmax(240px, 1fr) 190px 128px;
   gap: 10px;
-  padding: 12px;
+  padding: 10px;
+  background:
+    linear-gradient(95deg, rgba(255, 253, 247, 0.94), rgba(255, 255, 255, 0.9)),
+    url("./assets/mojing-panel-wash.png") center / cover;
 }
 
 label {
@@ -313,7 +390,7 @@ textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 253, 247, 0.92);
   color: var(--ink);
   padding: 9px 10px;
   outline: none;
@@ -348,14 +425,16 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  margin: 10px 0;
-  padding: 10px 12px;
+  margin: 9px 0;
+  padding: 9px 12px;
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: var(--soft-shadow);
 }
 
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(286px, 1fr));
+  gap: 10px;
 }
 
 .template-card,
@@ -367,9 +446,19 @@ textarea:focus {
 .template-card {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  background: rgba(255, 253, 247, 0.94);
+  box-shadow: var(--soft-shadow);
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.template-card:hover {
+  border-color: rgba(169, 49, 39, 0.34);
+  box-shadow: 0 16px 34px rgba(40, 32, 22, 0.13);
+  transform: translateY(-2px);
 }
 
 .template-thumb {
+  position: relative;
   background: #efe4d0;
   background-image: var(--template-fallback);
   background-size: cover;
@@ -379,9 +468,20 @@ textarea:focus {
   overflow: hidden;
 }
 
+.template-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 58%, rgba(21, 27, 41, 0.16)),
+    linear-gradient(90deg, rgba(255, 250, 240, 0.2), transparent 42%);
+}
+
 .template-thumb img,
 .history-image img,
-.reference-item img {
+.reference-item img,
+.reference-missing {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -434,7 +534,7 @@ textarea:focus {
   display: grid;
   gap: 6px;
   min-width: 0;
-  padding: 10px 11px 11px;
+  padding: 9px 10px 10px;
 }
 
 .meta-row {
@@ -454,6 +554,12 @@ textarea:focus {
   color: #28594f;
 }
 
+.meta-row span:first-child {
+  border-color: rgba(169, 49, 39, 0.18);
+  background: #fff3ec;
+  color: var(--cinnabar-dark);
+}
+
 .template-body h3,
 .template-body p,
 .history-body p {
@@ -465,7 +571,10 @@ textarea:focus {
   margin: 0;
   font-size: 16px;
   line-height: 1.25;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
 }
 
 .template-body p {
@@ -501,8 +610,160 @@ textarea:focus {
 }
 
 .composer,
-.history {
+.history,
+.credit-overview,
+.recharge-panel,
+.credit-ledger-panel {
   padding: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 247, 0.95), rgba(255, 255, 255, 0.9)),
+    url("./assets/mojing-panel-wash.png") center / cover;
+}
+
+.credit-overview,
+.recharge-panel,
+.credit-ledger-panel,
+.credit-package-card,
+.credit-ledger-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+}
+
+.credit-balance-card {
+  display: grid;
+  gap: 5px;
+  min-height: 138px;
+  border: 1px solid rgba(184, 137, 69, 0.36);
+  border-radius: 8px;
+  padding: 13px;
+  background: linear-gradient(135deg, rgba(255, 243, 224, 0.94), rgba(225, 238, 230, 0.86));
+}
+
+.credit-balance-card span,
+.credit-package-card p,
+.credit-ledger-item span,
+.credit-note-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.credit-balance-card strong {
+  color: var(--ink);
+  font-size: 42px;
+  line-height: 1;
+}
+
+.credit-balance-card p {
+  color: var(--jade-dark);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.credit-note-grid {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.credit-note-grid span {
+  border: 1px dashed rgba(31, 111, 97, 0.28);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: rgba(232, 242, 236, 0.58);
+}
+
+.credit-package-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.credit-package-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 253, 247, 0.9);
+}
+
+.credit-package-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.credit-package-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.credit-package-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.credit-package-head strong {
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.05;
+}
+
+.credit-package-head em {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #fff3ec;
+  color: var(--cinnabar-dark);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.credit-ledger-list {
+  display: grid;
+  gap: 7px;
+  max-height: calc(100vh - 190px);
+  overflow: auto;
+}
+
+.credit-ledger-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  background: rgba(255, 253, 247, 0.9);
+}
+
+.credit-ledger-item div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.credit-ledger-item strong,
+.credit-ledger-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-ledger-item strong {
+  font-size: 13px;
+}
+
+.credit-ledger-item em {
+  color: var(--jade);
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.credit-ledger-item em.negative {
+  color: var(--cinnabar);
 }
 
 .section-head {
@@ -518,9 +779,27 @@ textarea:focus {
 }
 
 .prompt-box textarea {
-  min-height: clamp(300px, 38vh, 480px);
+  min-height: clamp(286px, 36vh, 410px);
   resize: vertical;
   line-height: 1.45;
+}
+
+.edit-module {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(31, 111, 97, 0.2);
+  border-radius: 8px;
+  padding: 8px;
+  background: linear-gradient(90deg, rgba(225, 238, 230, 0.74), rgba(255, 253, 247, 0.8));
+}
+
+.edit-module p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .quick-params {
@@ -543,6 +822,8 @@ textarea:focus {
 .reference-box {
   padding: 8px;
   margin-bottom: 8px;
+  background: rgba(255, 253, 247, 0.74);
+  box-shadow: none;
 }
 
 .reference-box .section-head {
@@ -586,11 +867,37 @@ textarea:focus {
   border-radius: 6px;
 }
 
-.reference-item span {
+.reference-missing {
+  display: grid;
+  place-items: center;
+  height: 42px;
+  border-radius: 6px;
+  background: var(--jade-soft);
+  color: var(--jade);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reference-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.reference-info span,
+.reference-info small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.reference-info span {
   font-size: 13px;
+}
+
+.reference-info small {
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .history-list {
@@ -603,6 +910,8 @@ textarea:focus {
 .history-card {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: none;
 }
 
 .history-card.failed {
@@ -634,6 +943,7 @@ textarea:focus {
 
 .row-actions {
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .row-actions button {
@@ -656,7 +966,7 @@ textarea:focus {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 4px 10px;
-  background: rgba(247, 239, 224, 0.72);
+  background: linear-gradient(180deg, rgba(255, 248, 232, 0.82), rgba(239, 226, 191, 0.55));
 }
 
 .generation-timer span {
@@ -701,6 +1011,9 @@ textarea:focus {
   max-height: calc(100vh - 36px);
   overflow: auto;
   padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 247, 0.98), rgba(255, 255, 255, 0.94)),
+    url("./assets/mojing-panel-wash.png") center / cover;
 }
 
 .small-modal {
@@ -756,9 +1069,9 @@ textarea:focus {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin-bottom: 18px;
-  border-radius: 12px;
-  background: rgba(247, 239, 224, 0.8);
+  margin-bottom: 14px;
+  border-radius: 8px;
+  background: rgba(239, 226, 191, 0.7);
   padding: 4px;
 }
 
@@ -772,7 +1085,7 @@ textarea:focus {
 }
 
 .size-tab.active {
-  background: #fff;
+  background: #fffdf7;
   color: var(--ink);
   box-shadow: 0 1px 8px rgba(54, 43, 28, 0.08);
 }
@@ -907,6 +1220,11 @@ textarea:focus {
     width: min(100vw - 18px, 720px);
   }
 
+  body {
+    background-attachment: scroll;
+    background-size: 1600px auto;
+  }
+
   .topbar,
   .template-summary,
   .section-head {
@@ -914,8 +1232,25 @@ textarea:focus {
     flex-direction: column;
   }
 
+  .topbar {
+    min-height: 0;
+  }
+
+  .topbar::after {
+    display: none;
+  }
+
   .brand-block {
     align-items: flex-start;
+  }
+
+  .brand-mark {
+    width: 46px;
+    height: 46px;
+  }
+
+  h1 {
+    font-size: 24px;
   }
 
   .top-actions {
@@ -928,8 +1263,14 @@ textarea:focus {
 
   .filters,
   .generate-layout.active,
+  .credits-layout,
+  .edit-module,
   .quick-params,
   .settings-form {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-package-grid {
     grid-template-columns: 1fr;
   }
 
@@ -955,5 +1296,10 @@ textarea:focus {
 
   .history-image {
     min-height: 156px;
+  }
+
+  .size-base-grid,
+  .size-ratio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

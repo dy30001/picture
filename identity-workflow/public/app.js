@@ -2,25 +2,26 @@ const storeKeys = {
   refs: "identity.workflow.refs.v1",
   gate: "identity.workflow.gate.v1",
   scene: "identity.workflow.scene.v1",
-  outfit: "identity.workflow.outfit.v1"
+  outfit: "identity.workflow.outfit.v1",
+  auth: "identity.workflow.auth.v1"
 };
 
-const defaultGate = { detected: false, turnaround: false, baseline: true, batchLocked: false };
+const defaultGate = { detected: false, turnaround: false, baseline: false, batchLocked: true };
 
 const sceneConfigs = [
   {
     id: "wedding",
     label: "婚纱照",
     short: "婚纱",
-    intro: "新娘、新郎和合照是身份基准，先把人物锁住。",
-    meta: "适合婚纱、情侣写真、旅拍婚照。",
+    intro: "先锁新娘、新郎和合照，再选礼服与旅拍风格。",
+    meta: "高定主纱、旅拍纪实、城市夜景等婚纱样片。",
     sourcePolicy: "以新娘、新郎和合照原片为准。",
     roles: [
       { id: "bride", label: "新娘原片", note: "脸部清楚" },
       { id: "groom", label: "新郎原片", note: "脸部清楚" },
       { id: "couple", label: "新人合照", note: "身形关系" }
     ],
-    checklist: ["脸部一致", "身形比例", "服装氛围"],
+    checklist: ["双人像本人", "礼服高级", "场景可信"],
     review: ["脸部一致性复核", "侧脸和身形比例复核", "服装与场景一致性复核"]
   },
   {
@@ -99,6 +100,36 @@ const sceneConfigs = [
     review: ["儿童脸部和年龄感复核", "表情动作自然度复核", "服装和家庭氛围复核"]
   }
 ];
+
+const sceneThemes = {
+  wedding: {
+    tone: "高定旅拍",
+    proof: "身份、礼服、场景一起复核",
+    cards: [
+      { label: "身份", title: "新人原片", copy: "新娘、新郎、合照分开锁定" },
+      { label: "礼服", title: "主纱/轻纱", copy: "材质、裙摆、头纱先定调" },
+      { label: "出片", title: "9 张样片", copy: "封面、互动、细节同步看" }
+    ]
+  },
+  friendsWedding: {
+    tone: "闺蜜白纱",
+    proof: "多人身份、身高关系、姐妹感一起复核",
+    cards: [
+      { label: "身份", title: "逐人锁脸", copy: "主角和闺蜜不串脸" },
+      { label: "关系", title: "姐妹站位", copy: "亲密但不情侣化" },
+      { label: "白纱", title: "轻婚纱感", copy: "保持自然写真氛围" }
+    ]
+  },
+  default: {
+    tone: "多场景写真",
+    proof: "人物、服装、场景按当前模板复核",
+    cards: [
+      { label: "素材", title: "身份原片", copy: "先把人物关系锁准" },
+      { label: "造型", title: "衣服模板", copy: "按场景选择服装方向" },
+      { label: "结果", title: "样片复核", copy: "看片、选片、再交付" }
+    ]
+  }
+};
 
 const wardrobeBlueprints = {
   wedding: {
@@ -180,8 +211,20 @@ const wardrobeLibrary = buildWardrobeLibrary();
 
 const state = {
   tab: "recognition",
+  auth: normalizeAuth(readStore(storeKeys.auth, {})),
+  authModalOpen: false,
+  authView: "register",
+  authAccountType: "email",
+  authMessage: "",
+  authMessageKind: "",
+  authSubmitting: false,
+  authCodeSending: false,
+  authCodeCooldown: 0,
   workflow: null,
   generation: null,
+  imageTool: null,
+  imageToolState: "idle",
+  imageToolMessage: "准备连接生图工具。",
   selectedScene: readSceneStore(),
   selectedOutfits: normalizeSelectedOutfits(readStore(storeKeys.outfit, {})),
   selectedBatch: "",
@@ -203,18 +246,28 @@ const state = {
 };
 
 const dom = {};
+let authCodeTimer = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   for (const id of [
     "statusLine", "refreshBtn", "confirmBaselineBtn", "baselineState", "finalTotal", "chengpinTotal",
-    "syncState", "stageRail", "clearRefsBtn", "sceneTitle", "sceneIntro", "sceneRail", "sceneMeta",
+    "authBar", "authChip", "authAvatar", "authName", "authMeta", "loginBtn", "registerBtn", "logoutBtn",
+    "authModal", "authBackdrop", "authForm", "authTitle", "authSubtitle", "authCloseBtn",
+    "authModeLogin", "authModeRegister", "authTypeSelect", "authAccountLabel", "authAccountInput",
+    "authNicknameField", "authNicknameInput", "authCodeField", "authCodeInput", "sendCodeBtn",
+    "authPasswordInput", "authMessage", "authSubmitBtn",
+    "syncState", "stageRail", "clearRefsBtn", "heroSceneTone", "heroSceneProof",
+    "customerStepPanel", "customerStepKicker", "customerStepTitle", "customerStepCopy", "customerStepProof",
+    "customerStepDetail", "customerNextBtn", "customerFlowRail",
+    "sceneTitle", "sceneIntro", "sceneRail", "sceneMeta", "sceneCampaignStrip",
     "uploadGrid", "referenceStrip", "sideSceneTitle", "sideSceneCopy", "sideSceneChecklist",
     "detectFaceBtn", "buildTurnaroundBtn", "lockBatchBtn", "wardrobeSummary", "selectedOutfitTitle",
     "selectedOutfitDetail", "wardrobeGrid", "gateNote", "generateSceneBtn", "generateAllBtn",
     "generationStatus",
     "baselineCompareLink", "baselineCompareImg", "turnaroundLink", "turnaroundImg", "sourcePolicy",
     "batchSummary", "batchList", "deliverySummary", "deliveryBatchList", "deliveryImageGrid",
-    "nextList", "recognitionPanel", "turnaroundPanel", "deliveryPanel",
+    "nextList", "recognitionPanel", "turnaroundPanel", "imageToolPanel", "deliveryPanel",
+    "imageToolStatus", "refreshImageToolBtn", "openImageToolBtn", "imageToolFrame", "imageToolEmpty",
     "reviewPanel", "imageViewer", "viewerBatch", "viewerTitle", "viewerCounter", "viewerPrevBtn",
     "viewerNextBtn", "viewerZoomBtn", "viewerFrame", "viewerImage", "viewerEmpty", "thumbGrid",
     "heroImageMain", "heroImageSide", "heroImageTail", "lightbox", "lightboxBatch", "lightboxTitle",
@@ -225,6 +278,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   dom.tabs.forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
   dom.refreshBtn.addEventListener("click", () => void loadStatus());
+  dom.loginBtn.addEventListener("click", () => openAuth("login"));
+  dom.registerBtn.addEventListener("click", () => openAuth("register"));
+  dom.logoutBtn.addEventListener("click", logoutAuth);
+  dom.authBackdrop.addEventListener("click", closeAuth);
+  dom.authCloseBtn.addEventListener("click", closeAuth);
+  dom.authModeLogin.addEventListener("click", () => switchAuthView("login"));
+  dom.authModeRegister.addEventListener("click", () => switchAuthView("register"));
+  dom.authTypeSelect.addEventListener("change", () => {
+    state.authAccountType = dom.authTypeSelect.value === "phone" ? "phone" : "email";
+    clearAuthMessage();
+    renderAuth();
+  });
+  dom.sendCodeBtn.addEventListener("click", () => void sendAuthCode());
+  dom.authForm.addEventListener("submit", (event) => void submitAuth(event));
+  dom.customerNextBtn.addEventListener("click", handleCustomerNext);
   dom.confirmBaselineBtn.addEventListener("click", confirmBaseline);
   dom.clearRefsBtn.addEventListener("click", clearRefs);
   dom.detectFaceBtn.addEventListener("click", detectFaces);
@@ -232,6 +300,9 @@ document.addEventListener("DOMContentLoaded", () => {
   dom.lockBatchBtn.addEventListener("click", toggleBatchLock);
   dom.generateSceneBtn.addEventListener("click", () => void accelerateGeneration(false));
   dom.generateAllBtn.addEventListener("click", () => void accelerateGeneration(true));
+  dom.refreshImageToolBtn.addEventListener("click", () => void loadImageTool(true));
+  dom.openImageToolBtn.addEventListener("click", openImageTool);
+  dom.imageToolFrame.addEventListener("load", markImageToolLoaded);
   dom.viewerPrevBtn.addEventListener("click", () => moveImage(-1));
   dom.viewerNextBtn.addEventListener("click", () => moveImage(1));
   dom.viewerZoomBtn.addEventListener("click", openLightbox);
@@ -277,9 +348,11 @@ async function loadStatus() {
 }
 
 function render() {
+  renderAuth();
   renderTabs();
   renderSummary();
   renderHero();
+  renderCustomerFlow();
   renderStages();
   renderScene();
   renderUploadCards();
@@ -288,15 +361,160 @@ function render() {
   renderEvidence();
   renderBatches();
   renderDelivery();
+  renderImageTool();
   renderGeneration();
   renderNext();
   renderGate();
 }
 
+function renderAuth() {
+  const user = state.auth.user;
+  const isAuthed = Boolean(user);
+  dom.authChip.hidden = !isAuthed;
+  dom.loginBtn.hidden = isAuthed;
+  dom.registerBtn.hidden = isAuthed;
+  dom.logoutBtn.hidden = !isAuthed;
+  if (user) {
+    dom.authAvatar.textContent = nicknameInitial(user.nickname);
+    dom.authName.textContent = user.nickname || "已注册";
+    dom.authMeta.textContent = `${accountTypeLabel(user.type)} · ${user.accountLabel || "本地账号"}`;
+  }
+
+  dom.authModal.hidden = !state.authModalOpen;
+  document.body.classList.toggle("auth-open", state.authModalOpen);
+  const isRegister = state.authView === "register";
+  dom.authTitle.textContent = isRegister ? "注册账号" : "登录账号";
+  dom.authSubtitle.textContent = isRegister ? "用邮箱验证码注册，项目记录跟着账号走。" : "登录后继续查看本地婚纱照项目。";
+  dom.authModeRegister.classList.toggle("active", isRegister);
+  dom.authModeLogin.classList.toggle("active", !isRegister);
+  dom.authNicknameField.hidden = !isRegister;
+  dom.authCodeField.hidden = !isRegister;
+  dom.authTypeSelect.value = state.authAccountType;
+  dom.authAccountLabel.textContent = accountTypeLabel(state.authAccountType);
+  dom.authAccountInput.type = "email";
+  dom.authAccountInput.inputMode = "email";
+  dom.authAccountInput.placeholder = "your@email.com";
+  dom.authSubmitBtn.textContent = state.authSubmitting ? (isRegister ? "注册中..." : "登录中...") : (isRegister ? "立即注册" : "登录");
+  dom.authSubmitBtn.disabled = state.authSubmitting || state.authCodeSending;
+  dom.sendCodeBtn.disabled = state.authSubmitting || state.authCodeSending || state.authCodeCooldown > 0;
+  dom.sendCodeBtn.textContent = state.authCodeSending ? "发送中..." : state.authCodeCooldown > 0 ? `${state.authCodeCooldown}s` : "获取验证码";
+  dom.authMessage.hidden = !state.authMessage;
+  dom.authMessage.textContent = state.authMessage;
+  dom.authMessage.classList.toggle("ok", state.authMessageKind === "ok");
+}
+
+function openAuth(view = "register") {
+  state.authModalOpen = true;
+  state.authView = view === "login" ? "login" : "register";
+  clearAuthMessage();
+  renderAuth();
+  window.setTimeout(() => dom.authAccountInput.focus(), 0);
+}
+
+function closeAuth() {
+  state.authModalOpen = false;
+  clearAuthMessage();
+  renderAuth();
+}
+
+function switchAuthView(view) {
+  state.authView = view === "login" ? "login" : "register";
+  clearAuthMessage();
+  renderAuth();
+}
+
+function logoutAuth() {
+  state.auth = { user: null };
+  writeStore(storeKeys.auth, state.auth);
+  renderAuth();
+  status("已退出账号");
+}
+
+async function sendAuthCode() {
+  const account = dom.authAccountInput.value.trim();
+  state.authCodeSending = true;
+  clearAuthMessage();
+  renderAuth();
+  try {
+    const data = await postJson("/api/auth/verification-code", { type: state.authAccountType, account });
+    if (data.code) dom.authCodeInput.value = data.code;
+    setAuthMessage(data.message || `验证码已发送到 ${data.accountLabel || "邮箱"}，5 分钟内有效`, "ok");
+    startAuthCodeCooldown();
+  } catch (error) {
+    setAuthMessage(errorMessage(error), "error");
+  } finally {
+    state.authCodeSending = false;
+    renderAuth();
+  }
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  state.authSubmitting = true;
+  clearAuthMessage();
+  renderAuth();
+  try {
+    const isRegister = state.authView === "register";
+    const data = await postJson(isRegister ? "/api/auth/register" : "/api/auth/login", {
+      type: state.authAccountType,
+      account: dom.authAccountInput.value.trim(),
+      nickname: dom.authNicknameInput.value.trim(),
+      code: dom.authCodeInput.value.trim(),
+      password: dom.authPasswordInput.value
+    });
+    state.auth = { user: data.user };
+    writeStore(storeKeys.auth, state.auth);
+    state.authModalOpen = false;
+    dom.authPasswordInput.value = "";
+    dom.authCodeInput.value = "";
+    status(isRegister ? `注册成功：${data.user.nickname}` : `登录成功：${data.user.nickname}`);
+  } catch (error) {
+    setAuthMessage(errorMessage(error), "error");
+  } finally {
+    state.authSubmitting = false;
+    renderAuth();
+  }
+}
+
+async function postJson(url, body) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) throw new Error(data.message || `${response.status} ${response.statusText}`);
+  return data;
+}
+
+function startAuthCodeCooldown() {
+  if (authCodeTimer) window.clearInterval(authCodeTimer);
+  state.authCodeCooldown = 60;
+  authCodeTimer = window.setInterval(() => {
+    state.authCodeCooldown = Math.max(0, state.authCodeCooldown - 1);
+    if (state.authCodeCooldown === 0 && authCodeTimer) {
+      window.clearInterval(authCodeTimer);
+      authCodeTimer = null;
+    }
+    renderAuth();
+  }, 1000);
+}
+
+function setAuthMessage(message, kind) {
+  state.authMessage = message;
+  state.authMessageKind = kind;
+}
+
+function clearAuthMessage() {
+  state.authMessage = "";
+  state.authMessageKind = "";
+}
+
 function switchTab(tab) {
-  if (!["recognition", "turnaround", "delivery", "review"].includes(tab)) return;
+  if (!["recognition", "turnaround", "imageTool", "delivery", "review"].includes(tab)) return;
   state.tab = tab;
   renderTabs();
+  if (tab === "imageTool") void loadImageTool();
 }
 
 function selectScene(sceneId) {
@@ -322,10 +540,12 @@ function renderTabs() {
   dom.tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === state.tab));
   dom.recognitionPanel.hidden = state.tab !== "recognition";
   dom.turnaroundPanel.hidden = state.tab !== "turnaround";
+  dom.imageToolPanel.hidden = state.tab !== "imageTool";
   dom.deliveryPanel.hidden = state.tab !== "delivery";
   dom.reviewPanel.hidden = state.tab !== "review";
   dom.recognitionPanel.classList.toggle("active", state.tab === "recognition");
   dom.turnaroundPanel.classList.toggle("active", state.tab === "turnaround");
+  dom.imageToolPanel.classList.toggle("active", state.tab === "imageTool");
   dom.deliveryPanel.classList.toggle("active", state.tab === "delivery");
   dom.reviewPanel.classList.toggle("active", state.tab === "review");
 }
@@ -340,7 +560,8 @@ function renderSummary() {
 }
 
 function renderHero() {
-  const images = (state.workflow?.batches || []).flatMap((batch) => batch.images || []);
+  const sceneImages = sceneResultBatches(state.selectedScene).flatMap((batch) => batch.images || []);
+  const images = sceneImages.length ? sceneImages : (state.workflow?.batches || []).flatMap((batch) => batch.images || []);
   const picks = [images[1], images[Math.floor(images.length / 2)], images[images.length - 2]].filter(Boolean);
   [dom.heroImageMain, dom.heroImageSide, dom.heroImageTail].forEach((image, index) => {
     const pick = picks[index] || picks[0];
@@ -372,8 +593,34 @@ function renderStages() {
   });
 }
 
+function renderCustomerFlow() {
+  const step = customerStep();
+  dom.customerStepPanel.dataset.step = step.id;
+  dom.customerStepKicker.textContent = `下一步 · ${step.index}/5`;
+  dom.customerStepTitle.textContent = step.title;
+  dom.customerStepCopy.textContent = step.copy;
+  dom.customerStepProof.textContent = step.proof;
+  dom.customerStepDetail.textContent = step.detail;
+  dom.customerNextBtn.textContent = step.action;
+  dom.customerNextBtn.dataset.targetTab = step.tab;
+  dom.customerNextBtn.disabled = Boolean(step.disabled);
+  dom.customerFlowRail.innerHTML = customerFlowItems().map((item) => `
+    <button class="customer-flow-step ${item.state}" data-flow-tab="${attr(item.tab)}" type="button">
+      <span>${esc(item.index)}</span>
+      <strong>${esc(item.title)}</strong>
+      <small>${esc(item.caption)}</small>
+    </button>`).join("");
+  dom.customerFlowRail.querySelectorAll("[data-flow-tab]").forEach((item) => {
+    item.addEventListener("click", () => switchTab(item.dataset.flowTab || "recognition"));
+  });
+}
+
 function renderScene() {
   const selected = sceneConfig();
+  document.body.dataset.scene = selected.id;
+  const theme = sceneTheme(selected.id);
+  dom.heroSceneTone.textContent = theme.tone;
+  dom.heroSceneProof.textContent = theme.proof;
   dom.sceneTitle.textContent = `${selected.label}素材确认`;
   dom.sceneIntro.textContent = selected.intro;
   dom.sceneMeta.textContent = selected.meta;
@@ -388,6 +635,12 @@ function renderScene() {
       </span>
       <small>${esc(scene.meta)}</small>
     </button>`).join("");
+  dom.sceneCampaignStrip.innerHTML = theme.cards.map((card, index) => `
+    <article class="campaign-card" data-index="${index + 1}">
+      <span>${esc(card.label)}</span>
+      <strong>${esc(card.title)}</strong>
+      <small>${esc(card.copy)}</small>
+    </article>`).join("");
   dom.sceneRail.querySelectorAll("[data-scene]").forEach((item) => {
     item.addEventListener("click", () => selectScene(item.dataset.scene || "wedding"));
   });
@@ -454,9 +707,12 @@ function renderBatches() {
     renderViewer(null);
     return;
   }
-  dom.batchList.innerHTML = batches.map((batch) => `
-    <article class="batch-row ${batch.synced ? "ready" : "warn"} ${batch.folder === state.selectedBatch ? "selected" : ""}" data-batch="${attr(batch.folder)}" tabindex="0">
-      <div>
+  dom.batchList.innerHTML = batches.map((batch) => {
+    const cover = batchCoverUrl(batch);
+    return `
+    <article class="batch-row ${cover ? "has-cover" : ""} ${batch.synced ? "ready" : "warn"} ${batch.folder === state.selectedBatch ? "selected" : ""}" data-batch="${attr(batch.folder)}" tabindex="0">
+      ${cover ? `<img class="batch-cover" src="${attr(cover)}" alt="${attr(batchLabel(batch))}" loading="lazy" />` : ""}
+      <div class="batch-copy">
         <strong>${esc(batchLabel(batch))}</strong>
         <small>${esc(batchNote(batch))}</small>
       </div>
@@ -466,7 +722,8 @@ function renderBatches() {
         ${batch.contactSheetExists ? `<a href="${attr(batch.contactSheetUrl)}" target="_blank" rel="noopener">看片表</a>` : "<em>缺看片表</em>"}
         ${batch.buildReportExists ? "<span>复核记录</span>" : "<em>缺复核</em>"}
       </div>
-    </article>`).join("");
+    </article>`;
+  }).join("");
   dom.batchList.querySelectorAll("[data-batch]").forEach((row) => {
     row.addEventListener("click", (event) => {
       if (event.target instanceof HTMLAnchorElement) return;
@@ -491,9 +748,12 @@ function renderDelivery() {
     dom.deliveryImageGrid.innerHTML = `<div class="empty">成片会显示在这里，不显示模板样片。</div>`;
     return;
   }
-  dom.deliveryBatchList.innerHTML = batches.map((batch) => `
-    <article class="batch-row ${batch.synced ? "ready" : "warn"} ${batch.folder === state.selectedDeliveryBatch ? "selected" : ""}" data-delivery-batch="${attr(batch.folder)}" tabindex="0">
-      <div>
+  dom.deliveryBatchList.innerHTML = batches.map((batch) => {
+    const cover = batchCoverUrl(batch);
+    return `
+    <article class="batch-row ${cover ? "has-cover" : ""} ${batch.synced ? "ready" : "warn"} ${batch.folder === state.selectedDeliveryBatch ? "selected" : ""}" data-delivery-batch="${attr(batch.folder)}" tabindex="0">
+      ${cover ? `<img class="batch-cover" src="${attr(cover)}" alt="${attr(batchLabel(batch))}" loading="lazy" />` : ""}
+      <div class="batch-copy">
         <strong>${esc(batchLabel(batch))}</strong>
         <small>${esc(batchNote(batch))}</small>
       </div>
@@ -502,7 +762,8 @@ function renderDelivery() {
         ${batch.contactSheetExists ? `<a href="${attr(batch.contactSheetUrl)}" target="_blank" rel="noopener">看片表</a>` : "<em>缺看片表</em>"}
         ${batch.buildReportExists ? "<span>复核记录</span>" : "<em>缺复核</em>"}
       </div>
-    </article>`).join("");
+    </article>`;
+  }).join("");
   dom.deliveryBatchList.querySelectorAll("[data-delivery-batch]").forEach((row) => {
     row.addEventListener("click", (event) => {
       if (event.target instanceof HTMLAnchorElement) return;
@@ -523,11 +784,81 @@ function renderDelivery() {
     </a>`).join("") : `<div class="empty">该批次暂无成片图片</div>`;
 }
 
+async function loadImageTool(force = false) {
+  if (state.imageToolState === "loading") return;
+  if (state.imageTool && !force) return;
+  state.imageToolState = "loading";
+  state.imageToolMessage = "连接生图工具";
+  renderImageTool();
+  try {
+    const response = await fetch("/api/tool/image-workbench", { headers: { Accept: "application/json" } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.ok === false) throw new Error(data.message || `${response.status} ${response.statusText}`);
+    state.imageTool = data.tool;
+    state.imageToolState = "ready";
+    state.imageToolMessage = "工具入口已就绪";
+    renderImageTool();
+    const healthy = await probeImageToolHealth(data.tool?.healthUrl);
+    state.imageToolState = healthy ? "ready" : "warn";
+    state.imageToolMessage = healthy ? "生图工具已连接" : "入口已加载，4174 服务可能未启动";
+  } catch (error) {
+    state.imageTool = null;
+    state.imageToolState = "warn";
+    state.imageToolMessage = `工具连接失败：${errorMessage(error)}`;
+  }
+  renderImageTool();
+}
+
+async function probeImageToolHealth(healthUrl) {
+  if (!healthUrl) return false;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 1800);
+  try {
+    const response = await fetch(healthUrl, { headers: { Accept: "application/json" }, signal: controller.signal });
+    const data = await response.json().catch(() => ({}));
+    return response.ok && data.ok !== false;
+  } catch {
+    return false;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function renderImageTool() {
+  const tool = state.imageTool;
+  const url = tool?.url || "";
+  dom.imageToolStatus.textContent = state.imageToolMessage;
+  dom.imageToolStatus.classList.toggle("ready", state.imageToolState === "ready");
+  dom.imageToolStatus.classList.toggle("warn", state.imageToolState === "warn");
+  dom.refreshImageToolBtn.disabled = state.imageToolState === "loading";
+  dom.openImageToolBtn.disabled = !url;
+  dom.imageToolFrame.hidden = !url;
+  dom.imageToolEmpty.hidden = Boolean(url);
+  if (url && dom.imageToolFrame.getAttribute("src") !== url) dom.imageToolFrame.src = url;
+  if (!url) dom.imageToolFrame.removeAttribute("src");
+}
+
+function openImageTool() {
+  const url = state.imageTool?.url;
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function markImageToolLoaded() {
+  if (state.imageToolState === "warn" || !state.imageTool) return;
+  state.imageToolState = "ready";
+  state.imageToolMessage = "生图工具已打开";
+  renderImageTool();
+}
+
 function renderGeneration() {
   const job = state.generation || state.workflow?.activeGeneration;
   const running = job?.status === "running";
-  dom.generateSceneBtn.disabled = Boolean(running);
-  dom.generateAllBtn.disabled = Boolean(running);
+  const gate = canGenerateSamples();
+  dom.generateSceneBtn.disabled = Boolean(running) || !gate.ok;
+  dom.generateAllBtn.disabled = Boolean(running) || !gate.ok;
+  dom.generateSceneBtn.title = gate.ok ? "" : gate.reason;
+  dom.generateAllBtn.title = gate.ok ? "" : gate.reason;
   dom.generationStatus.textContent = generationStatusText(job);
   dom.generationStatus.classList.toggle("running", Boolean(running));
   dom.generationStatus.classList.toggle("ready", job?.status === "completed");
@@ -753,6 +1084,10 @@ function clampLightboxPan() {
 }
 
 function handleGlobalKeys(event) {
+  if (state.authModalOpen && event.key === "Escape") {
+    closeAuth();
+    return;
+  }
   if (!state.lightboxOpen) return;
   if (event.key === "Escape") closeLightbox();
   if (event.key === "ArrowLeft") moveImage(-1);
@@ -821,7 +1156,7 @@ function confirmBaseline() {
   updateGate({ detected: true, turnaround: true, baseline: true, batchLocked: false });
   persist();
   render();
-  status("交付前复核已确认");
+  status("三视图已确认，可选模板样片");
 }
 
 function toggleBatchLock() {
@@ -831,7 +1166,137 @@ function toggleBatchLock() {
   status(currentGate().batchLocked ? "已暂停出片" : "已恢复出片");
 }
 
+function customerStep() {
+  const count = allRefs().length;
+  const gate = currentGate();
+  const selected = sceneConfig();
+  const batches = sceneResultBatches();
+  const delivery = deliveryBatches();
+  if (!count) {
+    return {
+      id: "refs",
+      index: 1,
+      tab: "recognition",
+      title: "上传人物素材",
+      copy: `${selected.label}已选好，先上传清晰人物和关系参考。`,
+      proof: "等待素材",
+      detail: selected.roles.map((role) => role.label).join(" / "),
+      action: "上传素材"
+    };
+  }
+  if (!gate.detected) {
+    return {
+      id: "identity",
+      index: 2,
+      tab: "recognition",
+      title: "确认人物身份",
+      copy: "素材已导入，先确认人物关系和参考图是否正确。",
+      proof: `已导入 ${count} 张`,
+      detail: "确认后再做三视图。",
+      action: "去确认人物"
+    };
+  }
+  if (!gate.turnaround) {
+    return {
+      id: "turnaround",
+      index: 3,
+      tab: "turnaround",
+      title: "完成三视图复核",
+      copy: "先看正面、侧面和身形比例，再开放模板样片。",
+      proof: "人物已确认",
+      detail: "三视图通过前不能批量出片。",
+      action: "看三视图"
+    };
+  }
+  if (!gate.baseline || gate.batchLocked) {
+    return {
+      id: "baseline",
+      index: 3,
+      tab: "turnaround",
+      title: "确认三视图",
+      copy: gate.batchLocked ? "当前已暂停出片，确认三视图后恢复样片生成。" : "三视图已完成，客户确认像本人后再生成样片。",
+      proof: gate.batchLocked ? "已暂停" : "待确认",
+      detail: "确认后进入模板样片。",
+      action: "去确认"
+    };
+  }
+  if (!batches.length) {
+    const outfit = selectedOutfit();
+    return {
+      id: "samples",
+      index: 4,
+      tab: "recognition",
+      title: "生成模板样片",
+      copy: `从${selected.label}推荐衣服和模板开始，先出小批样片。`,
+      proof: "三视图已确认",
+      detail: outfit ? `已选：${outfit.title}` : "可先选衣服，也可直接生成。",
+      action: "生成样片"
+    };
+  }
+  return {
+    id: "delivery",
+    index: 5,
+    tab: delivery.length ? "delivery" : "recognition",
+    title: delivery.length ? "查看交付成片" : "复核模板样片",
+    copy: delivery.length ? "成片已经分区展示，可核对数量并下载。" : "先看样片方向，确认后再进入最终交付。",
+    proof: delivery.length ? `交付 ${state.workflow?.totals?.chengpin || 0} 张` : `样片 ${countBatchImages(batches)} 张`,
+    detail: "样片和成片分开，避免误交付。",
+    action: delivery.length ? "看成片" : "看样片"
+  };
+}
+
+function customerFlowItems() {
+  const count = allRefs().length;
+  const gate = currentGate();
+  const hasSamples = sceneResultBatches().length > 0;
+  const hasDelivery = deliveryBatches().length > 0;
+  const states = [
+    count ? "done" : "active",
+    gate.detected ? "done" : count ? "active" : "locked",
+    gate.baseline ? "done" : gate.detected ? "active" : "locked",
+    hasSamples ? "done" : gate.baseline && !gate.batchLocked ? "active" : "locked",
+    hasDelivery ? "done" : hasSamples ? "active" : "locked"
+  ];
+  return [
+    { index: "1", title: "选场景/传素材", caption: count ? `${count} 张素材` : "等待上传", tab: "recognition", state: states[0] },
+    { index: "2", title: "确认人物", caption: gate.detected ? "已确认" : "待确认", tab: "recognition", state: states[1] },
+    { index: "3", title: "确认三视图", caption: gate.baseline ? "已通过" : gate.turnaround ? "待确认" : "待复核", tab: "turnaround", state: states[2] },
+    { index: "4", title: "选模板样片", caption: hasSamples ? `${countBatchImages(sceneResultBatches())} 张` : "待生成", tab: "recognition", state: states[3] },
+    { index: "5", title: "看成片交付", caption: hasDelivery ? `${state.workflow?.totals?.chengpin || 0} 张` : "待交付", tab: "delivery", state: states[4] }
+  ];
+}
+
+function handleCustomerNext() {
+  const step = customerStep();
+  if (step.id === "identity" && allRefs().length) {
+    detectFaces();
+    return;
+  }
+  if (step.id === "samples" && canGenerateSamples().ok) {
+    void accelerateGeneration(false);
+    return;
+  }
+  switchTab(step.tab);
+  status(step.title);
+}
+
+function canGenerateSamples() {
+  const gate = currentGate();
+  if (!allRefs().length) return { ok: false, reason: "先上传人物素材，再生成模板样片。", shortReason: "待上传素材" };
+  if (!gate.detected) return { ok: false, reason: "先确认人物身份，再生成模板样片。", shortReason: "待确认人物" };
+  if (!gate.turnaround) return { ok: false, reason: "先完成三视图复核，再生成模板样片。", shortReason: "待三视图" };
+  if (!gate.baseline) return { ok: false, reason: "先确认三视图像本人，再生成模板样片。", shortReason: "待确认三视图" };
+  if (gate.batchLocked) return { ok: false, reason: "当前已暂停出片，请恢复后再生成。", shortReason: "已暂停出片" };
+  return { ok: true, reason: "", shortReason: "" };
+}
+
 async function accelerateGeneration(allScenes) {
+  const gate = canGenerateSamples();
+  if (!gate.ok) {
+    status(gate.reason);
+    renderGate();
+    return;
+  }
   const scenes = allScenes ? sceneConfigs.map((scene) => scene.id) : [state.selectedScene];
   const body = {
     allScenes,
@@ -893,6 +1358,8 @@ function scheduleGenerationPoll(shouldPoll) {
 }
 
 function generationStatusText(job) {
+  const gate = canGenerateSamples();
+  if (!job && !gate.ok) return gate.shortReason;
   if (!job) return "待启动";
   const scenes = Array.isArray(job.sceneLabels) && job.sceneLabels.length ? job.sceneLabels.join("、") : "场景";
   if (job.status === "running") return `生成中 · ${scenes} · ${job.concurrency || 10}线程`;
@@ -995,6 +1462,14 @@ function sceneSampleLabel(sceneId) {
   return count ? `样片 ${count} 张` : "暂无样片";
 }
 
+function sceneTheme(sceneId) {
+  return sceneThemes[sceneId] || sceneThemes.default;
+}
+
+function batchCoverUrl(batch) {
+  return (batch?.images || [])[0]?.url || "";
+}
+
 function setEvidence(link, img, url, exists) {
   if (url && exists) {
     link.href = url;
@@ -1049,6 +1524,26 @@ function writeStore(key, value) {
   } catch {
     // Local previews can be too large for storage; the visible UI still works for the current session.
   }
+}
+
+function normalizeAuth(raw) {
+  if (!raw || typeof raw !== "object" || !raw.user || typeof raw.user !== "object") return { user: null };
+  return {
+    user: {
+      id: String(raw.user.id || ""),
+      nickname: String(raw.user.nickname || "已注册"),
+      type: raw.user.type === "phone" ? "phone" : "email",
+      accountLabel: String(raw.user.accountLabel || "")
+    }
+  };
+}
+
+function accountTypeLabel(type) {
+  return "邮箱";
+}
+
+function nicknameInitial(nickname) {
+  return String(nickname || "已").trim().slice(0, 1) || "已";
 }
 
 function status(message) {

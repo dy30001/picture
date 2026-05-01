@@ -1,6 +1,8 @@
 import express from "express";
+import nodemailer from "nodemailer";
 import { spawn } from "node:child_process";
-import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,8 +16,13 @@ const final4kDir = join(workspaceRoot, "final_4k");
 const chengpinDir = join(workspaceRoot, "成片");
 const generationJobDir = join(generatedDir, "identity_accelerated", "_jobs");
 const generationScript = join(workspaceRoot, "scripts", "newapi_generate_identity_scene_batch.py");
+const authDataDir = resolve(process.env.IDENTITY_WORKFLOW_AUTH_DIR || join(workspaceRoot, "data", "identity-workflow"));
+const authUsersFile = join(authDataDir, "users.json");
+const authCodeTtlMs = 5 * 60 * 1000;
+const authCodeCooldownMs = 60 * 1000;
 
 const generationJobs = new Map();
+const verificationCodes = new Map();
 const sceneLabels = {
   wedding: "婚纱照",
   friendsWedding: "闺蜜婚纱",
@@ -57,6 +64,105 @@ app.get("/api/generation/jobs/:jobId", (request, response) => {
     return;
   }
   response.json({ ok: true, job: serializeJob(job) });
+});
+
+app.get("/api/tool/image-workbench", (request, response) => {
+  try {
+    const url = resolveImageWorkbenchUrl(request);
+    response.json({
+      ok: true,
+      tool: {
+        id: "mojing-image-workbench",
+        title: "墨境图像工作台",
+        url,
+        healthUrl: new URL("/api/health", url).toString()
+      }
+    });
+  } catch (error) {
+    response.status(500).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.get("/api/auth/options", (_request, response) => {
+  response.json({ ok: true, modes: ["email"], defaultMode: "email" });
+});
+
+app.post("/api/auth/verification-code", async (request, response) => {
+  try {
+    const type = normalizeAccountType(request.body?.type);
+    const account = normalizeAccount(request.body?.account, type);
+    const key = authKey(type, account);
+    const existing = verificationCodes.get(key);
+    if (existing?.sentAt && Date.now() - existing.sentAt < authCodeCooldownMs) {
+      response.status(429).json({ ok: false, message: "验证码刚发送过，请稍后再试" });
+      return;
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    if (!isAuthTestMode()) await sendVerificationEmail(account, code);
+    verificationCodes.set(key, { code, expiresAt: Date.now() + authCodeTtlMs, sentAt: Date.now() });
+    const result = {
+      ok: true,
+      type,
+      accountLabel: maskAccount(account, type),
+      expiresIn: 300,
+      delivery: isAuthTestMode() ? "test" : "email",
+      message: "验证码已发送到邮箱，5 分钟内有效"
+    };
+    if (isAuthTestMode()) result.code = code;
+    response.json(result);
+  } catch (error) {
+    response.status(400).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.post("/api/auth/register", async (request, response) => {
+  try {
+    const type = normalizeAccountType(request.body?.type);
+    const account = normalizeAccount(request.body?.account, type);
+    const nickname = normalizeNickname(request.body?.nickname);
+    const password = normalizePassword(request.body?.password);
+    const users = await readUsers();
+    if (users.some((user) => user.type === type && user.account === account)) {
+      response.status(409).json({ ok: false, message: "账号已注册" });
+      return;
+    }
+    verifyCode(type, account, request.body?.code);
+    const user = {
+      id: makeUserId(),
+      type,
+      account,
+      accountLabel: maskAccount(account, type),
+      nickname,
+      passwordHash: hashPassword(password),
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+    users.push(user);
+    await writeUsers(users);
+    verificationCodes.delete(authKey(type, account));
+    response.status(201).json({ ok: true, user: publicUser(user) });
+  } catch (error) {
+    response.status(400).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.post("/api/auth/login", async (request, response) => {
+  try {
+    const type = normalizeAccountType(request.body?.type);
+    const account = normalizeAccount(request.body?.account, type);
+    const password = normalizePassword(request.body?.password);
+    const users = await readUsers();
+    const user = users.find((item) => item.type === type && item.account === account);
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      response.status(401).json({ ok: false, message: "账号或密码不正确" });
+      return;
+    }
+    user.lastLoginAt = new Date().toISOString();
+    await writeUsers(users);
+    response.json({ ok: true, user: publicUser(user) });
+  } catch (error) {
+    response.status(400).json({ ok: false, message: errorMessage(error) });
+  }
 });
 
 app.post("/api/generation/accelerate", async (request, response) => {
@@ -274,8 +380,159 @@ function parseArgs(args) {
   return next;
 }
 
+function resolveImageWorkbenchUrl(request) {
+  const configured = String(process.env.IMAGE_WORKBENCH_URL || "").trim();
+  if (configured) return ensureTrailingSlash(configured);
+  const port = normalizePort(process.env.IMAGE_WORKBENCH_PORT, 4174);
+  const hostHeader = request.get("host") || `127.0.0.1:${port}`;
+  const hostname = hostnameFromHostHeader(hostHeader);
+  const protocol = request.get("x-forwarded-proto")?.split(",")[0]?.trim() || request.protocol || "http";
+  return `${protocol}://${hostnameForUrl(hostname)}:${port}/`;
+}
+
+function normalizePort(value, fallback) {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return fallback;
+  return port;
+}
+
+function hostnameFromHostHeader(value) {
+  const host = String(value || "").trim();
+  if (host.startsWith("[")) return host.slice(1, host.indexOf("]") > 0 ? host.indexOf("]") : undefined);
+  return host.split(":")[0] || "127.0.0.1";
+}
+
+function hostnameForUrl(hostname) {
+  return hostname.includes(":") ? `[${hostname}]` : hostname;
+}
+
+function ensureTrailingSlash(value) {
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function readUsers() {
+  try {
+    const raw = await readFile(authUsersFile, "utf-8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed.users) ? parsed.users.filter((user) => user && typeof user === "object") : [];
+  } catch (error) {
+    if (error?.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function writeUsers(users) {
+  await mkdir(authDataDir, { recursive: true });
+  await writeFile(authUsersFile, JSON.stringify({ users }, null, 2), "utf-8");
+}
+
+function normalizeAccountType(value) {
+  if (!value || value === "email") return "email";
+  throw new Error("当前只支持邮箱验证码");
+}
+
+function normalizeAccount(value, type) {
+  const raw = String(value || "").trim();
+  const email = raw.toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("请输入正确的邮箱地址");
+  return email;
+}
+
+function normalizeNickname(value) {
+  const nickname = String(value || "").trim();
+  if (nickname.length < 2 || nickname.length > 24) throw new Error("昵称需为 2-24 个字符");
+  return nickname;
+}
+
+function normalizePassword(value) {
+  const password = String(value || "");
+  if (password.length < 6 || password.length > 64) throw new Error("密码需为 6-64 个字符");
+  return password;
+}
+
+function verifyCode(type, account, value) {
+  const code = String(value || "").trim();
+  const stored = verificationCodes.get(authKey(type, account));
+  if (!stored || stored.expiresAt < Date.now()) throw new Error("验证码已过期，请重新获取");
+  if (stored.code !== code) throw new Error("验证码不正确");
+}
+
+function authKey(type, account) {
+  return `${type}:${account}`;
+}
+
+function maskAccount(account, type) {
+  const [name, domain] = account.split("@");
+  const visible = name.length <= 2 ? name : `${name.slice(0, 2)}***`;
+  return `${visible}@${domain}`;
+}
+
+async function sendVerificationEmail(account, code) {
+  const config = emailConfig();
+  if (!config.host) throw new Error("邮箱服务未配置，请设置 IDENTITY_WORKFLOW_SMTP_HOST");
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: config.user && config.pass ? { user: config.user, pass: config.pass } : undefined
+  });
+  await transporter.sendMail({
+    from: config.from,
+    to: account,
+    subject: "婚纱样片工作台验证码",
+    text: `你的注册验证码是 ${code}，5 分钟内有效。若非本人操作，请忽略这封邮件。`,
+    html: `<p>你的注册验证码是 <strong style="font-size:20px">${code}</strong></p><p>5 分钟内有效。若非本人操作，请忽略这封邮件。</p>`
+  });
+}
+
+function emailConfig() {
+  const user = process.env.IDENTITY_WORKFLOW_SMTP_USER || process.env.SMTP_USER || "";
+  return {
+    host: process.env.IDENTITY_WORKFLOW_SMTP_HOST || process.env.SMTP_HOST || "",
+    port: Number(process.env.IDENTITY_WORKFLOW_SMTP_PORT || process.env.SMTP_PORT || 587),
+    secure: ["1", "true", "yes"].includes(String(process.env.IDENTITY_WORKFLOW_SMTP_SECURE || process.env.SMTP_SECURE || "").toLowerCase()),
+    user,
+    pass: process.env.IDENTITY_WORKFLOW_SMTP_PASS || process.env.SMTP_PASS || "",
+    from: process.env.IDENTITY_WORKFLOW_MAIL_FROM || process.env.SMTP_FROM || user || "婚纱样片工作台 <no-reply@localhost>"
+  };
+}
+
+function isAuthTestMode() {
+  return process.env.IDENTITY_WORKFLOW_AUTH_TEST_MODE === "1";
+}
+
+function makeUserId() {
+  return `user_${Date.now().toString(36)}_${randomBytes(3).toString("hex")}`;
+}
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 32).toString("hex");
+  return `scrypt:${salt}:${hash}`;
+}
+
+function verifyPassword(password, passwordHash) {
+  const [, salt, hash] = String(passwordHash || "").split(":");
+  if (!salt || !hash) return false;
+  const expected = Buffer.from(hash, "hex");
+  if (!expected.length) return false;
+  const actual = scryptSync(password, salt, expected.length);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    nickname: user.nickname,
+    type: user.type,
+    accountLabel: user.accountLabel,
+    createdAt: user.createdAt,
+    lastLoginAt: user.lastLoginAt
+  };
 }
 
 function makeJobId() {

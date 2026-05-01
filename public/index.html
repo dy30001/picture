@@ -9,7 +9,7 @@
     <link rel="icon" href="./assets/mojing-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="./assets/mojing-icon-192.png" />
     <meta property="og:image" content="./assets/mojing-share-card.png" />
-    <link rel="stylesheet" href="./styles.css?v=20260429-chinese-release" />
+    <link rel="stylesheet" href="./styles.css?v=20260430-known-upload" />
   </head>
   <body>
     <main class="app-shell">
@@ -23,6 +23,7 @@
           </div>
         </div>
         <div class="top-actions">
+          <button class="credit-pill" id="openCreditsBtn" type="button"><span>积分</span><strong id="topCreditBalance">读取中</strong></button>
           <button class="ghost-btn" id="testConnectionBtn" type="button">测试连接</button>
           <button class="primary-btn" id="openSettingsBtn" type="button">设置</button>
         </div>
@@ -31,6 +32,7 @@
       <nav class="tabs" aria-label="功能区">
         <button class="tab active" data-tab="templates" type="button">模板库</button>
         <button class="tab" data-tab="generate" type="button">生成图片</button>
+        <button class="tab" data-tab="credits" type="button">积分</button>
       </nav>
 
       <section class="panel active" id="templatesPanel">
@@ -51,11 +53,18 @@
         <section class="composer">
           <div class="section-head">
             <div>
-              <h2>生成图片</h2>
-              <p>选择模板后可继续编辑提示词</p>
+              <h2>生成 / 编辑图片</h2>
+              <p>模板、原图和历史结果都可继续加工</p>
             </div>
             <button class="ghost-btn" id="openSizeBtn" type="button">尺寸</button>
           </div>
+          <section class="edit-module" aria-label="图片编辑">
+            <div>
+              <h3>图片编辑</h3>
+              <p id="editModeState">生成模式 · 上传原图后进入编辑</p>
+            </div>
+            <label class="file-btn">上传原图<input id="editImageInput" type="file" accept="image/*" /></label>
+          </section>
           <label class="prompt-box"><span>Prompt</span><textarea id="promptInput" rows="10" placeholder="输入你想生成的画面、风格、镜头和约束"></textarea></label>
           <div class="quick-params">
             <label><span>质量</span><select id="qualitySelect"><option value="auto">auto</option><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select></label>
@@ -65,8 +74,8 @@
           </div>
           <section class="reference-box">
             <div class="section-head compact">
-              <div><h3>参考图</h3><p>支持多图上传，随生成请求提交</p></div>
-              <label class="file-btn">上传<input id="referenceInput" type="file" accept="image/*" multiple /></label>
+              <div><h3>参考 / 编辑图</h3><p>有图时走编辑请求，可追加多张参考</p></div>
+              <label class="file-btn">追加图片<input id="referenceInput" type="file" accept="image/*" multiple /></label>
             </div>
             <div class="reference-list" id="referenceList"></div>
           </section>
@@ -86,8 +95,36 @@
           <div class="history-list" id="historyList"></div>
         </aside>
       </section>
+
+      <section class="panel" id="creditsPanel" hidden>
+        <section class="credits-layout">
+          <section class="credit-overview">
+            <div class="section-head compact">
+              <div><h2>积分账户</h2><p id="creditUpdatedAt">读取中</p></div>
+              <button class="ghost-btn" id="creditRefreshBtn" type="button">刷新</button>
+            </div>
+            <div class="credit-balance-card">
+              <span>可用积分</span>
+              <strong id="creditBalance">--</strong>
+              <p id="creditStatus">本地账本读取中</p>
+            </div>
+            <div class="credit-note-grid">
+              <span>1 张图建议预留 10-30 积分</span>
+              <span>充值记录按本机客户端隔离</span>
+            </div>
+          </section>
+          <section class="recharge-panel">
+            <div class="section-head compact"><div><h2>充值积分</h2><p>选择档位后立即入账</p></div></div>
+            <div class="credit-package-grid" id="creditPackages"></div>
+          </section>
+          <aside class="credit-ledger-panel">
+            <div class="section-head compact"><div><h2>积分记录</h2><p id="creditLedgerCount">0 条</p></div></div>
+            <div class="credit-ledger-list" id="creditLedger"></div>
+          </aside>
+        </section>
+      </section>
     </main>
     <div class="modal-root" id="modalRoot" hidden></div>
-    <script src="./app.js?v=20260429-chinese-release" defer></script>
+    <script src="./app.js?v=20260430-known-upload" defer></script>
   </body>
 </html>

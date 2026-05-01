@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const sourceDirs = ["server", "src", "public", "tests", "scripts"];
+const sourceDirs = ["server", "src", "public", "tests", "scripts", "identity-workflow"];
 const lintableFile = /\.(?:js|mjs|ts|css|html)$/;
 const failures = [];
 const files = walk(sourceDirs.map((dir) => join(root, dir)));

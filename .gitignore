@@ -8,6 +8,7 @@ dist/
 logs/
 data/logs/
 data/generated-history/
+data/history/
 data/history.json
 review/
 
@@ -16,7 +17,9 @@ generated/
 final_4k/
 成片/
 reference/
-planning/
+planning/*
+!planning/customer_flow_deployment_spec_v01.md
+!planning/build_report_customer_flow_deployment_spec_v01.md
 
 # Local notes and source captures
 NEXT_*.md

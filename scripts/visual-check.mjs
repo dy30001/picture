@@ -79,6 +79,8 @@ for (const item of cases) {
 }
 
 await verifySettingsSaveRecovery(browser, url);
+await verifyKnownImageUpload(browser, url);
+await verifyHtmlImageRejected(browser, url);
 await verifyImagePreviewDownload(browser, url);
 await verifyHistoryTrash(browser, url);
 await browser.close();
@@ -247,10 +249,97 @@ async function verifyImagePreviewDownload(browser, url) {
   const download = await downloadPromise;
   const suggested = download.suggestedFilename();
   if (!/^pic-\d{8}-\d{6}-1\.png$/.test(suggested)) throw new Error(`image preview: unexpected download filename ${suggested}`);
-  await closeModal(page);
+  await clickFirst(page, "#imagePreviewEdit", "image preview: missing preview edit button");
   await expectHidden(page, ".image-preview-modal", "image preview: modal did not close");
+  await expectText(page, "#editModeState", "编辑模式", "image preview: edit mode did not activate");
+  await expectText(page, "#generateBtn", "生成编辑图", "image preview: generate button did not switch to edit mode");
+  const promptValue = await page.locator("#promptInput").inputValue();
+  if (!promptValue.includes("preview download check")) throw new Error("image preview: edit mode did not reuse source prompt");
+  const referenceCount = await page.locator("#referenceList .reference-item img").count();
+  if (referenceCount !== 1) throw new Error(`image preview: expected 1 loaded edit reference, got ${referenceCount}`);
   await context.close();
-  console.log("image preview download passed");
+  console.log("image preview download and edit passed");
+}
+
+async function verifyKnownImageUpload(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const pageErrors = [];
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+  await mockEmptyHistory(page);
+  let capturedGenerate = null;
+  await page.route("**/api/generate", async (route) => {
+    capturedGenerate = JSON.parse(route.request().postData() || "{}");
+    await route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: false, message: "visual upload stop" })
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("pic.native.settings", JSON.stringify({
+      apiUrl: "https://alexai.work/v1",
+      apiKey: "visual-upload-key",
+      apiMode: "images",
+      mainModelId: "gpt-5.5",
+      modelId: "gpt-image-2",
+      timeoutSeconds: 120
+    }));
+  });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  if (pageErrors.length) throw new Error(`known upload: page script error: ${pageErrors.join("; ")}`);
+  await clickFirst(page, "[data-tab='generate']", "known upload: missing generate tab");
+  await page.setInputFiles("#editImageInput", join(process.cwd(), "public/assets/mojing-icon-192.png"));
+  await page.waitForFunction(() => document.querySelector("#editModeState")?.textContent?.includes("编辑模式"));
+  await expectText(page, "#editModeState", "编辑模式", "known upload: edit mode did not activate");
+  await expectVisible(page, "#referenceList .reference-item img", "known upload: uploaded preview missing");
+  await page.fill("#promptInput", "known image upload visual check");
+  await clickFirst(page, "#generateBtn", "known upload: missing generate button");
+  await page.waitForFunction(() => document.querySelector("#statusLine")?.textContent?.includes("visual upload stop"));
+  if (!capturedGenerate?.references?.[0]?.dataUrl?.startsWith("data:image/")) throw new Error("known upload: generate request did not include image data");
+  if (!capturedGenerate.prompt?.includes("known image upload")) throw new Error("known upload: generate request prompt mismatch");
+  await page.close();
+  console.log("known image upload passed");
+}
+
+async function verifyHtmlImageRejected(browser, url) {
+  const page = await browser.newPage({ viewport: { width: 960, height: 720 } });
+  const pageErrors = [];
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+  await mockEmptyHistory(page);
+  await page.route("**/api/generate", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true, images: ["<!doctype html><html><body><h1>not image</h1></body></html>"] })
+    });
+  });
+  await page.addInitScript(() => {
+    localStorage.clear();
+    localStorage.setItem("pic.native.settings", JSON.stringify({
+      apiUrl: "https://alexai.work/v1",
+      apiKey: "visual-html-key",
+      apiMode: "images",
+      mainModelId: "gpt-5.5",
+      modelId: "gpt-image-2",
+      timeoutSeconds: 120
+    }));
+  });
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  if (pageErrors.length) throw new Error(`html image reject: page script error: ${pageErrors.join("; ")}`);
+  await clickFirst(page, "[data-tab='generate']", "html image reject: missing generate tab");
+  await page.fill("#promptInput", "html image reject check");
+  await clickFirst(page, "#generateBtn", "html image reject: missing generate button");
+  await page.waitForFunction(() => document.querySelector("#statusLine")?.textContent?.includes("生成接口返回了 HTML"));
+  const historyText = await page.locator("#historyList").textContent();
+  if (!historyText?.includes("失败")) throw new Error("html image reject: history did not mark the task failed");
+  if (await page.locator("#historyList img").count()) throw new Error("html image reject: HTML was rendered as an image");
+  await page.close();
+  console.log("html image rejection passed");
 }
 
 async function verifyHistoryTrash(browser, url) {

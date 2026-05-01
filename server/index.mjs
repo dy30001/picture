@@ -1,6 +1,6 @@
 import express from "express";
-import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { access, appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTemplateStore } from "./template-store.mjs";
 
@@ -8,8 +8,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = join(root, "public");
 const dataDir = join(root, "data");
 const historyImageDir = join(dataDir, "generated-history");
-const historyStoreFile = join(dataDir, "history.json");
+const historyStoreDir = join(dataDir, "history");
+const creditStoreDir = join(dataDir, "credits");
+const logDir = join(dataDir, "logs");
+const generationErrorLogFile = join(logDir, "generation-errors.ndjson");
 const templateStore = createTemplateStore({ publicDir });
+const creditPackages = [
+  { id: "trial", name: "试用包", credits: 100, bonus: 0, amountCny: 9.9, badge: "体验" },
+  { id: "starter", name: "创作包", credits: 300, bonus: 30, amountCny: 29.9, badge: "常用" },
+  { id: "studio", name: "工作室包", credits: 800, bonus: 120, amountCny: 79.9, badge: "推荐" },
+  { id: "pro", name: "批量包", credits: 1800, bonus: 360, amountCny: 169, badge: "批量" }
+];
 const defaultSettings = {
   apiUrl: "https://alexai.work/v1",
   apiKey: "",
@@ -26,7 +35,7 @@ app.use((_request, response, next) => {
   response.setHeader("Access-Control-Allow-Origin", "*");
   next();
 });
-app.use(express.json({ limit: "30mb" }));
+app.use(express.json({ limit: "80mb" }));
 app.use("/generated-history", express.static(historyImageDir));
 
 app.get("/api/health", (_request, response) => {
@@ -76,11 +85,46 @@ app.post("/api/test-connection", async (request, response) => {
   }
 });
 
+app.get("/api/credits", async (request, response) => {
+  try {
+    const clientKey = clientKeyFromRequest(request);
+    const store = await readCreditStore(clientKey);
+    response.json({ ok: true, clientKey, ...creditSummary(store), packages: publicCreditPackages() });
+  } catch (error) {
+    response.status(503).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.post("/api/credits/recharge", async (request, response) => {
+  try {
+    const clientKey = clientKeyFromRequest(request);
+    const packageId = String(request.body?.packageId || "");
+    const selected = creditPackages.find((item) => item.id === packageId);
+    if (!selected) {
+      response.status(400).json({ ok: false, message: "充值档位不存在" });
+      return;
+    }
+    const entry = creditRechargeEntry(selected);
+    const store = await mutateCreditStore((draft) => {
+      draft.balance += entry.credits;
+      draft.ledger.unshift(entry);
+      draft.updatedAt = entry.createdAt;
+      trimCreditLedger(draft);
+      return draft;
+    }, clientKey);
+    response.json({ ok: true, clientKey, entry, ...creditSummary(store), packages: publicCreditPackages() });
+  } catch (error) {
+    response.status(503).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
 app.post("/api/generate", async (request, response) => {
+  const requestId = generationRequestId();
+  const clientKey = clientKeyFromRequest(request);
   const settings = sanitizeSettings(request.body?.settings);
   const prompt = String(request.body?.prompt || "").trim();
   const params = sanitizeParams(request.body?.params);
-  const references = Array.isArray(request.body?.references) ? request.body.references : [];
+  const references = requestReferences(request.body?.references);
   const taskId = safeId(request.body?.taskId || request.body?.id || `task-${Date.now().toString(36)}`);
   const createdAt = safeDate(request.body?.createdAt, new Date());
   if (!settings.apiKey.trim()) {
@@ -93,7 +137,7 @@ app.post("/api/generate", async (request, response) => {
   }
   try {
     const result = await generateOpenAIImage(settings, prompt, params, references);
-    const images = await persistHistoryImages(result.images, taskId, params.outputFormat);
+    const images = await persistHistoryImages(result.images, taskId, params.outputFormat, clientKey);
     const task = {
       id: taskId,
       prompt,
@@ -106,10 +150,20 @@ app.post("/api/generate", async (request, response) => {
       createdAt: createdAt.getTime(),
       finishedAt: Date.now()
     };
-    const historySaved = await saveHistoryTaskSafely(task);
+    const historySaved = await saveHistoryTaskSafely(task, clientKey);
     response.json({ ok: true, ...result, images, historySaved });
   } catch (error) {
     const message = errorMessage(error);
+    await writeGenerationErrorLog({
+      requestId,
+      clientKey,
+      taskId,
+      prompt,
+      params,
+      settings,
+      referencesCount: references.length,
+      error
+    });
     await saveHistoryTaskSafely({
       id: taskId,
       prompt,
@@ -121,17 +175,18 @@ app.post("/api/generate", async (request, response) => {
       revisedPrompt: "",
       createdAt: createdAt.getTime(),
       finishedAt: Date.now()
-    });
-    response.status(502).json({ ok: false, message });
+    }, clientKey);
+    response.status(502).json({ ok: false, message, requestId });
   }
 });
 
 app.get("/api/history", async (request, response) => {
   try {
+    const clientKey = clientKeyFromRequest(request);
     const limit = clampNumber(Number(request.query?.limit) || 80, 1, 200);
     const deleted = request.query?.deleted === "1" || request.query?.deleted === "true";
-    const history = await listHistoryTasks(limit, deleted);
-    response.json({ ok: true, history, total: history.length });
+    const history = await listHistoryTasks(limit, deleted, clientKey);
+    response.json({ ok: true, history, total: history.length, clientKey });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error), history: [] });
   }
@@ -139,14 +194,15 @@ app.get("/api/history", async (request, response) => {
 
 app.post("/api/history/sync", async (request, response) => {
   try {
+    const clientKey = clientKeyFromRequest(request);
     const history = Array.isArray(request.body?.history) ? request.body.history.slice(0, 80) : [];
     let saved = 0;
     for (const task of history) {
       if (!task?.id || !task?.prompt) continue;
-      await saveHistoryTask(normalizeClientHistoryTask(task));
+      await saveHistoryTask(normalizeClientHistoryTask(task), clientKey);
       saved += 1;
     }
-    response.json({ ok: true, saved });
+    response.json({ ok: true, saved, clientKey });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error), saved: 0 });
   }
@@ -154,7 +210,7 @@ app.post("/api/history/sync", async (request, response) => {
 
 app.delete("/api/history/:id", async (request, response) => {
   try {
-    const task = await softDeleteHistoryTask(request.params.id);
+    const task = await softDeleteHistoryTask(request.params.id, clientKeyFromRequest(request));
     response.json({ ok: true, task });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -163,7 +219,7 @@ app.delete("/api/history/:id", async (request, response) => {
 
 app.post("/api/history/:id/restore", async (request, response) => {
   try {
-    const task = await restoreHistoryTask(request.params.id);
+    const task = await restoreHistoryTask(request.params.id, clientKeyFromRequest(request));
     response.json({ ok: true, task });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -172,7 +228,7 @@ app.post("/api/history/:id/restore", async (request, response) => {
 
 app.delete("/api/history/:id/permanent", async (request, response) => {
   try {
-    await deleteHistoryTaskPermanently(request.params.id);
+    await deleteHistoryTaskPermanently(request.params.id, clientKeyFromRequest(request));
     response.json({ ok: true });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -181,8 +237,9 @@ app.delete("/api/history/:id/permanent", async (request, response) => {
 
 app.delete("/api/history", async (request, response) => {
   try {
+    const clientKey = clientKeyFromRequest(request);
     const deleted = request.query?.deleted === "1" || request.query?.deleted === "true";
-    const count = deleted ? await clearDeletedHistoryTasks() : await softDeleteAllHistoryTasks();
+    const count = deleted ? await clearDeletedHistoryTasks(clientKey) : await softDeleteAllHistoryTasks(clientKey);
     response.json({ ok: true, deleted, count });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error), count: 0 });
@@ -367,15 +424,21 @@ async function parseJson(response) {
   } catch {
     const contentType = response.headers.get("content-type") ?? "";
     if (/html/i.test(contentType) || /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) {
-      throw new Error("接口返回了网页 HTML，不是 JSON。请确认 API URL 使用 OpenAI 兼容地址，例如 https://alexai.work/v1");
+      const error = new Error("接口返回了网页 HTML，不是 JSON。请确认 API URL 使用 OpenAI 兼容地址，例如 https://alexai.work/v1");
+      attachUpstreamDetails(error, response, text);
+      throw error;
     }
-    throw new Error(text.slice(0, 300));
+    const error = new Error(text.slice(0, 300));
+    attachUpstreamDetails(error, response, text);
+    throw error;
   }
 }
 
 function assertOk(response, json) {
   if (response.ok && !json.error) return;
-  throw new Error(json.error?.message ?? `${response.status} ${response.statusText}`);
+  const error = new Error(json.error?.message ?? `${response.status} ${response.statusText}`);
+  attachUpstreamDetails(error, response, JSON.stringify(json).slice(0, 1000));
+  throw error;
 }
 
 function imagesResult(json, format) {
@@ -395,22 +458,58 @@ function asDataImage(base64, format) {
   return `data:${format === "jpeg" ? "image/jpeg" : `image/${format}`};base64,${base64}`;
 }
 
-async function persistHistoryImages(images, taskId, format) {
-  await mkdir(historyImageDir, { recursive: true });
+async function persistHistoryImages(images, taskId, format, clientKey = "local") {
+  const clientDir = historyImageDirForClient(clientKey);
+  await mkdir(clientDir, { recursive: true });
   const saved = [];
   for (let index = 0; index < images.length; index += 1) {
     const image = images[index];
     if (typeof image !== "string") continue;
     const parsed = parseDataImage(image, format);
     if (!parsed) {
+      await assertImageOutputValue(image);
       saved.push(image);
       continue;
     }
     const filename = `${safeId(taskId)}-${index + 1}.${parsed.extension}`;
-    await writeFile(join(historyImageDir, filename), parsed.buffer);
-    saved.push(`/generated-history/${filename}`);
+    await writeFile(join(clientDir, filename), parsed.buffer);
+    saved.push(`/generated-history/${safeClientKey(clientKey)}/${filename}`);
   }
   return saved;
+}
+
+async function assertImageOutputValue(value) {
+  const image = String(value || "").trim();
+  if (!image) throw new Error("API 返回了空图片地址");
+  if (looksLikeHtmlOutput(image)) throw new Error("API 返回了 HTML 内容，不是图片。请检查 API URL、模型权限或上游代理页");
+  if (!/^https?:\/\//i.test(image)) return;
+  await assertRemoteImageContentType(image);
+}
+
+async function assertRemoteImageContentType(url) {
+  const response = await fetchHeadWithTimeout(url).catch(() => null);
+  if (!response) return;
+  const contentType = response.headers.get("content-type") || "";
+  if (/html/i.test(contentType)) {
+    const error = new Error("API 返回的图片地址实际是 HTML 页面，不是图片");
+    attachUpstreamDetails(error, response, "");
+    throw error;
+  }
+  if (contentType && !/^image\//i.test(contentType)) {
+    const error = new Error(`API 返回的图片地址内容类型不是图片：${contentType}`);
+    attachUpstreamDetails(error, response, "");
+    throw error;
+  }
+}
+
+async function fetchHeadWithTimeout(url) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    return await fetch(url, { method: "HEAD", signal: controller.signal, redirect: "follow" });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function parseDataImage(value, fallbackFormat) {
@@ -437,9 +536,9 @@ function normalizeClientHistoryTask(task) {
   };
 }
 
-async function saveHistoryTaskSafely(task) {
+async function saveHistoryTaskSafely(task, clientKey = "local") {
   try {
-    await saveHistoryTask(task);
+    await saveHistoryTask(task, clientKey);
     return true;
   } catch (error) {
     process.stderr.write(`history save failed: ${errorMessage(error)}\n`);
@@ -447,9 +546,9 @@ async function saveHistoryTaskSafely(task) {
   }
 }
 
-async function saveHistoryTask(task) {
+async function saveHistoryTask(task, clientKey = "local") {
   const params = sanitizeParams(task.params);
-  const images = await persistHistoryImages(Array.isArray(task.images) ? task.images : [], task.id, params.outputFormat);
+  const images = await persistHistoryImages(Array.isArray(task.images) ? task.images : [], task.id, params.outputFormat, clientKey);
   const record = normalizeHistoryRecord({
     ...task,
     id: safeId(task.id),
@@ -463,38 +562,38 @@ async function saveHistoryTask(task) {
     if (index >= 0) history[index] = { ...history[index], ...record, deletedAt: history[index].deletedAt ?? record.deletedAt ?? null };
     else history.push(record);
     trimHistoryStore(history);
-  });
+  }, clientKey);
 }
 
-async function listHistoryTasks(limit, deleted = false) {
-  const history = await readHistoryStore();
+async function listHistoryTasks(limit, deleted = false, clientKey = "local") {
+  const history = await readHistoryStore(clientKey);
   return history
     .filter((task) => deleted ? task.deletedAt : !task.deletedAt)
     .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0))
     .slice(0, clampNumber(Number(limit) || 80, 1, 200));
 }
 
-async function softDeleteHistoryTask(id) {
+async function softDeleteHistoryTask(id, clientKey = "local") {
   const safeTaskId = safeId(id);
   return mutateHistoryStore((history) => {
     const task = history.find((item) => item.id === safeTaskId);
     if (!task) return null;
     task.deletedAt = Date.now();
     return task;
-  });
+  }, clientKey);
 }
 
-async function restoreHistoryTask(id) {
+async function restoreHistoryTask(id, clientKey = "local") {
   const safeTaskId = safeId(id);
   return mutateHistoryStore((history) => {
     const task = history.find((item) => item.id === safeTaskId);
     if (!task) return null;
     task.deletedAt = null;
     return task;
-  });
+  }, clientKey);
 }
 
-async function softDeleteAllHistoryTasks() {
+async function softDeleteAllHistoryTasks(clientKey = "local") {
   return mutateHistoryStore((history) => {
     const now = Date.now();
     let count = 0;
@@ -504,27 +603,27 @@ async function softDeleteAllHistoryTasks() {
       count += 1;
     }
     return count;
-  });
+  }, clientKey);
 }
 
-async function deleteHistoryTaskPermanently(id) {
+async function deleteHistoryTaskPermanently(id, clientKey = "local") {
   const safeTaskId = safeId(id);
   const images = await mutateHistoryStore((history) => {
     const index = history.findIndex((item) => item.id === safeTaskId);
     if (index < 0) return [];
     const [task] = history.splice(index, 1);
     return task.images;
-  });
+  }, clientKey);
   await removeHistoryImages(images);
 }
 
-async function clearDeletedHistoryTasks() {
+async function clearDeletedHistoryTasks(clientKey = "local") {
   const { count, images } = await mutateHistoryStore((history) => {
     const deleted = history.filter((task) => task.deletedAt);
     const active = history.filter((task) => !task.deletedAt);
     history.splice(0, history.length, ...active);
     return { count: deleted.length, images: deleted.flatMap((task) => task.images) };
-  });
+  }, clientKey);
   await removeHistoryImages(images);
   return count;
 }
@@ -533,34 +632,41 @@ async function removeHistoryImages(images) {
   for (const image of Array.isArray(images) ? images : []) {
     const relative = String(image || "");
     if (!relative.startsWith("/generated-history/")) continue;
-    const filename = relative.slice("/generated-history/".length).split(/[?#]/)[0];
-    if (!filename || filename.includes("/") || filename.includes("\\")) continue;
-    await rm(join(historyImageDir, filename), { force: true });
+    const filePath = relative.slice("/generated-history/".length).split(/[?#]/)[0];
+    if (!filePath || filePath.includes("\\") || filePath.includes("\0")) continue;
+    const rootDir = resolve(historyImageDir);
+    const target = resolve(historyImageDir, filePath);
+    if (target !== rootDir && !target.startsWith(`${rootDir}${sep}`)) continue;
+    await rm(target, { force: true });
   }
 }
 
-let historyReadyPromise;
+const historyReadyPromises = new Map();
 let historyWriteQueue = Promise.resolve();
 
-function ensureHistoryStore() {
-  if (!historyReadyPromise) historyReadyPromise = initializeHistoryStore();
-  return historyReadyPromise;
+function ensureHistoryStore(clientKey = "local") {
+  const key = safeClientKey(clientKey);
+  if (!historyReadyPromises.has(key)) historyReadyPromises.set(key, initializeHistoryStore(key));
+  return historyReadyPromises.get(key);
 }
 
-async function initializeHistoryStore() {
+async function initializeHistoryStore(clientKey = "local") {
   await mkdir(dataDir, { recursive: true });
   await mkdir(historyImageDir, { recursive: true });
+  await mkdir(historyStoreDir, { recursive: true });
+  await mkdir(historyImageDirForClient(clientKey), { recursive: true });
+  const storeFile = historyStoreFileForClient(clientKey);
   try {
-    await access(historyStoreFile);
+    await access(storeFile);
   } catch {
-    await writeFile(historyStoreFile, "[]\n");
+    await writeFile(storeFile, "[]\n");
   }
 }
 
-async function readHistoryStore() {
-  await ensureHistoryStore();
+async function readHistoryStore(clientKey = "local") {
+  await ensureHistoryStore(clientKey);
   try {
-    const text = await readFile(historyStoreFile, "utf8");
+    const text = await readFile(historyStoreFileForClient(clientKey), "utf8");
     const parsed = JSON.parse(text || "[]");
     return Array.isArray(parsed) ? parsed.map(normalizeHistoryRecord) : [];
   } catch (error) {
@@ -569,21 +675,140 @@ async function readHistoryStore() {
   }
 }
 
-async function writeHistoryStore(history) {
-  await ensureHistoryStore();
-  await writeFile(historyStoreFile, `${JSON.stringify(history.map(normalizeHistoryRecord), null, 2)}\n`);
+async function writeHistoryStore(history, clientKey = "local") {
+  await ensureHistoryStore(clientKey);
+  await writeFile(historyStoreFileForClient(clientKey), `${JSON.stringify(history.map(normalizeHistoryRecord), null, 2)}\n`);
 }
 
-function mutateHistoryStore(mutator) {
+function mutateHistoryStore(mutator, clientKey = "local") {
   const run = historyWriteQueue.then(async () => {
-    const history = await readHistoryStore();
+    const history = await readHistoryStore(clientKey);
     const result = await mutator(history);
     trimHistoryStore(history);
-    await writeHistoryStore(history);
+    await writeHistoryStore(history, clientKey);
     return result;
   });
   historyWriteQueue = run.catch(() => {});
   return run;
+}
+
+const creditReadyPromises = new Map();
+let creditWriteQueue = Promise.resolve();
+
+function ensureCreditStore(clientKey = "local") {
+  const key = safeClientKey(clientKey);
+  if (!creditReadyPromises.has(key)) creditReadyPromises.set(key, initializeCreditStore(key));
+  return creditReadyPromises.get(key);
+}
+
+async function initializeCreditStore(clientKey = "local") {
+  await mkdir(dataDir, { recursive: true });
+  await mkdir(creditStoreDir, { recursive: true });
+  const storeFile = creditStoreFileForClient(clientKey);
+  try {
+    await access(storeFile);
+  } catch {
+    await writeFile(storeFile, `${JSON.stringify(emptyCreditStore(), null, 2)}\n`);
+  }
+}
+
+async function readCreditStore(clientKey = "local") {
+  await ensureCreditStore(clientKey);
+  try {
+    const text = await readFile(creditStoreFileForClient(clientKey), "utf8");
+    return normalizeCreditStore(JSON.parse(text || "{}"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return emptyCreditStore();
+    throw error;
+  }
+}
+
+async function writeCreditStore(store, clientKey = "local") {
+  await ensureCreditStore(clientKey);
+  await writeFile(creditStoreFileForClient(clientKey), `${JSON.stringify(normalizeCreditStore(store), null, 2)}\n`);
+}
+
+function mutateCreditStore(mutator, clientKey = "local") {
+  const run = creditWriteQueue.then(async () => {
+    const store = await readCreditStore(clientKey);
+    const result = await mutator(store);
+    trimCreditLedger(store);
+    await writeCreditStore(store, clientKey);
+    return result || store;
+  });
+  creditWriteQueue = run.catch(() => {});
+  return run;
+}
+
+function emptyCreditStore() {
+  const now = new Date().toISOString();
+  return { balance: 0, ledger: [], createdAt: now, updatedAt: now };
+}
+
+function normalizeCreditStore(value) {
+  const now = new Date().toISOString();
+  const store = value && typeof value === "object" ? value : {};
+  const ledger = Array.isArray(store.ledger) ? store.ledger.map(normalizeCreditEntry).filter(Boolean) : [];
+  return {
+    balance: Math.max(0, Number(store.balance) || 0),
+    ledger: ledger.slice(0, 120),
+    createdAt: String(store.createdAt || now),
+    updatedAt: String(store.updatedAt || store.createdAt || now)
+  };
+}
+
+function normalizeCreditEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  return {
+    id: safeId(entry.id || `credit-${Date.now().toString(36)}`),
+    type: entry.type === "spend" ? "spend" : "recharge",
+    packageId: String(entry.packageId || ""),
+    title: String(entry.title || ""),
+    credits: Number(entry.credits) || 0,
+    amountCny: Number(entry.amountCny) || 0,
+    status: String(entry.status || "succeeded"),
+    createdAt: String(entry.createdAt || new Date().toISOString())
+  };
+}
+
+function creditSummary(store) {
+  const normalized = normalizeCreditStore(store);
+  return {
+    balance: normalized.balance,
+    ledger: normalized.ledger.slice(0, 20),
+    updatedAt: normalized.updatedAt
+  };
+}
+
+function creditRechargeEntry(selected) {
+  const credits = Number(selected.credits) + Number(selected.bonus || 0);
+  return {
+    id: `recharge-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    type: "recharge",
+    packageId: selected.id,
+    title: selected.name,
+    credits,
+    amountCny: selected.amountCny,
+    status: "succeeded",
+    createdAt: new Date().toISOString()
+  };
+}
+
+function publicCreditPackages() {
+  return creditPackages.map((item) => ({
+    id: item.id,
+    name: item.name,
+    credits: item.credits,
+    bonus: item.bonus,
+    amountCny: item.amountCny,
+    badge: item.badge
+  }));
+}
+
+function trimCreditLedger(store) {
+  if (!Array.isArray(store.ledger)) store.ledger = [];
+  store.ledger.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
+  if (store.ledger.length > 120) store.ledger.splice(120);
 }
 
 function normalizeHistoryRecord(task) {
@@ -612,6 +837,136 @@ function historyReferences(references) {
     id: String(reference?.id || ""),
     name: String(reference?.name || "reference.png")
   }));
+}
+
+function requestReferences(references) {
+  return (Array.isArray(references) ? references : [])
+    .filter((reference) => typeof reference?.dataUrl === "string" && reference.dataUrl.startsWith("data:image/"))
+    .map((reference) => ({
+      id: String(reference.id || ""),
+      name: String(reference.name || "reference.png"),
+      dataUrl: String(reference.dataUrl)
+    }));
+}
+
+function historyStoreFileForClient(clientKey = "local") {
+  return join(historyStoreDir, `${safeClientKey(clientKey)}.json`);
+}
+
+function historyImageDirForClient(clientKey = "local") {
+  return join(historyImageDir, safeClientKey(clientKey));
+}
+
+function creditStoreFileForClient(clientKey = "local") {
+  return join(creditStoreDir, `${safeClientKey(clientKey)}.json`);
+}
+
+function clientKeyFromRequest(request) {
+  return safeClientKey(clientIpFromRequest(request));
+}
+
+function clientIpFromRequest(request) {
+  const forwarded = String(request.headers?.["x-forwarded-for"] || "").split(",")[0].trim();
+  const raw = forwarded || request.ip || request.socket?.remoteAddress || "local";
+  return normalizeClientIp(raw);
+}
+
+function normalizeClientIp(value) {
+  let next = String(value || "local").trim();
+  if (!next) return "local";
+  if (next.startsWith("::ffff:")) next = next.slice(7);
+  if (next === "::1") next = "127.0.0.1";
+  if (next.startsWith("[") && next.includes("]")) next = next.slice(1, next.indexOf("]"));
+  const ipv4WithPort = next.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/);
+  if (ipv4WithPort) next = ipv4WithPort[1];
+  return next.replace(/%.+$/, "") || "local";
+}
+
+function safeClientKey(value) {
+  const clean = String(value || "local")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+  return clean || "local";
+}
+
+function attachUpstreamDetails(error, response, bodyText) {
+  error.upstreamStatus = response.status;
+  error.upstreamStatusText = response.statusText;
+  error.upstreamContentType = response.headers.get("content-type") || "";
+  error.upstreamUrl = response.url || "";
+  error.upstreamBodySnippet = compactLogText(bodyText, 600);
+}
+
+async function writeGenerationErrorLog(entry) {
+  try {
+    await mkdir(logDir, { recursive: true });
+    const payload = {
+      time: new Date().toISOString(),
+      requestId: entry.requestId,
+      clientKey: entry.clientKey,
+      taskId: safeId(entry.taskId),
+      promptPreview: compactLogText(entry.prompt, 180),
+      referencesCount: entry.referencesCount,
+      params: sanitizeParams(entry.params),
+      apiMode: entry.settings.apiMode,
+      apiUrl: safeLogUrl(entry.settings.apiUrl),
+      mainModelId: entry.settings.mainModelId,
+      modelId: entry.settings.modelId,
+      error: {
+        message: errorMessage(entry.error),
+        upstreamStatus: entry.error?.upstreamStatus || null,
+        upstreamStatusText: entry.error?.upstreamStatusText || "",
+        upstreamContentType: entry.error?.upstreamContentType || "",
+        upstreamUrl: safeLogUrl(entry.error?.upstreamUrl || ""),
+        upstreamBodySnippet: entry.error?.upstreamBodySnippet || ""
+      }
+    };
+    await appendFile(generationErrorLogFile, `${JSON.stringify(payload)}\n`);
+  } catch (error) {
+    process.stderr.write(`generation error log failed: ${errorMessage(error)}\n`);
+  }
+}
+
+function generationRequestId() {
+  return `gen-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function looksLikeHtmlOutput(value) {
+  const trimmed = String(value || "").trim().toLowerCase();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html") || trimmed.startsWith("<body") || trimmed.startsWith("<h1")) return true;
+  if (trimmed.startsWith("data:text/html")) return true;
+  try {
+    const url = new URL(trimmed);
+    return /\.(?:html?|xhtml)$/i.test(url.pathname);
+  } catch {
+    return false;
+  }
+}
+
+function compactLogText(value, max = 300) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+function safeLogUrl(value) {
+  const raw = String(value || "");
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return raw.replace(/([?&](?:api[_-]?key|key|token|access_token)=)[^&]+/gi, "$1***").slice(0, 300);
+  }
 }
 
 function safeDate(value, fallback) {

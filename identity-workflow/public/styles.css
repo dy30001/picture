@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
   --ink: #192132;
   --muted: #66748a;
   --line: #d8e1ed;
@@ -9,6 +9,8 @@
   --champagne: #c79a45;
   --champagne-soft: #f7ead1;
   --rose: #b76e79;
+  --berry: #7f2d48;
+  --sage: #6f8b75;
   --teal: #1b8a7a;
   --blue: #2563eb;
   color: var(--ink);
@@ -63,6 +65,10 @@ input {
   font: inherit;
 }
 
+select {
+  font: inherit;
+}
+
 button {
   cursor: pointer;
 }
@@ -80,6 +86,8 @@ figure {
 .topbar,
 .panel,
 .summary-grid article,
+.customer-step-panel,
+.customer-flow-step,
 .stage,
 .module-tabs {
   border: 1px solid var(--line);
@@ -226,6 +234,170 @@ small,
   gap: 8px;
 }
 
+.top-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.auth-chip {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 118px);
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid rgba(27, 138, 122, 0.28);
+  border-radius: 8px;
+  padding: 3px 8px 3px 4px;
+  background: rgba(240, 253, 250, 0.82);
+}
+
+.auth-chip > span {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--teal), var(--blue));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.auth-chip div {
+  display: grid;
+  min-width: 0;
+}
+
+.auth-chip strong,
+.auth-chip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-chip strong {
+  font-size: 12px;
+}
+
+.auth-chip small {
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.brand-pills,
+.hero-brief {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.brand-pills {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.brand-pills span {
+  border: 1px solid rgba(127, 45, 72, 0.18);
+  border-radius: 7px;
+  padding: 2px 7px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #7f2d48;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.hero-brief {
+  display: grid;
+  gap: 1px;
+  max-width: 188px;
+  border: 1px solid rgba(127, 45, 72, 0.24);
+  border-radius: 8px;
+  padding: 6px 9px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 246, 249, 0.74)),
+    rgba(255, 255, 255, 0.88);
+}
+
+.hero-brief small,
+.hero-brief span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-brief strong {
+  overflow: hidden;
+  color: var(--berry);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-scene="wedding"] {
+  background:
+    linear-gradient(180deg, rgba(252, 253, 255, 0.72), rgba(234, 240, 247, 0.96)),
+    radial-gradient(circle at 74% 0%, rgba(127, 45, 72, 0.12), transparent 30%),
+    url("./assets/identity-workflow-bg.png") center top / cover fixed no-repeat,
+    #eaf0f7;
+}
+
+body[data-scene="wedding"] .topbar {
+  grid-template-columns: minmax(240px, 0.84fr) minmax(330px, 1fr) minmax(300px, auto);
+  min-height: 112px;
+  border-color: rgba(127, 45, 72, 0.18);
+  background:
+    linear-gradient(105deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 250, 0.88) 34%, rgba(240, 245, 249, 0.95)),
+    rgba(255, 255, 255, 0.92);
+  box-shadow: 0 14px 34px rgba(25, 33, 50, 0.09);
+}
+
+body[data-scene="wedding"] .studio-mark {
+  border-color: rgba(127, 45, 72, 0.24);
+  background: rgba(255, 246, 249, 0.88);
+  color: var(--berry);
+}
+
+body[data-scene="wedding"] h1 {
+  color: #151c2b;
+  font-size: 25px;
+}
+
+body[data-scene="wedding"] .hero-stack {
+  grid-template-columns: 1.12fr 0.8fr 0.72fr;
+  height: 90px;
+}
+
+body[data-scene="wedding"] .hero-frame {
+  border-color: rgba(127, 45, 72, 0.24);
+  background: #f2f5f8;
+  box-shadow:
+    0 10px 24px rgba(25, 33, 50, 0.14),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+}
+
+body[data-scene="wedding"] .hero-frame-main {
+  height: 90px;
+}
+
+body[data-scene="wedding"] .hero-frame-side {
+  height: 78px;
+}
+
+body[data-scene="wedding"] .hero-frame-tail {
+  height: 66px;
+}
+
 .section-head {
   justify-content: space-between;
   margin-bottom: 10px;
@@ -317,6 +489,23 @@ small,
   border-color: rgba(199, 154, 69, 0.56);
 }
 
+input:not([type="file"]),
+select {
+  min-height: 36px;
+  width: 100%;
+  border: 1px solid #c9d5e6;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+}
+
+input:not([type="file"]):focus,
+select:focus {
+  border-color: rgba(37, 99, 235, 0.72);
+  outline: 2px solid rgba(37, 99, 235, 0.14);
+}
+
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -325,8 +514,8 @@ button:disabled {
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  margin: 6px 0;
+  gap: 5px;
+  margin: 5px 0;
 }
 
 .summary-grid article {
@@ -356,6 +545,138 @@ button:disabled {
   font-size: 18px;
 }
 
+.customer-step-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.34fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  padding: 8px 10px;
+  background:
+    linear-gradient(105deg, rgba(25, 33, 50, 0.96), rgba(38, 49, 69, 0.96) 58%, rgba(37, 99, 235, 0.88)),
+    #192132;
+  color: #fff;
+}
+
+.customer-step-main,
+.customer-step-proof {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.customer-step-main span,
+.customer-step-proof span {
+  color: #f7dca8;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.customer-step-main strong {
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-step-main p,
+.customer-step-proof small {
+  overflow: hidden;
+  color: #dbe6f4;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-step-proof {
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  padding-left: 10px;
+}
+
+.customer-step-panel .primary-btn {
+  border-color: rgba(247, 234, 209, 0.72);
+  background: #fff;
+  color: #192132;
+  white-space: nowrap;
+}
+
+.customer-flow-rail {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 5px;
+}
+
+.customer-flow-step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 48px;
+  padding: 6px 8px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.customer-flow-step span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.customer-flow-step strong,
+.customer-flow-step small {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customer-flow-step strong {
+  font-size: 13px;
+}
+
+.customer-flow-step small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.customer-flow-step.done {
+  border-color: rgba(27, 138, 122, 0.28);
+  background: rgba(240, 253, 250, 0.9);
+}
+
+.customer-flow-step.done span {
+  background: var(--teal);
+  color: #fff;
+}
+
+.customer-flow-step.active {
+  border-color: rgba(37, 99, 235, 0.64);
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(255, 250, 242, 0.76)),
+    #fff;
+  box-shadow: inset 0 -2px 0 var(--blue);
+}
+
+.customer-flow-step.active span {
+  background: var(--blue);
+  color: #fff;
+}
+
+.customer-flow-step.locked {
+  opacity: 0.68;
+}
+
 .warn {
   color: #b45309;
 }
@@ -364,8 +685,8 @@ button:disabled {
   position: relative;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 5px;
+  margin-bottom: 5px;
 }
 
 .stage-rail::before {
@@ -382,7 +703,7 @@ button:disabled {
 .module-tabs {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   margin-bottom: 6px;
   padding: 4px;
@@ -502,9 +823,9 @@ button:disabled {
 
 .scene-rail {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 6px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  margin-bottom: 5px;
 }
 
 .scene-card {
@@ -580,14 +901,95 @@ button:disabled {
   color: #fdecc8;
 }
 
+body[data-scene="wedding"] .scene-card[data-scene="wedding"] {
+  border-color: rgba(127, 45, 72, 0.34);
+  background:
+    linear-gradient(135deg, rgba(127, 45, 72, 0.96), rgba(25, 33, 50, 0.96)),
+    #192132;
+  color: #fff;
+  box-shadow:
+    inset 0 -2px 0 var(--champagne),
+    0 10px 22px rgba(127, 45, 72, 0.16);
+}
+
+body[data-scene="wedding"] .scene-card[data-scene="wedding"] small {
+  color: #eadde2;
+}
+
+body[data-scene="wedding"] .scene-card[data-scene="wedding"] em {
+  border-color: rgba(247, 234, 209, 0.36);
+  background: rgba(247, 234, 209, 0.18);
+  color: #ffe8b6;
+}
+
 .scene-context {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 7px 9px;
   background: rgba(255, 250, 242, 0.7);
   color: var(--muted);
   font-size: 13px;
+  font-weight: 800;
+}
+
+.scene-campaign-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin: -1px 0 6px;
+}
+
+.campaign-card {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(199, 154, 69, 0.28);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 246, 249, 0.74)),
+    rgba(255, 255, 255, 0.9);
+}
+
+.campaign-card::after {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 5px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--champagne), var(--berry));
+  content: "";
+  opacity: 0.22;
+}
+
+.campaign-card span {
+  width: fit-content;
+  border-radius: 6px;
+  padding: 1px 6px;
+  background: rgba(127, 45, 72, 0.08);
+  color: var(--berry);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.campaign-card strong,
+.campaign-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-card strong {
+  font-size: 14px;
+}
+
+.campaign-card small {
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -627,10 +1029,10 @@ button:disabled {
 }
 
 .wardrobe-panel {
-  margin-top: 8px;
+  margin-top: 6px;
   border: 1px solid rgba(216, 225, 237, 0.96);
   border-radius: 8px;
-  padding: 8px;
+  padding: 7px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(238, 243, 249, 0.72)),
     rgba(255, 255, 255, 0.86);
@@ -638,10 +1040,10 @@ button:disabled {
 
 .wardrobe-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.42fr);
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.36fr);
+  gap: 6px;
   align-items: stretch;
-  margin-bottom: 7px;
+  margin-bottom: 6px;
 }
 
 .wardrobe-head > div:first-child {
@@ -671,7 +1073,7 @@ button:disabled {
   min-width: 0;
   border: 1px solid rgba(199, 154, 69, 0.34);
   border-radius: 8px;
-  padding: 7px 9px;
+  padding: 6px 8px;
   background: rgba(255, 250, 242, 0.76);
 }
 
@@ -691,20 +1093,25 @@ button:disabled {
 
 .wardrobe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(158px, 0.16fr);
+  grid-template-columns: none;
   gap: 6px;
-  max-height: 316px;
-  overflow: auto;
-  padding-right: 2px;
+  max-height: 86px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 2px 2px 0;
 }
 
 .outfit-card {
   display: grid;
   gap: 3px;
+  align-content: start;
   min-width: 0;
+  min-height: 76px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 7px;
+  padding: 6px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(247, 234, 209, 0.34)),
     rgba(248, 250, 252, 0.9);
@@ -743,7 +1150,7 @@ button:disabled {
 .upload-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 label {
@@ -758,11 +1165,11 @@ label {
   position: relative;
   display: grid;
   align-content: start;
-  min-height: 94px;
+  min-height: 74px;
   overflow: hidden;
   border: 1px solid rgba(216, 225, 237, 0.96);
   border-radius: 8px;
-  padding: 10px 10px 46px;
+  padding: 7px 8px 35px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(247, 234, 209, 0.42)),
     rgba(248, 250, 252, 0.92);
@@ -770,12 +1177,12 @@ label {
 
 .upload-card::before {
   position: absolute;
-  bottom: 12px;
-  left: 10px;
+  bottom: 7px;
+  left: 8px;
   z-index: 1;
   border: 1px solid #c9d5e6;
   border-radius: 7px;
-  padding: 7px 11px;
+  padding: 5px 9px;
   background: rgba(255, 255, 255, 0.9);
   color: var(--ink);
   content: "选择图片";
@@ -832,8 +1239,8 @@ input[type="file"] {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 8px;
-  min-height: 94px;
-  margin: 10px 0;
+  min-height: 52px;
+  margin: 6px 0;
 }
 
 .ref-card {
@@ -934,10 +1341,10 @@ input[type="file"] {
 }
 
 .template-sample-panel {
-  margin-top: 8px;
+  margin-top: 6px;
   border: 1px solid rgba(199, 154, 69, 0.36);
   border-radius: 8px;
-  padding: 8px;
+  padding: 7px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 250, 242, 0.62)),
     rgba(248, 250, 252, 0.84);
@@ -977,6 +1384,75 @@ input[type="file"] {
   padding-right: 2px;
 }
 
+.image-tool-panel {
+  padding: 9px;
+}
+
+.image-tool-head {
+  margin-bottom: 7px;
+}
+
+.image-tool-status {
+  display: inline-grid;
+  width: fit-content;
+  max-width: min(520px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  padding: 3px 9px;
+  background: rgba(239, 246, 255, 0.78);
+  color: var(--blue);
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-tool-status.ready {
+  border-color: rgba(20, 184, 166, 0.36);
+  background: rgba(240, 253, 250, 0.86);
+  color: #0f766e;
+}
+
+.image-tool-status.warn {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(254, 242, 242, 0.88);
+  color: #b91c1c;
+}
+
+.image-tool-actions {
+  justify-content: flex-end;
+}
+
+.image-tool-shell {
+  display: grid;
+  gap: 6px;
+}
+
+.image-tool-frame-wrap {
+  position: relative;
+  overflow: hidden;
+  min-height: clamp(560px, 76vh, 860px);
+  border: 1px solid rgba(188, 204, 224, 0.9);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(238, 243, 249, 0.86)),
+    #f8fafc;
+}
+
+.image-tool-frame {
+  display: block;
+  width: 100%;
+  height: clamp(560px, 76vh, 860px);
+  border: 0;
+  background: #f8fafc;
+}
+
+.image-tool-empty {
+  position: absolute;
+  inset: 8px;
+  min-height: 0;
+}
+
 .batch-row {
   position: relative;
   display: grid;
@@ -991,6 +1467,32 @@ input[type="file"] {
     linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(238, 243, 249, 0.76)),
     rgba(255, 255, 255, 0.86);
   cursor: pointer;
+}
+
+.batch-row.has-cover {
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+}
+
+.batch-cover {
+  grid-row: 1 / span 2;
+  width: 58px;
+  height: 72px;
+  overflow: hidden;
+  border: 1px solid rgba(199, 154, 69, 0.34);
+  border-radius: 7px;
+  background: #edf2f8;
+  object-fit: cover;
+  box-shadow: 0 6px 16px rgba(25, 33, 50, 0.12);
+}
+
+.batch-copy {
+  display: grid;
+  min-width: 0;
+}
+
+.batch-row.has-cover .batch-meta {
+  grid-column: 2;
 }
 
 .batch-row::after {
@@ -1354,11 +1856,144 @@ input[type="file"] {
 .empty {
   display: grid;
   place-items: center;
-  min-height: 92px;
+  min-height: 64px;
   border: 1px dashed #c9d5e6;
   border-radius: 8px;
   color: var(--muted);
   background: rgba(255, 250, 242, 0.72);
+}
+
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.auth-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.58), rgba(67, 56, 202, 0.26)),
+    rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.auth-dialog {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  width: min(420px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 250, 242, 0.9)),
+    rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.auth-dialog::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ec4899, #8b5cf6, var(--champagne));
+  content: "";
+}
+
+.auth-dialog-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.auth-dialog-head > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.auth-dialog-head span {
+  color: #be185d;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.auth-dialog-head p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+  background: rgba(248, 250, 252, 0.86);
+}
+
+.auth-mode-tabs button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.auth-mode-tabs button.active {
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: #fff;
+}
+
+.auth-field-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 106px;
+  gap: 6px;
+}
+
+.auth-code-row .ghost-btn {
+  min-height: 36px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.auth-message {
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 7px;
+  padding: 8px 9px;
+  background: rgba(254, 242, 242, 0.86);
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-message.ok {
+  border-color: rgba(20, 184, 166, 0.3);
+  background: rgba(240, 253, 250, 0.9);
+  color: #0f766e;
+}
+
+.auth-submit {
+  width: 100%;
+  min-height: 38px;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
 }
 
 .lightbox {
@@ -1510,6 +2145,29 @@ input[type="file"] {
     gap: 6px;
   }
 
+  body[data-scene="wedding"] .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 0;
+  }
+
+  .top-actions {
+    align-items: flex-end;
+    flex-direction: column;
+  }
+
+  .hero-brief {
+    width: min(100%, 220px);
+    max-width: 220px;
+  }
+
+  .auth-bar {
+    justify-content: flex-end;
+  }
+
+  .auth-chip {
+    grid-template-columns: 26px minmax(0, 96px);
+  }
+
   .hero-stack {
     display: none;
   }
@@ -1526,12 +2184,42 @@ input[type="file"] {
   }
 
   .summary-grid,
+  .customer-flow-rail,
   .stage-rail {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
+  .customer-step-panel {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .customer-step-main p,
+  .customer-step-proof small {
+    white-space: normal;
+  }
+
+  .customer-step-proof {
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    border-left: 0;
+    padding-top: 6px;
+    padding-left: 0;
+  }
+
+  .customer-step-panel .primary-btn {
+    width: 100%;
+  }
+
+  .customer-flow-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .scene-rail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scene-campaign-strip {
+    grid-template-columns: 1fr;
   }
 
   .stage-rail {
@@ -1539,7 +2227,7 @@ input[type="file"] {
   }
 
   .module-tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .stage-rail::before {
@@ -1598,6 +2286,23 @@ input[type="file"] {
     font-size: 13px;
   }
 
+  .image-tool-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .image-tool-actions button,
+  .image-tool-status {
+    width: 100%;
+  }
+
+  .image-tool-frame-wrap,
+  .image-tool-frame {
+    min-height: clamp(500px, 72vh, 760px);
+    height: clamp(500px, 72vh, 760px);
+  }
+
   .viewer-frame {
     min-height: 260px;
     max-height: none;
@@ -1620,6 +2325,15 @@ input[type="file"] {
     max-height: 380px;
   }
 
+  .batch-row.has-cover {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+
+  .batch-cover {
+    width: 52px;
+    height: 64px;
+  }
+
   .lightbox {
     padding: 10px;
   }
@@ -1637,5 +2351,14 @@ input[type="file"] {
     inset: 6px;
     width: calc(100% - 12px);
     height: calc(100% - 12px);
+  }
+
+  .auth-modal {
+    align-items: end;
+    padding: 10px;
+  }
+
+  .auth-dialog {
+    width: 100%;
   }
 }

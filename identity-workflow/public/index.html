@@ -4,16 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f7fb" />
-    <title>写真模板样片复核</title>
+    <title>写真选片交付流程</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div class="brand-block">
-          <span class="studio-mark">写真场景</span>
-          <h1>多场景模板样片台</h1>
+          <span class="studio-mark">客户选片流程台</span>
+          <h1>写真选片交付流程</h1>
           <p id="statusLine">读取项目</p>
+          <div class="brand-pills" aria-label="当前流程重点">
+            <span>选场景</span>
+            <span>传素材</span>
+            <span>确认交付</span>
+          </div>
         </div>
         <div class="hero-stack" aria-hidden="true">
           <figure class="hero-frame hero-frame-main"><img id="heroImageMain" alt="" /></figure>
@@ -21,6 +26,23 @@
           <figure class="hero-frame hero-frame-tail"><img id="heroImageTail" alt="" /></figure>
         </div>
         <div class="top-actions">
+          <div class="hero-brief" aria-label="当前场景风格">
+            <small>当前风格</small>
+            <strong id="heroSceneTone">高定旅拍</strong>
+            <span id="heroSceneProof">身份、服装、场景一起复核</span>
+          </div>
+          <div class="auth-bar" id="authBar" aria-label="账号">
+            <div class="auth-chip" id="authChip" hidden>
+              <span id="authAvatar">未</span>
+              <div>
+                <strong id="authName">未登录</strong>
+                <small id="authMeta">本地账号</small>
+              </div>
+            </div>
+            <button id="loginBtn" class="ghost-btn" type="button">登录</button>
+            <button id="registerBtn" class="primary-btn" type="button">注册</button>
+            <button id="logoutBtn" class="ghost-btn" type="button" hidden>退出</button>
+          </div>
           <button id="refreshBtn" class="ghost-btn" type="button">刷新</button>
         </div>
       </header>
@@ -44,12 +66,28 @@
         </article>
       </section>
 
+      <section class="customer-step-panel" id="customerStepPanel" aria-label="客户当前步骤">
+        <div class="customer-step-main">
+          <span id="customerStepKicker">下一步</span>
+          <strong id="customerStepTitle">选择场景</strong>
+          <p id="customerStepCopy">先选择要做的写真类型。</p>
+        </div>
+        <div class="customer-step-proof">
+          <span id="customerStepProof">等待开始</span>
+          <small id="customerStepDetail">按流程完成后再生成样片。</small>
+        </div>
+        <button id="customerNextBtn" class="primary-btn" type="button">去处理</button>
+      </section>
+
+      <nav class="customer-flow-rail" id="customerFlowRail" aria-label="客户流程"></nav>
+
       <nav class="stage-rail" id="stageRail" aria-label="工作流阶段"></nav>
 
       <nav class="module-tabs" aria-label="功能板块">
-        <button class="module-tab active" data-tab="recognition" type="button">识别</button>
-        <button class="module-tab" data-tab="turnaround" type="button">三视图</button>
-        <button class="module-tab" data-tab="delivery" type="button">成片</button>
+        <button class="module-tab active" data-tab="recognition" type="button">选场景</button>
+        <button class="module-tab" data-tab="turnaround" type="button">确认三视图</button>
+        <button class="module-tab" data-tab="imageTool" type="button">生图工具</button>
+        <button class="module-tab" data-tab="delivery" type="button">看成片</button>
         <button class="module-tab" data-tab="review" type="button">复核</button>
       </nav>
 
@@ -66,6 +104,7 @@
 
           <div class="scene-rail" id="sceneRail" aria-label="拍摄场景"></div>
           <div class="scene-context" id="sceneMeta">先选场景，再上传对应素材。</div>
+          <div class="scene-campaign-strip" id="sceneCampaignStrip" aria-label="当前场景风格重点"></div>
 
           <div class="recognition-grid">
             <div>
@@ -76,7 +115,7 @@
               <strong id="sideSceneTitle">人物确认</strong>
               <p id="sideSceneCopy">确认人物身份后进入三视图复核。</p>
               <div class="scene-checklist" id="sideSceneChecklist"></div>
-              <button id="detectFaceBtn" class="primary-btn" type="button">确认人物</button>
+              <button id="detectFaceBtn" class="primary-btn" type="button">确认人物素材</button>
             </aside>
           </div>
 
@@ -99,14 +138,14 @@
           <section class="template-sample-panel" aria-label="模板样片">
             <div class="split-head">
               <div>
-                <span>模板样片</span>
+                <span>第四步</span>
                 <h2>选择模板后的样片</h2>
                 <p id="batchSummary">读取中</p>
               </div>
               <div class="action-row generation-actions">
                 <span id="generationStatus" class="generation-status">待启动</span>
-                <button id="generateSceneBtn" class="primary-btn" type="button">本场景 9 张</button>
-                <button id="generateAllBtn" class="ghost-btn" type="button">全场景 10 线程</button>
+                <button id="generateSceneBtn" class="primary-btn" type="button">生成本场景样片</button>
+                <button id="generateAllBtn" class="ghost-btn" type="button">生成全部场景</button>
                 <button id="lockBatchBtn" class="ghost-btn" type="button">暂停出片</button>
               </div>
             </div>
@@ -147,8 +186,8 @@
               <p>看脸、侧脸、身形比例和场景一致性。</p>
             </div>
             <div class="action-row">
-              <button id="buildTurnaroundBtn" class="ghost-btn" type="button">完成三视图</button>
-              <button id="confirmBaselineBtn" class="primary-btn" type="button">确认复核</button>
+              <button id="buildTurnaroundBtn" class="ghost-btn" type="button">三视图已完成</button>
+              <button id="confirmBaselineBtn" class="primary-btn" type="button">确认三视图通过</button>
             </div>
           </div>
           <div class="evidence-grid">
@@ -162,6 +201,35 @@
             </a>
           </div>
           <div class="policy-box" id="sourcePolicy">以当前场景素材为准。</div>
+        </section>
+      </section>
+
+      <section class="tab-panel" id="imageToolPanel" hidden>
+        <section class="panel image-tool-panel">
+          <div class="split-head image-tool-head">
+            <div>
+              <span>工具</span>
+              <h2>墨境图像工作台</h2>
+              <p id="imageToolStatus" class="image-tool-status">准备连接生图工具。</p>
+            </div>
+            <div class="action-row image-tool-actions">
+              <button id="refreshImageToolBtn" class="ghost-btn" type="button">刷新工具</button>
+              <button id="openImageToolBtn" class="primary-btn" type="button">新窗口打开</button>
+            </div>
+          </div>
+          <div class="image-tool-shell">
+            <div class="image-tool-frame-wrap">
+              <iframe
+                id="imageToolFrame"
+                class="image-tool-frame"
+                title="墨境图像工作台"
+                loading="lazy"
+                allow="clipboard-read; clipboard-write"
+                hidden
+              ></iframe>
+              <div class="empty image-tool-empty" id="imageToolEmpty">正在连接生图工具</div>
+            </div>
+          </div>
         </section>
       </section>
 
@@ -213,6 +281,52 @@
       <div class="lightbox-stage" id="lightboxStage">
         <img id="lightboxImage" alt="模板样片放大预览" />
       </div>
+    </section>
+    <section class="auth-modal" id="authModal" hidden aria-label="账号登录注册">
+      <button class="auth-backdrop" id="authBackdrop" type="button" aria-label="关闭账号窗口"></button>
+      <form class="auth-dialog" id="authForm">
+        <div class="auth-dialog-head">
+          <div>
+            <span>灵感喵账号</span>
+            <h2 id="authTitle">注册账号</h2>
+            <p id="authSubtitle">注册后开始保存你的婚纱照项目。</p>
+          </div>
+          <button id="authCloseBtn" class="ghost-btn" type="button">关闭</button>
+        </div>
+        <div class="auth-mode-tabs" role="tablist" aria-label="账号模式">
+          <button id="authModeLogin" type="button">登录</button>
+          <button id="authModeRegister" type="button">注册</button>
+        </div>
+        <div class="auth-field-grid">
+          <label>
+            <span>方式</span>
+            <select id="authTypeSelect">
+              <option value="email">邮箱</option>
+            </select>
+          </label>
+          <label>
+            <span id="authAccountLabel">邮箱</span>
+            <input id="authAccountInput" autocomplete="username" type="email" placeholder="your@email.com" />
+          </label>
+          <label id="authNicknameField">
+            <span>昵称</span>
+            <input id="authNicknameInput" autocomplete="nickname" maxlength="24" placeholder="给项目留个名字" />
+          </label>
+          <label id="authCodeField" class="auth-code-field">
+            <span>验证码</span>
+            <div class="auth-code-row">
+              <input id="authCodeInput" inputmode="numeric" maxlength="6" placeholder="6 位验证码" />
+              <button id="sendCodeBtn" class="ghost-btn" type="button">获取验证码</button>
+            </div>
+          </label>
+          <label>
+            <span>密码</span>
+            <input id="authPasswordInput" autocomplete="current-password" minlength="6" type="password" placeholder="至少 6 个字符" />
+          </label>
+        </div>
+        <div class="auth-message" id="authMessage" hidden></div>
+        <button id="authSubmitBtn" class="primary-btn auth-submit" type="submit">立即注册</button>
+      </form>
     </section>
     <script src="./app.js" defer></script>
   </body>
