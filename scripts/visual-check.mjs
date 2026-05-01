@@ -19,6 +19,7 @@ for (const item of cases) {
     pageErrors.push(error.message);
   });
   await mockEmptyHistory(page);
+  await mockCredits(page);
   await page.addInitScript(() => {
     localStorage.removeItem("alexai-replica-settings");
     localStorage.removeItem("alexai-replica-tasks");
@@ -161,6 +162,7 @@ async function verifySettingsSaveRecovery(browser, url) {
     pageErrors.push(error.message);
   });
   await mockEmptyHistory(page);
+  await mockCredits(page);
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("pic.native.history", JSON.stringify([
@@ -237,6 +239,7 @@ async function verifyImagePreviewDownload(browser, url) {
   await page.route(/\/api\/history(?:\?.*)?$/, async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, history: [], total: 0 }) });
   });
+  await mockCredits(page);
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("pic.native.history", JSON.stringify([
@@ -284,6 +287,7 @@ async function verifyKnownImageUpload(browser, url) {
     pageErrors.push(error.message);
   });
   await mockEmptyHistory(page);
+  await mockCredits(page);
   let capturedGenerate = null;
   await page.route("**/api/generate", async (route) => {
     capturedGenerate = JSON.parse(route.request().postData() || "{}");
@@ -327,6 +331,7 @@ async function verifyHtmlImageRejected(browser, url) {
     pageErrors.push(error.message);
   });
   await mockEmptyHistory(page);
+  await mockCredits(page);
   await page.route("**/api/generate", async (route) => {
     await route.fulfill({
       status: 200,
@@ -402,6 +407,7 @@ async function verifyHistoryTrash(browser, url) {
     }
     await route.continue();
   });
+  await mockCredits(page);
   await page.addInitScript(() => localStorage.clear());
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await clickFirst(page, "[data-tab='generate']", "history trash: missing generate tab");
@@ -436,4 +442,50 @@ async function mockEmptyHistory(page) {
     }
     await route.continue();
   });
+}
+
+async function mockCredits(page, balance = 500) {
+  await page.route("**/api/credits**", async (route) => {
+    const request = route.request();
+    const requestUrl = new URL(request.url());
+    if (request.method() === "POST" && requestUrl.pathname === "/api/credits/estimate") {
+      const body = JSON.parse(request.postData() || "{}");
+      const references = Array.isArray(body.references) ? body.references : [];
+      const count = Math.max(1, Math.min(4, Math.round(Number(body.params?.count) || 1)));
+      const unitCost = references.length ? 30 : 20;
+      const estimatedCost = unitCost * count;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, unitCost, estimatedCost, balance, enough: balance >= estimatedCost, shortage: Math.max(0, estimatedCost - balance), packages: creditPackages() })
+      });
+      return;
+    }
+    if (request.method() === "POST" && requestUrl.pathname === "/api/credits/recharge") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, entry: { id: "visual-recharge", type: "recharge", title: "创作包", credits: 330, amountCny: 29.9, createdAt: new Date().toISOString() }, balance: balance + 330, ledger: [], packages: creditPackages() })
+      });
+      return;
+    }
+    if (request.method() === "GET" && requestUrl.pathname === "/api/credits") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, balance, ledger: [], packages: creditPackages(), updatedAt: new Date().toISOString() })
+      });
+      return;
+    }
+    await route.continue();
+  });
+}
+
+function creditPackages() {
+  return [
+    { id: "trial", name: "试用包", credits: 100, bonus: 0, amountCny: 9.9, badge: "体验" },
+    { id: "starter", name: "创作包", credits: 300, bonus: 30, amountCny: 29.9, badge: "常用" },
+    { id: "studio", name: "工作室包", credits: 800, bonus: 120, amountCny: 79.9, badge: "推荐" },
+    { id: "pro", name: "批量包", credits: 1800, bonus: 360, amountCny: 169, badge: "批量" }
+  ];
 }
