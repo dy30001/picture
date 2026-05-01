@@ -212,6 +212,10 @@ async function verifySettingsSaveRecovery(browser, url) {
   });
   await clickFirst(page, "[data-tab='generate']", "settings recovery: missing generate tab");
   await page.fill("#promptInput", "visual check prompt");
+  await page.waitForFunction(() => {
+    const button = document.querySelector("#generateBtn");
+    return button && !button.disabled && !button.textContent.includes("积分不足");
+  });
   await clickFirst(page, "#generateBtn", "settings recovery: missing generate button");
   await page.waitForFunction(() => document.querySelector("#statusLine")?.textContent?.includes("visual check stop"));
   if (capturedGenerateSettings?.apiUrl !== "https://alexai.work/v1") throw new Error("settings recovery: generate request did not use saved API URL");
