@@ -1238,6 +1238,47 @@ textarea:focus {
   gap: 8px;
 }
 
+.credit-cost-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(31, 111, 97, 0.22);
+  border-radius: 8px;
+  padding: 7px 8px 7px 10px;
+  background: linear-gradient(90deg, rgba(225, 238, 230, 0.72), rgba(255, 253, 247, 0.86));
+}
+
+.credit-cost-bar.warning {
+  border-color: rgba(169, 49, 39, 0.32);
+  background: linear-gradient(90deg, rgba(255, 243, 236, 0.9), rgba(255, 253, 247, 0.88));
+}
+
+.credit-cost-bar div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.credit-cost-bar span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.credit-cost-bar strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-cost-bar.warning strong {
+  color: var(--cinnabar-dark);
+}
+
 .generation-timer {
   display: grid;
   align-content: center;
@@ -1582,6 +1623,10 @@ textarea:focus {
   }
 
   .generate-submit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-cost-bar {
     grid-template-columns: 1fr;
   }
 

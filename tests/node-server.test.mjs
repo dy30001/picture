@@ -13,6 +13,7 @@ const generationErrorLog = new URL("../data/logs/generation-errors.ndjson", impo
 
 test("Node server serves the playground without a fixed port", { skip: !existsSync(serverEntryPath) }, async () => {
   const port = await getOpenPort();
+  let successUpstream = null;
   const child = spawn(
     process.execPath,
     [serverEntryPath, "--host", "127.0.0.1", "--port", String(port)],
@@ -36,7 +37,9 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(html, /图片生成工作台|id="templatesPanel"/);
     assert.match(html, /data-tab="studio"/);
     assert.match(html, /id="studioPanel"/);
-    assert.match(html, /婚纱照/);
+    const appScript = await fetchText(`${baseUrl}/app.js`);
+    assert.match(appScript, /婚纱照/);
+    assert.match(appScript, /20260502-personal-studio/);
 
     const health = await fetchJson(`${baseUrl}/api/health`);
     assert.equal(health.ok, true);
@@ -61,9 +64,89 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(creditsA.balance, 330);
     assert.equal(creditsA.ledger[0].packageId, "starter");
 
+    const baseEstimate = await fetchJson(`${baseUrl}/api/credits/estimate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      body: JSON.stringify({
+        params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
+        references: []
+      })
+    });
+    assert.equal(baseEstimate.unitCost, 20);
+    assert.equal(baseEstimate.estimatedCost, 20);
+    assert.equal(baseEstimate.enough, true);
+
+    const high4kEditEstimate = await fetchJson(`${baseUrl}/api/credits/estimate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      body: JSON.stringify({
+        params: { size: "3840x2160", quality: "high", outputFormat: "png", count: 2 },
+        references: [{ id: "a", name: "a.png", dataUrl: "data:image/png;base64,aa" }, { id: "b", name: "b.png", dataUrl: "data:image/png;base64,bb" }]
+      })
+    });
+    assert.equal(high4kEditEstimate.unitCost, 110);
+    assert.equal(high4kEditEstimate.estimatedCost, 220);
+    assert.equal(high4kEditEstimate.enough, true);
+
+    successUpstream = createHttpServer((request, response) => {
+      if (request.url === "/v1/images/generations") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          data: [{ b64_json: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=" }]
+        }));
+        return;
+      }
+      response.writeHead(404, { "content-type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "not found" } }));
+    });
+    successUpstream.listen(0, "127.0.0.1");
+    await once(successUpstream, "listening");
+    const successAddress = successUpstream.address();
+    if (!successAddress || typeof successAddress === "string") throw new Error("Could not start fake success upstream");
+    const chargedGenerate = await fetchJson(`${baseUrl}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      body: JSON.stringify({
+        taskId: `credit-success-${port}`,
+        prompt: "credit success charge",
+        settings: {
+          apiUrl: `http://127.0.0.1:${successAddress.port}/v1`,
+          apiKey: "test-key",
+          apiMode: "images",
+          modelId: "gpt-image-2",
+          timeoutSeconds: 5
+        },
+        params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
+        references: []
+      })
+    });
+    assert.equal(chargedGenerate.ok, true);
+    assert.equal(chargedGenerate.creditCost, 20);
+    assert.equal(chargedGenerate.creditBalance, 310);
+    assert.match(chargedGenerate.creditLedgerId, /^spend-/);
+    const chargedCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipA } });
+    assert.equal(chargedCredits.balance, 310);
+    assert.equal(chargedCredits.ledger[0].type, "spend");
+    assert.equal(chargedCredits.ledger[0].credits, -20);
+
     const creditsB = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipB } });
     assert.equal(creditsB.clientKey, clientB);
     assert.equal(creditsB.balance, 0, "client B must not see client A credits");
+
+    const poorGenerate = await fetch(`${baseUrl}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipB },
+      body: JSON.stringify({
+        taskId: `poor-${port}`,
+        prompt: "balance check",
+        settings: { apiUrl: "http://127.0.0.1:1/v1", apiKey: "test", apiMode: "images", modelId: "gpt-image-2", timeoutSeconds: 1 },
+        params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
+        references: []
+      })
+    });
+    assert.equal(poorGenerate.status, 402);
+    const poorGenerateJson = await poorGenerate.json();
+    assert.match(poorGenerateJson.message, /积分不足/);
 
     const templates = await fetchJson(`${baseUrl}/api/templates`);
     assert.equal(templates.ok, true);
@@ -133,6 +216,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     const readme = await fetchText(`${baseUrl}/README_zh.md`);
     assert.match(readme, /提示词|Prompt|模板/);
   } finally {
+    if (successUpstream) successUpstream.close();
     child.kill("SIGTERM");
     await Promise.race([once(child, "exit"), delay(1500)]);
     if (child.exitCode === null) child.kill("SIGKILL");
@@ -212,6 +296,9 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
     assert.equal(log.error.upstreamContentType.includes("text/html"), true);
     assert.match(log.error.upstreamBodySnippet, /proxy login/);
     assert.equal(JSON.stringify(log).includes("test-key-should-not-be-logged"), false);
+    const creditsAfterFailure = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": htmlIp } });
+    assert.equal(creditsAfterFailure.balance, 100, "failed generation must not spend credits");
+    assert.equal(creditsAfterFailure.ledger.some((item) => item.type === "spend"), false);
   } finally {
     upstream.close();
     child.kill("SIGTERM");

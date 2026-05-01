@@ -1061,6 +1061,9 @@ function normalizeHistoryTask(task) {
     images: Array.isArray(task.images) ? task.images : [],
     error: String(task.error || ""),
     revisedPrompt: String(task.revisedPrompt || ""),
+    creditCost: Math.max(0, Number(task.creditCost) || 0),
+    creditUnitCost: Math.max(0, Number(task.creditUnitCost) || 0),
+    creditLedgerId: String(task.creditLedgerId || ""),
     createdAt: Number(task.createdAt) || Date.now(),
     finishedAt: task.finishedAt ? Number(task.finishedAt) : null,
     deletedAt: task.deletedAt ? Number(task.deletedAt) : null
@@ -1080,6 +1083,7 @@ function historyCard(task) {
     ? `<button class="image-preview-btn" data-preview-task="${attr(task.id)}" data-preview-index="0" type="button" aria-label="预览图片"><img src="${attr(task.images[0])}" alt="${attr(task.prompt)}" /><span>点击放大</span></button>`
     : `<div class="history-placeholder">${task.status === "running" ? "生成中" : "无图片"}</div>`;
   const settingsPart = task.settingsSummary ? `${esc(task.settingsSummary)} · ` : "";
+  const creditPart = task.creditCost ? ` · ${esc(formatCredits(task.creditCost))}` : "";
   const saveButton = task.images?.[0] ? `<button type="button" data-download-task="${attr(task.id)}" data-download-index="0">保存</button>` : "";
   const editButton = task.images?.[0] ? `<button type="button" data-edit-task="${attr(task.id)}" data-edit-index="0">编辑</button>` : "";
   const activeActions = `${saveButton}${editButton}<button type="button" data-reuse-task="${attr(task.id)}">复用</button><button type="button" data-delete-task="${attr(task.id)}">删除</button>`;
@@ -1090,7 +1094,7 @@ function historyCard(task) {
       <div class="history-body">
         <div class="meta-row"><span>${task.status === "succeeded" ? "成功" : task.status === "failed" ? "失败" : "生成中"}</span><span data-elapsed-task="${attr(task.id)}">耗时 ${formatElapsed(task)}</span><span>${time(task.createdAt)}</span></div>
         <p>${esc(task.error || task.prompt)}</p>
-        <small>${settingsPart}${esc(task.params.size)} · ${esc(task.params.quality)} · ${esc(task.params.outputFormat)} · ${task.params.count} 张</small>
+        <small>${settingsPart}${esc(task.params.size)} · ${esc(task.params.quality)} · ${esc(task.params.outputFormat)} · ${task.params.count} 张${creditPart}</small>
         <div class="row-actions">${deletedMode ? deletedActions : activeActions}</div>
       </div>
     </article>`;
@@ -1494,6 +1498,7 @@ async function rechargeCredits(packageId) {
     if (!response.ok || data.ok === false) throw new Error(data.message || `${response.status} ${response.statusText}`);
     state.credits = normalizeCredits(data);
     renderCredits();
+    queueCreditEstimate();
     status(`充值成功：+${formatCredits(data.entry?.credits || 0)}，当前 ${formatCredits(state.credits.balance)}`);
   } catch (error) {
     status(`充值失败：${errorMessage(error)}`);

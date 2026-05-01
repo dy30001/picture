@@ -2172,6 +2172,7 @@ input[type="file"] {
     align-items: center;
     flex-direction: row;
     justify-content: space-between;
+    gap: 5px;
   }
 
   .hero-brief {
@@ -2185,6 +2186,15 @@ input[type="file"] {
 
   .auth-bar {
     justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .auth-bar .primary-btn,
+  .auth-bar .ghost-btn,
+  .top-actions > .ghost-btn {
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 13px;
   }
 
   .auth-chip {
@@ -2444,12 +2454,23 @@ input[type="file"] {
   }
 
   .batch-row.has-cover {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: 48px minmax(0, 1fr);
   }
 
   .batch-cover {
-    width: 52px;
-    height: 64px;
+    width: 48px;
+    height: 58px;
+  }
+
+  .batch-meta {
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: start;
+    gap: 7px;
+  }
+
+  .batch-meta span:first-child {
+    display: none;
   }
 
   .lightbox {
