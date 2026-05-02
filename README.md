@@ -100,6 +100,7 @@ npm run verify:visual # Playwright 视觉和关键流程检查
 ## 项目结构
 
 ```text
+docs/                   文档中心、规范和统一索引
 public/                 前端页面、样式、模板数据和视觉资产
 public/assets/          水墨底图、应用图标、分享预览图
 server/                 Express 服务、模板缓存和 API 路由
@@ -110,7 +111,8 @@ generated/              生成过程中的源图和中间 4K 结果
 review/                 联系表、复核截图和修图队列
 final_4k/               唯一正式成片目录
 成片/                   历史重复目录，仅保留兼容数据，待后续清理
-启动图片生成工作台.command  macOS 双击启动入口
+planning/               规格、计划、交接和 build report
+启动图片生成工作台.command macOS 双击启动入口
 ```
 
 当前主应用已经统一到一套入口：
@@ -122,10 +124,6 @@ final_4k/               唯一正式成片目录
 - 正式成片目录统一为 `final_4k/`
 - `成片/` 只保留历史重复数据，不再作为正式交付目录
 
-后续统一规格见：
-
-- `planning/unified_codebase_structure_spec_v01.md`
-
 ## 模板库
 
 模板来源：
@@ -135,16 +133,15 @@ final_4k/               唯一正式成片目录
 
 服务端会合并、去重并缓存模板。默认 `/api/templates` 返回轻量列表，不返回完整 prompt；完整提示词通过 `/api/templates/:id` 按需读取，这样 2000+ 模板也能快速打开。
 
-## 个人 AI 摄影棚文档
+## 文档入口
 
-- `planning/personal_ai_studio_competitor_research_v01.md`：个人 AI 摄影棚竞品研究，记录直接对标产品、优点拆解、可借鉴能力和不建议照搬的做法。
-- `planning/development_module_map_v01.md`：开发文档总图，统一当前开发板块、代码范围、参考文档和验证方式。
-- `planning/module_implementation_spec_v01.md`：板块实施规格，逐块记录怎么做，第一条固定统一网址为 `9999`。
-- `planning/current_code_logic_diagram_v01.md`：当前代码逻辑图，画出主工作台、复核台、样片和交付的现状关系。
-- `planning/unified_codebase_structure_spec_v01.md`：统一代码树规格，明确“一个代码根目录 + 子文件夹”的目标结构。
-- `planning/sample_management_spec_v01.md`：样片管理规格，把样片预览、入围、淘汰、重生、转成交付写成正式模块。
-- `planning/customer_flow_deployment_spec_v01.md`：客户选片、三视图、样片、批量成片和部署门禁规格。
-- `planning/port_9999_unification_status_v01.md`：`9999` 统一入口现状、差距和后续融合口径。
+- `docs/README.md`：统一文档入口，先看这里。
+- `docs/01-文档体系规范.md`：文档分层、命名、归档和维护规则。
+- `planning/jingmo_brand_design_spec_v01.md`：境墨品牌设计规范，统一品牌命名、logo、色彩、字体和界面口径。
+- `planning/README.md`：`planning/` 分类索引和主线文档入口。
+- `NEXT_TASKS.md`：当前交接状态、停点和下一步。
+
+当前主线开发文档已经收敛到上面的入口里，不再在 `README.md` 里重复堆长列表。需要看摄影棚主线规格时，从 `planning/README.md` 进入即可。
 
 ## 视觉资产
 
@@ -179,6 +176,8 @@ npm run assets:brand
 - `scripts/`
 - `src/`
 - `tests/`
+- `docs/`
+- `planning/README.md` 和保留中的正式规格/计划/流程文档
 - `README.md`
 - `.gitignore`
 - `package.json`
@@ -198,7 +197,7 @@ npm run assets:brand
 - `final_4k/`
 - `成片/`（历史重复目录）
 - `reference/`
-- `planning/` 下的大多数本地过程文件（仅保留少数正式规划/研究文档）
+- `planning/` 下无须保留的一次性本地过程文件
 - `.env`
 
 ## License

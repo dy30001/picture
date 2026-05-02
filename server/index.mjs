@@ -1076,7 +1076,19 @@ async function sendVerificationEmail(account, code) {
     to: account,
     subject: "墨境邮箱注册码",
     text: `你正在注册墨境，邮箱注册码是 ${code}，5 分钟内有效。若非本人操作，请忽略这封邮件。`,
-    html: `<p>你正在注册 <strong>墨境</strong></p><p>邮箱注册码是 <strong style="font-size:20px">${code}</strong></p><p>5 分钟内有效。若非本人操作，请忽略这封邮件。</p>`
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;line-height:1.6;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <img src="https://img.inklens.art/assets/mojing-icon-192.png" alt="墨境" width="48" height="48" style="display:block;border-radius:12px;" />
+          <div>
+            <div style="font-size:18px;font-weight:700;color:#111827;">墨境</div>
+            <div style="font-size:13px;color:#6b7280;">邮箱注册码</div>
+          </div>
+        </div>
+        <p>你正在注册 <strong>墨境</strong></p>
+        <p>邮箱注册码是 <strong style="font-size:20px;color:#9f2f22;">${code}</strong></p>
+        <p>5 分钟内有效。若非本人操作，请忽略这封邮件。</p>
+      </div>`
   });
 }
 

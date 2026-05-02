@@ -45,14 +45,16 @@ for (const item of cases) {
   await clickFirst(page, ".primary-nav [data-tab='register']", `${item.name}: register primary menu did not open`);
   await expectText(page, "#secondaryNav", "注册", `${item.name}: missing register submenu`);
   await expectText(page, "#secondaryNav", "登录", `${item.name}: missing login submenu`);
+  await expectNotText(page, "#secondaryNav", "连接设置", `${item.name}: register submenu should not expose connection settings`);
   await clickFirst(page, "#secondaryNav [data-auth-view='login']", `${item.name}: login submenu did not switch`);
   await expectVisible(page, "#registerPanel", `${item.name}: missing register panel`);
   await expectText(page, "#registerPanel", "立即登录", `${item.name}: missing login action`);
-  await expectText(page, "#registerPanel", "去连接设置", `${item.name}: missing creator settings shortcut`);
+  await expectNotText(page, "#registerPanel", "去连接设置", `${item.name}: register panel should not expose connection settings shortcut`);
   await clickFirst(page, ".primary-nav [data-tab='create']", `${item.name}: missing create tab before credits`);
   await expectText(page, "#secondaryNav", "模板库", `${item.name}: missing templates submenu`);
   await expectText(page, "#secondaryNav", "智能生图", `${item.name}: missing generate submenu`);
-  await expectText(page, "#secondaryNav", "连接设置", `${item.name}: missing settings submenu`);
+  await expectNotText(page, "#secondaryNav", "连接设置", `${item.name}: create submenu should not expose connection settings`);
+  await expectNotText(page, "#secondaryNav", "测试连接", `${item.name}: create submenu should not expose test connection`);
   await clickFirst(page, ".primary-nav [data-tab='credits']", `${item.name}: credits primary menu did not open`);
   await expectText(page, "#secondaryNav", "充值中心", `${item.name}: missing recharge submenu`);
   await clickFirst(page, "#secondaryNav [data-anchor='packages']", `${item.name}: recharge submenu did not focus credits`);
@@ -96,7 +98,8 @@ for (const item of cases) {
   await expectActivePrimaryTab(page, "create", `${item.name}: template library should move under image creation primary menu`);
   await expectText(page, "#secondaryNav", "模板库", `${item.name}: missing template submenu`);
   await expectText(page, "#secondaryNav", "智能生图", `${item.name}: missing generate submenu`);
-  await expectText(page, "#secondaryNav", "连接设置", `${item.name}: missing settings submenu`);
+  await expectNotText(page, "#secondaryNav", "连接设置", `${item.name}: template flow should stay direct without connection settings`);
+  await expectNotText(page, "#secondaryNav", "测试连接", `${item.name}: template flow should stay direct without test connection`);
   await page.waitForFunction(() => [...document.querySelectorAll("#categoryFilter option")].some((option) => option.value === "婚纱照"));
   await page.selectOption("#categoryFilter", "婚纱照");
   await page.waitForSelector("[data-use-template]", { timeout: 15_000 });
@@ -150,7 +153,7 @@ for (const item of cases) {
   console.log(`${item.name} visual check passed: ${screenshot}`);
 }
 
-await verifySettingsSaveRecovery(browser, url);
+await verifyDirectCreatePath(browser, url);
 await verifyKnownImageUpload(browser, url);
 await verifyHtmlImageRejected(browser, url);
 await verifyImagePreviewDownload(browser, url);
@@ -222,6 +225,11 @@ async function expectText(page, selector, text, message) {
   if (!value?.includes(text)) throw new Error(message);
 }
 
+async function expectNotText(page, selector, text, message) {
+  const value = await page.locator(selector).first().textContent();
+  if (value?.includes(text)) throw new Error(message);
+}
+
 async function expectAnyText(page, selector, texts, message) {
   const value = await page.locator(selector).first().textContent();
   if (!texts.some((text) => value?.includes(text))) throw new Error(message);
@@ -284,7 +292,7 @@ async function closeModal(page) {
   await page.keyboard.press("Escape");
 }
 
-async function verifySettingsSaveRecovery(browser, url) {
+async function verifyDirectCreatePath(browser, url) {
   const page = await browser.newPage({ viewport: { width: 960, height: 720 } });
   const pageErrors = [];
   page.on("pageerror", (error) => {
@@ -292,78 +300,34 @@ async function verifySettingsSaveRecovery(browser, url) {
   });
   await mockEmptyHistory(page);
   await mockCredits(page);
-  await page.addInitScript(() => {
-    localStorage.clear();
-    localStorage.setItem("pic.native.history", JSON.stringify([
-      {
-        id: "old-large-history",
-        prompt: "old local image cache",
-        status: "succeeded",
-        images: [`data:image/png;base64,${"A".repeat(1200)}`],
-        references: [{ id: "ref-1", name: "ref.png", dataUrl: `data:image/png;base64,${"B".repeat(1200)}` }],
-        createdAt: Date.now()
-      }
-    ]));
-    const originalSetItem = Storage.prototype.setItem;
-    Storage.prototype.setItem = function patchedSetItem(key, value) {
-      const currentHistory = this.getItem("pic.native.history") || "";
-      if (key === "pic.native.settings" && currentHistory.includes("data:image")) {
-        throw new DOMException("Quota exceeded", "QuotaExceededError");
-      }
-      return originalSetItem.call(this, key, value);
-    };
-  });
-  await page.goto(url, { waitUntil: "domcontentloaded" });
-  if (pageErrors.length) throw new Error(`settings recovery: page script error: ${pageErrors.join("; ")}`);
-  await clickFirst(page, ".primary-nav [data-tab='create']", "settings recovery: missing create tab");
-  await clickFirst(page, "#secondaryNav [data-tab='creatorSettings']", "settings recovery: missing settings submenu");
-  await expectVisible(page, "#creatorSettingsPanel", "settings recovery: missing settings panel");
-  await expectVisible(page, "#openSettingsBtn", "settings recovery: missing settings button");
-  await clickFirst(page, "#openSettingsBtn", "settings recovery: missing settings button");
-  await page.fill("#modalApiUrl", "https://alexai.work/v1");
-  await page.fill("#modalApiKey", "test-key-local-visual-check");
-  await page.fill("#modalTimeout", "360");
-  await clickFirst(page, "#modalSaveBtn", "settings recovery: missing save button");
-  await expectHidden(page, ".modal-card", "settings recovery: save did not close modal");
-  await expectText(page, "#statusLine", "设置已保存", "settings recovery: status did not confirm save");
-  const saved = await page.evaluate(() => ({
-    settings: JSON.parse(localStorage.getItem("pic.native.settings") || "{}"),
-    history: localStorage.getItem("pic.native.history") || ""
-  }));
-  if (saved.settings.apiUrl !== "https://alexai.work/v1") throw new Error("settings recovery: API URL was not saved exactly");
-  if (saved.settings.apiKey !== "test-key-local-visual-check") throw new Error("settings recovery: API key was not saved");
-  if (saved.settings.timeoutSeconds !== 360) throw new Error("settings recovery: timeout was not saved");
-  if (saved.history.includes("data:image")) throw new Error("settings recovery: large history cache was not compacted");
-  let capturedGenerateSettings = null;
+  await page.addInitScript(() => localStorage.clear());
+  let capturedGenerate = null;
   await page.route("**/api/generate", async (route) => {
-    capturedGenerateSettings = JSON.parse(route.request().postData() || "{}").settings || null;
+    capturedGenerate = JSON.parse(route.request().postData() || "{}");
     await route.fulfill({
       status: 502,
       contentType: "application/json",
-      body: JSON.stringify({ ok: false, message: "visual check stop" })
+      body: JSON.stringify({ ok: false, message: "visual direct create stop" })
     });
   });
-  await clickFirst(page, ".primary-nav [data-tab='create']", "settings recovery: missing create tab");
-  await clickFirst(page, "#secondaryNav [data-tab='creatorSettings']", "settings recovery: missing settings submenu");
-  await expectVisible(page, "#creatorSettingsPanel", "settings recovery: missing settings panel");
-  await expectVisible(page, "#openSettingsBtn", "settings recovery: missing settings button");
-  await expectVisible(page, "#testConnectionBtn", "settings recovery: missing test connection button");
-  await clickFirst(page, "#secondaryNav [data-tab='generate']", "settings recovery: missing generate submenu");
-  await page.fill("#promptInput", "visual check prompt");
-  await expectGenerateEnabled(page, "settings recovery: generate button stayed disabled");
-  await clickFirst(page, "#generateBtn", "settings recovery: missing generate button");
-  await page.waitForFunction(() => document.querySelector("#statusLine")?.textContent?.includes("visual check stop"));
-  if (capturedGenerateSettings?.apiUrl !== "https://alexai.work/v1") throw new Error("settings recovery: generate request did not use saved API URL");
-  if (capturedGenerateSettings?.apiKey !== "test-key-local-visual-check") throw new Error("settings recovery: generate request did not use saved API key");
-  await clickFirst(page, ".primary-nav [data-tab='history']", "settings recovery: missing history primary menu");
-  const historyText = await page.locator("#historyList").textContent();
-  if (!historyText?.includes("接口已配置")) throw new Error("settings recovery: history did not show compact settings summary");
-  if (historyText.includes("https://alexai.work/v1")) throw new Error("settings recovery: history exposed the API URL");
-  if (historyText.includes("test-key-local-visual-check")) throw new Error("settings recovery: history leaked the API key");
-  const statusText = await page.locator("#statusLine").textContent();
-  if (statusText?.includes("https://alexai.work/v1")) throw new Error("settings recovery: status exposed the API URL");
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  if (pageErrors.length) throw new Error(`direct create: page script error: ${pageErrors.join("; ")}`);
+  await clickFirst(page, ".primary-nav [data-tab='create']", "direct create: missing create tab");
+  await expectText(page, "#secondaryNav", "模板库", "direct create: missing template submenu");
+  await expectText(page, "#secondaryNav", "智能生图", "direct create: missing generate submenu");
+  await expectNotText(page, "#secondaryNav", "连接设置", "direct create: create submenu should not expose connection settings");
+  await expectNotText(page, "#secondaryNav", "测试连接", "direct create: create submenu should not expose test connection");
+  await clickFirst(page, "#secondaryNav [data-tab='generate']", "direct create: missing generate submenu");
+  await expectVisible(page, "#generatePanel", "direct create: generate panel missing");
+  await page.fill("#promptInput", "default direct create visual check");
+  await expectGenerateEnabled(page, "direct create: generate button stayed disabled");
+  await clickFirst(page, "#generateBtn", "direct create: missing generate button");
+  await page.waitForFunction(() => document.querySelector("#statusLine")?.textContent?.includes("visual direct create stop"));
+  if (!capturedGenerate?.prompt?.includes("default direct create visual check")) throw new Error("direct create: prompt was not submitted");
+  if (capturedGenerate?.settings?.apiUrl !== "https://img.inklens.art/v1") throw new Error("direct create: generate request did not carry the default API URL");
+  if (capturedGenerate?.settings?.modelId !== "gpt-image-2") throw new Error("direct create: generate request did not carry the default image model");
   await page.close();
-  console.log("settings save recovery passed");
+  console.log("default direct create path passed");
 }
 
 async function verifyImagePreviewDownload(browser, url) {

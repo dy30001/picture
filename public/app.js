@@ -295,9 +295,7 @@ const secondaryMenus = {
   ],
   create: [
     { label: "模板库", tab: "templates" },
-    { label: "智能生图", tab: "generate" },
-    { label: "连接设置", tab: "creatorSettings" },
-    { label: "测试连接", action: "testConnection" }
+    { label: "智能生图", tab: "generate" }
   ],
   history: [
     { label: "全部作品", tab: "history", historyMode: "active" },
@@ -305,8 +303,7 @@ const secondaryMenus = {
   ],
   register: [
     { label: "注册", tab: "register", authView: "register" },
-    { label: "登录", tab: "register", authView: "login" },
-    { label: "连接设置", tab: "creatorSettings" }
+    { label: "登录", tab: "register", authView: "login" }
   ],
   credits: [
     { label: "权益总览", tab: "credits", anchor: "overview" },
@@ -397,10 +394,10 @@ document.addEventListener("DOMContentLoaded", () => {
     "statusLine", "studioPanel", "studioStartBtn", "studioHeroVisualEyebrow", "studioHeroVisualTitle", "studioHeroVisualChip", "studioHeroGallery", "studioHeroProof", "studioFlow", "studioCurrentStep", "studioCurrentScene", "studioCurrentSample",
     "studioCurrentCredits", "studioNextActionBtn", "scenePackGrid", "openTemplateLibraryBtn", "identitySummary",
     "identityStatusChip", "identityCheckGrid", "studioReferenceInput", "confirmIdentityBtn", "sampleSummary", "samplePreviewPanel", "sampleDirectionList",
-    "deliverySceneCount", "deliverySampleCount", "deliveryReadyCount", "studioGenerateBtn", "templatesPanel", "generatePanel", "creatorSettingsPanel", "creatorSettingsSummary", "registerPanel", "registerNowBtn", "registerSetupBtn", "historyPanel", "templateSearch", "categoryFilter", "featuredOnly",
+    "deliverySceneCount", "deliverySampleCount", "deliveryReadyCount", "studioGenerateBtn", "templatesPanel", "generatePanel", "registerPanel", "registerNowBtn", "historyPanel", "templateSearch", "categoryFilter", "featuredOnly",
     "templateCollections", "templateGrid", "templateCount", "templateHint", "loadMoreBtn", "promptInput", "qualitySelect",
     "formatSelect", "countInput", "sizeInput", "editImageInput", "editModeState", "referenceInput", "referenceList", "generateBtn",
-    "generationTimer", "historyList", "historyCount", "clearHistoryBtn", "deletedHistoryBtn", "openSettingsBtn", "testConnectionBtn",
+    "generationTimer", "historyList", "historyCount", "clearHistoryBtn", "deletedHistoryBtn",
     "openSizeBtn", "creditCostBar", "creditCostStatus", "creditCostHint", "creditRechargeShortcut", "secondaryNav", "creditsPanel", "creditRefreshBtn", "creditUpdatedAt", "creditBalance", "openCreditsBtn", "topCreditBalance",
     "creditStatus", "creditPackages", "creditLedger", "creditLedgerCount", "paymentStatusHint", "paymentStatusBadge", "creditOrderCount", "creditOrderList", "modalRoot",
     "authModeRegisterBtn", "authModeLoginBtn", "registerFlowNote", "registerUsernameField", "registerUsernameInput",
@@ -459,8 +456,6 @@ function bindEvents() {
   dom.generateBtn.addEventListener("click", () => void generateImage());
   dom.clearHistoryBtn.addEventListener("click", clearHistory);
   dom.deletedHistoryBtn.addEventListener("click", toggleDeletedHistory);
-  dom.openSettingsBtn.addEventListener("click", openSettings);
-  dom.testConnectionBtn.addEventListener("click", () => void testConnection());
   dom.openSizeBtn.addEventListener("click", openSize);
   dom.authModeRegisterBtn?.addEventListener("click", () => switchAuthView("register"));
   dom.authModeLoginBtn?.addEventListener("click", () => switchAuthView("login"));
@@ -470,7 +465,6 @@ function bindEvents() {
   dom.registerPasswordInput?.addEventListener("input", renderRegisterPanel);
   dom.sendCodeBtn?.addEventListener("click", () => void sendAuthCode());
   dom.registerNowBtn?.addEventListener("click", () => void submitAuth());
-  dom.registerSetupBtn?.addEventListener("click", goToCreatorSettings);
   dom.registerLogoutBtn?.addEventListener("click", logoutAuth);
   dom.creditRechargeShortcut.addEventListener("click", () => switchTab("credits"));
   dom.creditRefreshBtn.addEventListener("click", () => void refreshCreditCenter(true));
@@ -531,7 +525,6 @@ function templateSearchText(item) {
 function renderAll() {
   renderStudio();
   renderTabs();
-  renderConnectionSettings();
   renderRegisterPanel();
   renderCategories();
   renderTemplateCollections();
@@ -548,14 +541,12 @@ function renderTabs() {
   dom.studioPanel.hidden = state.tab !== "studio";
   dom.templatesPanel.hidden = state.tab !== "templates";
   dom.generatePanel.hidden = state.tab !== "generate";
-  dom.creatorSettingsPanel.hidden = state.tab !== "creatorSettings";
   dom.registerPanel.hidden = state.tab !== "register";
   dom.historyPanel.hidden = state.tab !== "history";
   dom.creditsPanel.hidden = state.tab !== "credits";
   dom.studioPanel.classList.toggle("active", state.tab === "studio");
   dom.templatesPanel.classList.toggle("active", state.tab === "templates");
   dom.generatePanel.classList.toggle("active", state.tab === "generate");
-  dom.creatorSettingsPanel.classList.toggle("active", state.tab === "creatorSettings");
   dom.registerPanel.classList.toggle("active", state.tab === "register");
   dom.historyPanel.classList.toggle("active", state.tab === "history");
   dom.creditsPanel.classList.toggle("active", state.tab === "credits");
@@ -582,9 +573,6 @@ function renderSecondaryNav(primaryTab) {
       if (tab === "credits") focusCreditsAnchor(state.creditAnchor);
     });
   });
-  dom.secondaryNav.querySelectorAll("[data-action]").forEach((button) => {
-    button.addEventListener("click", () => handleSecondaryAction(button.dataset.action));
-  });
 }
 
 function secondaryItemActive(item) {
@@ -595,17 +583,6 @@ function secondaryItemActive(item) {
   if (item.anchor && item.tab === "credits") return state.creditAnchor === item.anchor;
   if (item.authView) return state.authView === item.authView;
   return true;
-}
-
-function handleSecondaryAction(action) {
-  if (action === "testConnection") {
-    switchTab("creatorSettings");
-    void testConnection();
-    return;
-  }
-  if (action === "goToCreatorSettings") {
-    goToCreatorSettings();
-  }
 }
 
 function renderStudio() {
@@ -1443,7 +1420,7 @@ function switchTab(tab) {
 }
 
 function tabGroup(tab) {
-  if (tab === "templates" || tab === "generate" || tab === "creatorSettings") return "create";
+  if (tab === "templates" || tab === "generate") return "create";
   return tab;
 }
 
@@ -1460,15 +1437,6 @@ function switchPrimary(primary) {
   if (primary === "register") state.authView = "register";
   if (primary === "credits") state.creditAnchor = "overview";
   switchTab(defaultTabs[primary] || "studio");
-}
-
-function renderConnectionSettings() {
-  if (dom.creatorSettingsSummary) dom.creatorSettingsSummary.textContent = settingsSummary(state.settings);
-}
-
-function goToCreatorSettings() {
-  switchTab("creatorSettings");
-  status(state.auth.user ? "已进入连接设置，可继续配置生图接口" : "先完成注册，再进入连接设置");
 }
 
 function goToRegisterPanel() {
@@ -2596,92 +2564,6 @@ function setRechargeButtonsDisabled(disabled) {
   });
 }
 
-async function testConnection() {
-  const summary = settingsSummary(state.settings);
-  status(`连接测试中：${summary}`);
-  try {
-    const response = await apiFetch("/api/test-connection", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings: state.settings })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.ok === false) throw new Error(data.message || data.error || `${response.status} ${response.statusText}`);
-    status(`${data.message || "连接成功"}：${summary}`);
-  } catch (error) {
-    status(`连接失败：${summary}：${errorMessage(error)}`);
-  }
-}
-
-function openSettings() {
-  openModal(`
-    <section class="modal-card">
-      <div class="section-head compact"><div><h2>设置</h2><p>保存在本机 localStorage · ${esc(appVersion)}</p></div><button class="icon-btn" data-close-modal type="button">×</button></div>
-      <div class="settings-form">
-        <label><span>API URL</span><input id="modalApiUrl" value="${attr(state.settings.apiUrl)}" placeholder="https://img.inklens.art/v1" /></label>
-        <label><span>API Key</span><input id="modalApiKey" value="${attr(state.settings.apiKey)}" type="password" placeholder="不会硬编码，仅本机保存" /></label>
-        <div class="settings-help">没有账号？<button class="inline-link-btn" id="modalGoRegisterBtn" type="button">去注册开通</button></div>
-        <label><span>接口模式</span><select id="modalApiMode"><option value="images">images</option><option value="responses">responses</option></select></label>
-        <label><span>主模型</span><input id="modalMainModelId" value="${attr(state.settings.mainModelId || defaults.settings.mainModelId)}" /></label>
-        <label><span>图像模型</span><input id="modalModelId" value="${attr(state.settings.modelId)}" /></label>
-        <label><span>超时秒数</span><input id="modalTimeout" type="number" min="1" value="${attr(String(state.settings.timeoutSeconds))}" /></label>
-        <div class="settings-current" id="settingsCurrent">${esc(settingsSummary(state.settings))}</div>
-      </div>
-      <div class="modal-actions settings-actions">
-        <span class="settings-save-hint" id="settingsSaveHint" aria-live="polite"></span>
-        <button class="ghost-btn" id="modalTestBtn" type="button">测试连接</button>
-        <button class="primary-btn" id="modalSaveBtn" type="button">保存</button>
-      </div>
-    </section>`);
-  document.getElementById("modalApiMode").value = state.settings.apiMode;
-  document.getElementById("modalSaveBtn").addEventListener("click", (event) => {
-    event.preventDefault();
-    saveSettings({ close: true });
-  });
-  document.getElementById("modalTestBtn").addEventListener("click", (event) => {
-    event.preventDefault();
-    saveSettings({ close: false });
-    void testConnection();
-  });
-  document.getElementById("modalGoRegisterBtn").addEventListener("click", (event) => {
-    event.preventDefault();
-    closeModal();
-    goToRegisterPanel();
-  });
-}
-
-function saveSettings(options = {}) {
-  const close = typeof options === "boolean" ? options : Boolean(options.close);
-  const nextSettings = {
-    apiUrl: normalizeApiBaseUrl(document.getElementById("modalApiUrl").value.trim()),
-    apiKey: document.getElementById("modalApiKey").value.trim(),
-    apiMode: document.getElementById("modalApiMode").value,
-    mainModelId: document.getElementById("modalMainModelId").value.trim() || "gpt-5.5",
-    modelId: document.getElementById("modalModelId").value.trim() || "gpt-image-2",
-    timeoutSeconds: Math.max(1, Number(document.getElementById("modalTimeout").value) || 120)
-  };
-  try {
-    const recovered = writeStoreWithRecovery(keys.settings, nextSettings);
-    const saved = readStore(keys.settings, defaults.settings);
-    if (saved.apiUrl !== nextSettings.apiUrl || saved.apiKey !== nextSettings.apiKey) throw new Error("本机存储校验失败");
-    state.settings = nextSettings;
-    const summary = settingsSummary(nextSettings);
-    const current = document.getElementById("settingsCurrent");
-    if (current) current.textContent = summary;
-    const hint = document.getElementById("settingsSaveHint");
-    if (hint) hint.textContent = recovered ? "已保存，已清理过大的本机历史缓存" : "已保存";
-    if (close) closeModal();
-    renderConnectionSettings();
-    status(`设置已保存：${summary}`);
-    return true;
-  } catch (error) {
-    const hint = document.getElementById("settingsSaveHint");
-    if (hint) hint.textContent = `保存失败：${errorMessage(error)}`;
-    status(`设置保存失败：${errorMessage(error)}`);
-    return false;
-  }
-}
-
 function openSize() {
   const draft = createSizeDraft(state.params.size);
   renderSizeModal(draft);
@@ -2867,7 +2749,7 @@ function normalizeSettings(value) {
 
 function settingsSummary(settings) {
   const apiKey = String(settings?.apiKey || "").trim();
-  return apiKey ? `接口已配置 · Key #${keyFingerprint(apiKey)}` : "接口未配置";
+  return apiKey ? `专属通道已接入 · Key #${keyFingerprint(apiKey)}` : "默认通道已接入";
 }
 
 function ensureLocalClientKey() {
@@ -2968,7 +2850,7 @@ async function handlePendingPaymentReturn() {
 }
 
 function normalizeQueryTab(value) {
-  return ["studio", "templates", "generate", "creatorSettings", "register", "history", "credits"].includes(value) ? value : "";
+  return ["studio", "templates", "generate", "register", "history", "credits"].includes(value) ? value : "";
 }
 
 function normalizePaymentReturnKind(value) {

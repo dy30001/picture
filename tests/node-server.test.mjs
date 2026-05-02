@@ -75,10 +75,13 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(html, /id="creditOrderList"/);
     assert.match(html, /id="secondaryNav"/);
     assert.match(html, /id="openTemplateLibraryBtn"/);
-    assert.match(html, /id="creatorSettingsPanel"/);
     assert.match(html, /id="registerPanel"/);
     assert.match(html, /id="registerNowBtn"/);
-    assert.match(html, /id="registerSetupBtn"/);
+    assert.match(html, /id="generatePanel"/);
+    assert.doesNotMatch(html, /id="creatorSettingsPanel"/);
+    assert.doesNotMatch(html, /id="registerSetupBtn"/);
+    assert.doesNotMatch(html, /去连接设置/);
+    assert.doesNotMatch(html, /测试连接/);
     assert.match(html, /<h2>我的作品<\/h2>/);
     assert.match(html, /商业服务分区/);
     assert.match(html, /id="studioCurrentStep"/);
@@ -86,10 +89,10 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(appScript, /婚纱照/);
     assert.match(appScript, /studioNextAction/);
     assert.match(appScript, /secondaryMenus/);
-    assert.match(appScript, /creatorSettings/);
     assert.match(appScript, /label: "模板库"/);
     assert.match(appScript, /label: "智能生图"/);
-    assert.match(appScript, /label: "连接设置"/);
+    assert.doesNotMatch(appScript, /label: "连接设置"/);
+    assert.doesNotMatch(appScript, /label: "测试连接"/);
     assert.match(appScript, /label: "场景套餐"/);
     assert.match(appScript, /label: "成片交付"/);
     assert.match(appScript, /label: "全部作品"/);
