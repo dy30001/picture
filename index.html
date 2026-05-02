@@ -94,11 +94,11 @@
       async function check() {
         message.textContent = "正在检查本机服务。";
         try {
-          const response = await fetch("http://127.0.0.1:4174/api/health", { headers: { Accept: "application/json" } });
+          const response = await fetch("http://127.0.0.1:9999/api/health", { headers: { Accept: "application/json" } });
           const json = await response.json();
           if (!response.ok || json.ok === false) throw new Error("not ready");
           message.textContent = "服务已就绪，正在打开工作台。";
-          window.location.href = "http://127.0.0.1:4174/";
+          window.location.href = "http://127.0.0.1:9999/";
         } catch {
           message.textContent = "服务未启动。请双击启动脚本后再打开。";
         }

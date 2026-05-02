@@ -25,15 +25,12 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "node --watch server/index.mjs --host 127.0.0.1 --port 4174",
-    "start": "node server/index.mjs --host 127.0.0.1 --port 4174",
+    "dev": "node --watch server/index.mjs --host 127.0.0.1 --port 9999",
+    "start": "node server/index.mjs --host 127.0.0.1 --port 9999",
     "open": "node scripts/open-workbench.mjs",
     "assets:brand": "node scripts/generate-brand-assets.mjs",
     "build": "node scripts/build-node-app.mjs",
-    "identity:start": "node identity-workflow/server.mjs --host 0.0.0.0 --port 4184",
-    "identity:dev": "node --watch identity-workflow/server.mjs --host 0.0.0.0 --port 4184",
-    "identity:test": "node --import tsx --test tests/identity-workflow.test.ts",
-    "preview": "node server/index.mjs --host 127.0.0.1 --port 4174",
+    "preview": "node server/index.mjs --host 127.0.0.1 --port 9999",
     "lint:strict": "node scripts/lint-strict.mjs",
     "test": "node --import tsx --test tests/playground.test.ts tests/node-server.test.mjs",
     "typecheck": "tsc --noEmit",
@@ -47,6 +44,7 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "nodemailer": "^8.0.7"
+    "nodemailer": "^8.0.7",
+    "stripe": "^18.5.0"
   }
 }

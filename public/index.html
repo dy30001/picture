@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#a93127" />
-    <title>墨境图像工作台</title>
+    <meta name="theme-color" content="#1d2430" />
+    <title>Inklens AI 影像工作台</title>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/mojing-icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="./assets/mojing-icon-192.png" />
@@ -17,88 +17,215 @@
         <div class="brand-block">
           <img class="brand-mark" src="./assets/mojing-icon-192.png" alt="" aria-hidden="true" />
           <div>
-            <span class="eyebrow">个人 AI 摄影棚</span>
-            <h1>墨境个人 AI 摄影棚</h1>
-            <p id="statusLine">摄影棚准备中</p>
+            <span class="eyebrow">img.inklens.art</span>
+            <h1>Inklens AI 影像工作台</h1>
+            <p id="statusLine">客户工作台已就绪</p>
           </div>
         </div>
-        <div class="top-actions">
-          <button class="credit-pill" id="openCreditsBtn" type="button"><span>积分</span><strong id="topCreditBalance">读取中</strong></button>
-          <button class="ghost-btn" id="testConnectionBtn" type="button">测试连接</button>
-          <button class="primary-btn" id="openSettingsBtn" type="button">设置</button>
+        <div class="topbar-actions">
+          <nav class="primary-nav" aria-label="一级菜单">
+            <button class="primary-tab active" data-tab="studio" type="button">拍摄定制</button>
+            <button class="primary-tab" data-tab="create" type="button">图片创作</button>
+            <button class="primary-tab" data-tab="history" type="button">我的作品</button>
+            <button class="primary-tab" data-tab="register" type="button">注册开通</button>
+            <button class="primary-tab credit-nav-tab" data-tab="credits" id="openCreditsBtn" type="button">
+              <span>账户权益</span>
+              <strong id="topCreditBalance">读取中</strong>
+            </button>
+          </nav>
         </div>
       </header>
 
-      <nav class="tabs" aria-label="功能区">
-        <button class="tab active" data-tab="studio" type="button">摄影棚</button>
-        <button class="tab" data-tab="templates" type="button">模板库</button>
-        <button class="tab" data-tab="generate" type="button">生成图片</button>
-        <button class="tab" data-tab="credits" type="button">积分</button>
-      </nav>
+      <nav class="tabs" id="secondaryNav" aria-label="二级菜单"></nav>
 
       <section class="panel active" id="studioPanel">
         <section class="studio-dashboard">
           <section class="studio-main">
             <div class="studio-hero">
-              <div>
-                <span class="eyebrow">上传本人参考照，确认数字底片，再按场景包出片</span>
-                <h2>先定身份，再拍样片，最后批量交付</h2>
+              <div class="studio-hero-copy">
+                <div class="studio-hero-heading">
+                  <span class="eyebrow">客户先选套餐，系统只保留当前进度和下一步</span>
+                  <h2>先锁定本人，再确认方向，最后交付成片</h2>
+                  <p>把数字底片、样片确认和成片交付收成一条客户能直接下决定的拍摄路径，不把客户一上来扔进完整模板库。</p>
+                </div>
+                <div class="studio-hero-stats" aria-label="摄影棚关键指标">
+                  <article class="studio-hero-stat">
+                    <strong>先确认本人</strong>
+                    <span>先做三视图和数字底片确认</span>
+                  </article>
+                  <article class="studio-hero-stat">
+                    <strong>先看真实样片</strong>
+                    <span>每个套餐先给 3 个方向，客户先选再做</span>
+                  </article>
+                  <article class="studio-hero-stat">
+                    <strong>通过后再成片</strong>
+                    <span>方向确认后批量生成，只交付最终可用图</span>
+                  </article>
+                </div>
+                <div class="studio-hero-actions">
+                  <button class="primary-btn" id="studioStartBtn" type="button">开始选套餐</button>
+                  <p>主线规则：先三视图，再出样片，确认后再批量交付。</p>
+                </div>
               </div>
-              <button class="primary-btn" id="studioStartBtn" type="button">选择场景</button>
+              <div class="studio-hero-visual">
+                <div class="studio-hero-preview studio-hero-preview-live">
+                  <div class="studio-hero-preview-head">
+                    <div>
+                      <span id="studioHeroVisualEyebrow">婚纱照场景</span>
+                      <strong id="studioHeroVisualTitle">先看真实样片，再决定方向</strong>
+                    </div>
+                    <em id="studioHeroVisualChip">优先套餐</em>
+                  </div>
+                  <div class="studio-hero-gallery" id="studioHeroGallery"></div>
+                  <div class="studio-hero-proof" id="studioHeroProof"></div>
+                </div>
+              </div>
             </div>
-            <div class="studio-flow" id="studioFlow" aria-label="摄影棚流程"></div>
+            <section class="workflow-board" aria-label="客户流程面板">
+              <div class="workflow-board-head">
+                <div>
+                  <span class="eyebrow">客户流程面板</span>
+                  <h2>客户只看这一条主流程就够了</h2>
+                </div>
+                <span>当前状态 / 下一步 / 样片证据</span>
+              </div>
+              <section class="service-map" id="serviceMap" aria-label="商业服务分区">
+                <div class="service-map-head">
+                  <div>
+                    <span class="eyebrow">客户下单分区</span>
+                    <h2>四个区讲清楚客户怎么完成一次拍摄</h2>
+                  </div>
+                  <span>先三视图，再出模板样片</span>
+                </div>
+                <div class="service-zone-grid">
+                  <article class="service-zone-card">
+                    <strong>数字底片</strong>
+                    <span>上传参考照，先确认像本人</span>
+                  </article>
+                  <article class="service-zone-card">
+                    <strong>场景套餐</strong>
+                    <span>婚纱、情侣、闺蜜、儿童、写真、夕阳红</span>
+                  </article>
+                  <article class="service-zone-card">
+                    <strong>样片确认</strong>
+                    <span>每个套餐先确认 3 个方向</span>
+                  </article>
+                  <article class="service-zone-card">
+                    <strong>成片交付</strong>
+                    <span>方向通过后批量交付</span>
+                  </article>
+                </div>
+              </section>
+              <div class="studio-flow" id="studioFlow" aria-label="摄影棚流程"></div>
+              <section class="work-order-strip" id="studioWorkOrder" aria-label="当前业务状态">
+                <div class="work-order-main">
+                  <span>当前下一步</span>
+                  <strong id="studioCurrentStep">待选择</strong>
+                </div>
+                <div class="work-order-meta">
+                  <span id="studioCurrentScene">场景读取中</span>
+                  <span id="studioCurrentSample">样片读取中</span>
+                  <span id="studioCurrentCredits">积分读取中</span>
+                </div>
+                <button class="primary-btn small" id="studioNextActionBtn" type="button">继续</button>
+              </section>
+            </section>
             <div class="studio-section-head">
               <div>
                 <h2>场景包</h2>
-                <p>先选业务场景，不直接进入完整模板库</p>
+                <p>先按套餐挑方向，再进入样片确认和智能生图</p>
               </div>
-              <button class="ghost-btn" id="openTemplateLibraryBtn" type="button">完整模板库</button>
+              <button class="ghost-btn" id="openTemplateLibraryBtn" type="button">模板库</button>
             </div>
             <div class="scene-pack-grid" id="scenePackGrid"></div>
           </section>
           <aside class="studio-side">
-            <section class="studio-card identity-card">
-              <div class="studio-section-head compact">
-                <div>
-                  <h2>数字底片</h2>
-                  <p id="identitySummary">待上传参考照</p>
+            <section class="studio-order-shell" aria-label="当前订单">
+              <div class="studio-order-shell-head">
+                <span class="eyebrow">当前订单</span>
+                <h2>右侧只放当前任务</h2>
+                <p>客户随时能看到当前状态、当前证据和下一步，不会在页面里迷路。</p>
+              </div>
+              <section class="studio-card identity-card" id="identityCard">
+                <div class="studio-section-head compact">
+                  <div>
+                    <h2>数字底片</h2>
+                    <p id="identitySummary">待上传参考照</p>
+                  </div>
+                  <span class="status-chip pending" id="identityStatusChip">待上传</span>
                 </div>
-                <span class="status-chip pending" id="identityStatusChip">待上传</span>
-              </div>
-              <div class="identity-check-grid" id="identityCheckGrid"></div>
-              <div class="identity-actions">
-                <label class="file-btn">上传参考照<input id="studioReferenceInput" type="file" accept="image/*" multiple /></label>
-                <button class="ghost-btn" id="confirmIdentityBtn" type="button">确认数字底片</button>
-              </div>
-            </section>
-            <section class="studio-card">
-              <div class="studio-section-head compact">
-                <div>
-                  <h2>样片方向</h2>
-                  <p id="sampleSummary">选择场景后推荐 3 个方向</p>
+                <div class="identity-check-grid" id="identityCheckGrid"></div>
+                <div class="identity-actions">
+                  <label class="file-btn">上传参考照<input id="studioReferenceInput" type="file" accept="image/*" multiple /></label>
+                  <button class="ghost-btn" id="confirmIdentityBtn" type="button">确认数字底片</button>
                 </div>
-              </div>
-              <div class="sample-direction-list" id="sampleDirectionList"></div>
-            </section>
-            <section class="studio-card delivery-card">
-              <div class="studio-section-head compact">
-                <div>
-                  <h2>成片交付</h2>
-                  <p>样片确认后再批量生成</p>
+              </section>
+              <section class="studio-card" id="sampleCard">
+                <div class="studio-section-head compact">
+                  <div>
+                    <h2>样片方向</h2>
+                    <p id="sampleSummary">选择场景后先看样片，再确认方向</p>
+                  </div>
                 </div>
-              </div>
-              <div class="delivery-grid">
-                <span><strong id="deliverySceneCount">0</strong> 场景</span>
-                <span><strong id="deliverySampleCount">0</strong> 样片方向</span>
-                <span><strong id="deliveryReadyCount">0</strong> 可交付</span>
-              </div>
-              <button class="primary-btn wide" id="studioGenerateBtn" type="button">用样片方向生成</button>
+                <div class="sample-preview-panel" id="samplePreviewPanel" aria-label="样片预览"></div>
+                <div class="sample-direction-list" id="sampleDirectionList"></div>
+              </section>
+              <section class="studio-card delivery-card" id="deliveryCard">
+                <div class="studio-section-head compact">
+                  <div>
+                    <h2>成片交付</h2>
+                    <p>样片确认后再批量生成</p>
+                  </div>
+                </div>
+                <div class="delivery-grid">
+                  <span><strong id="deliverySceneCount">0</strong> 场景</span>
+                  <span><strong id="deliverySampleCount">0</strong> 样片方向</span>
+                  <span><strong id="deliveryReadyCount">0</strong> 可交付</span>
+                </div>
+                <button class="primary-btn wide" id="studioGenerateBtn" type="button">用样片方向生成</button>
+              </section>
             </section>
           </aside>
         </section>
       </section>
 
       <section class="panel" id="templatesPanel" hidden>
+        <section class="create-stage" aria-label="生图总览">
+          <div class="create-stage-copy">
+            <span class="eyebrow">图片创作工作线</span>
+            <h2>先选方向，再生图，再检查连接和结果</h2>
+            <p>这一条线只保留客户真正会走的动作：模板库选方向，智能生图出结果，连接设置保障可用，记录和权益放在同一路径里。</p>
+            <div class="create-stage-metrics" aria-label="生图关键点">
+              <article class="create-stage-metric">
+                <strong>模板先行</strong>
+                <span>先确认方向，再进入生图</span>
+              </article>
+              <article class="create-stage-metric">
+                <strong>继续加工</strong>
+                <span>原图、参考图、历史结果都能继续做</span>
+              </article>
+              <article class="create-stage-metric">
+                <strong>连接可测</strong>
+                <span>设置、测试连接、账户权益都在同一路径</span>
+              </article>
+            </div>
+          </div>
+          <div class="create-stage-visual" aria-hidden="true">
+            <article class="create-stage-card wide">
+              <img src="./assets/studio-showcase-wedding-review.jpg" alt="" />
+              <span>真实样片</span>
+            </article>
+            <article class="create-stage-card">
+              <img src="./assets/studio-showcase-3view.png" alt="" />
+              <span>三视图建模</span>
+            </article>
+            <article class="create-stage-card">
+              <img src="./assets/studio-showcase-sample.png" alt="" />
+              <span>样片确认</span>
+            </article>
+          </div>
+        </section>
+        <section class="template-collections" id="templateCollections" aria-label="客户常用模板分区"></section>
         <div class="filters">
           <label><span>搜索</span><input id="templateSearch" type="search" placeholder="标题、场景、关键词" /></label>
           <label><span>分类</span><select id="categoryFilter"><option value="all">全部分类</option></select></label>
@@ -116,7 +243,7 @@
         <section class="composer">
           <div class="section-head">
             <div>
-              <h2>生成 / 编辑图片</h2>
+              <h2>智能生图</h2>
               <p>模板、原图和历史结果都可继续加工</p>
             </div>
             <button class="ghost-btn" id="openSizeBtn" type="button">尺寸</button>
@@ -143,34 +270,138 @@
             <div class="reference-list" id="referenceList"></div>
           </section>
           <div class="credit-cost-bar" id="creditCostBar">
-            <div>
-              <span>预计消耗</span>
+            <div class="credit-cost-main">
+              <span>本次预计</span>
               <strong id="creditCostStatus">读取中</strong>
+              <p id="creditCostHint">成功出图后扣费，失败不扣积分</p>
             </div>
-            <button class="ghost-btn" id="creditRechargeShortcut" type="button">充值积分</button>
-          </div>
-          <div class="generate-submit-row">
-            <div class="generation-timer"><span>生成耗时</span><strong id="generationTimer">未开始</strong></div>
-            <button class="primary-btn wide" id="generateBtn" type="button">生成</button>
+            <div class="credit-cost-actions">
+              <div class="generation-timer"><span>生成耗时</span><strong id="generationTimer">未开始</strong></div>
+              <button class="ghost-btn" id="creditRechargeShortcut" type="button">充值</button>
+              <button class="primary-btn checkout-generate-btn" id="generateBtn" type="button">生成</button>
+            </div>
           </div>
         </section>
-        <aside class="history">
+      </section>
+
+      <section class="panel" id="creatorSettingsPanel" hidden>
+        <section class="creator-settings">
+          <div class="section-head">
+            <div>
+              <h2>连接设置</h2>
+              <p id="creatorSettingsHint">统一管理接口地址、鉴权和连接测试</p>
+            </div>
+          </div>
+          <div class="creator-settings-grid">
+            <article class="creator-settings-card">
+              <span>当前连接</span>
+              <strong id="creatorSettingsSummary">接口未配置</strong>
+              <p>统一管理 API URL、Key、主模型和图像模型</p>
+            </article>
+            <article class="creator-settings-card">
+              <span>建议动作</span>
+              <strong>保存后先测一次连接</strong>
+              <p>确认接口地址、鉴权和返回状态都正常，再进入智能生图</p>
+            </article>
+          </div>
+          <div class="connection-actions">
+            <button class="ghost-btn" id="testConnectionBtn" type="button">测试连接</button>
+            <button class="primary-btn" id="openSettingsBtn" type="button">打开设置</button>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel" id="registerPanel" hidden>
+        <section class="register-guide">
+          <div class="section-head">
+            <div>
+              <h2>注册开通</h2>
+              <p>站内完成注册和登录，不跳外站，开通后继续用同一套工具区</p>
+            </div>
+          </div>
+          <div class="register-console">
+            <section class="register-form-panel">
+              <div class="register-mode-tabs" role="tablist" aria-label="账号模式">
+                <button class="active" id="authModeRegisterBtn" type="button">注册</button>
+                <button id="authModeLoginBtn" type="button">登录</button>
+              </div>
+              <div class="register-flow-note" id="registerFlowNote">先填用户名和邮箱，收到邮箱注册码后再设置密码完成注册。</div>
+              <div class="register-field-grid">
+                <label id="registerUsernameField">
+                  <span>用户名</span>
+                  <input id="registerUsernameInput" autocomplete="nickname" maxlength="24" placeholder="给账号起个名字" />
+                </label>
+                <label>
+                  <span>邮箱</span>
+                  <input id="registerEmailInput" autocomplete="email" type="email" placeholder="you@company.com" />
+                </label>
+                <label id="registerCodeField" class="register-code-field">
+                  <span>邮箱注册码</span>
+                  <div class="register-code-row">
+                    <input id="registerCodeInput" inputmode="numeric" maxlength="6" placeholder="输入 6 位注册码" />
+                    <button id="sendCodeBtn" class="ghost-btn" type="button">发送注册码</button>
+                  </div>
+                </label>
+                <label>
+                  <span>密码</span>
+                  <input id="registerPasswordInput" autocomplete="new-password" minlength="6" type="password" placeholder="至少 6 个字符" />
+                </label>
+              </div>
+              <div class="register-message" id="registerMessage" hidden></div>
+              <div class="register-actions">
+                <button class="primary-btn" id="registerNowBtn" type="button">立即注册</button>
+                <button class="ghost-btn" id="registerSetupBtn" type="button">去连接设置</button>
+              </div>
+            </section>
+            <aside class="register-side">
+              <article class="register-guide-card register-account-card">
+                <span>当前账号</span>
+                <strong id="registerAccountName">未登录</strong>
+                <p id="registerAccountMeta">注册后会把当前浏览器里的工具记录并到这个客户账户，方便继续充值和生图。</p>
+                <div class="register-side-actions">
+                  <button class="ghost-btn small" id="registerLogoutBtn" type="button" hidden>退出登录</button>
+                </div>
+              </article>
+              <div class="register-guide-grid register-guide-grid-inline">
+                <article class="register-guide-card">
+                  <span>第 1 步</span>
+                  <strong>创建账号</strong>
+                  <p>填写用户名和邮箱，邮箱注册码只在注册时使用。</p>
+                </article>
+                <article class="register-guide-card">
+                  <span>第 2 步</span>
+                  <strong>完成开通</strong>
+                  <p>注册后账户会和当前浏览器里的记录并到一起。</p>
+                </article>
+                <article class="register-guide-card">
+                  <span>第 3 步</span>
+                  <strong>进入工具区</strong>
+                  <p>保持一级菜单不变，继续走拍摄定制和图片创作两条主线。</p>
+                </article>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel" id="historyPanel" hidden>
+        <section class="history history-board">
           <div class="section-head compact">
-            <div><h2>历史记录</h2><p id="historyCount">0 条</p></div>
+            <div><h2>我的作品</h2><p id="historyCount">0 条</p></div>
             <div class="history-actions">
               <button class="ghost-btn" id="deletedHistoryBtn" type="button">已删除</button>
               <button class="ghost-btn" id="clearHistoryBtn" type="button">清空</button>
             </div>
           </div>
           <div class="history-list" id="historyList"></div>
-        </aside>
+        </section>
       </section>
 
       <section class="panel" id="creditsPanel" hidden>
         <section class="credits-layout">
           <section class="credit-overview">
             <div class="section-head compact">
-              <div><h2>积分账户</h2><p id="creditUpdatedAt">读取中</p></div>
+              <div><h2>账户权益</h2><p id="creditUpdatedAt">读取中</p></div>
               <button class="ghost-btn" id="creditRefreshBtn" type="button">刷新</button>
             </div>
             <div class="credit-balance-card">
@@ -179,16 +410,39 @@
               <p id="creditStatus">本地账本读取中</p>
             </div>
             <div class="credit-note-grid">
-              <span>1 张图建议预留 10-30 积分</span>
-              <span>充值记录按本机客户端隔离</span>
+              <span>标准生图 20 积分 / 张</span>
+              <span>参考图编辑 30 积分 / 张起</span>
+              <span>高质 +10 · 2K +20 · 4K +60</span>
+              <span>2 张及以上参考图额外 +10</span>
+            </div>
+            <div class="credit-guide-grid">
+              <article class="credit-guide-card">
+                <strong>到账方式</strong>
+                <p>充值后直接到账，客户不用跳到别的页面看结果。</p>
+              </article>
+              <article class="credit-guide-card">
+                <strong>扣费规则</strong>
+                <p>成功出图后再扣积分，失败不扣，适合先看样片再决定。</p>
+              </article>
+              <article class="credit-guide-card">
+                <strong>使用建议</strong>
+                <p>先用模板确定方向，再进智能生图，预算和结果更可控。</p>
+              </article>
             </div>
           </section>
           <section class="recharge-panel">
-            <div class="section-head compact"><div><h2>充值积分</h2><p>选择档位后立即入账</p></div></div>
+            <div class="section-head compact">
+              <div><h2>充值中心</h2><p id="paymentStatusHint">安全支付页，到账后自动入账</p></div>
+              <span class="payment-status-badge" id="paymentStatusBadge">准备中</span>
+            </div>
             <div class="credit-package-grid" id="creditPackages"></div>
+            <div class="credit-order-panel">
+              <div class="section-head compact"><div><h2>充值订单</h2><p id="creditOrderCount">0 条</p></div></div>
+              <div class="credit-order-list" id="creditOrderList"></div>
+            </div>
           </section>
           <aside class="credit-ledger-panel">
-            <div class="section-head compact"><div><h2>积分记录</h2><p id="creditLedgerCount">0 条</p></div></div>
+            <div class="section-head compact"><div><h2>最近流水</h2><p id="creditLedgerCount">0 条</p></div></div>
             <div class="credit-ledger-list" id="creditLedger"></div>
           </aside>
         </section>

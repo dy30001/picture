@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer as createHttpServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { once } from "node:events";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const serverEntry = new URL("../server/index.mjs", import.meta.url);
@@ -13,22 +15,39 @@ const generationErrorLog = new URL("../data/logs/generation-errors.ndjson", impo
 
 test("Node server serves the playground without a fixed port", { skip: !existsSync(serverEntryPath) }, async () => {
   const port = await getOpenPort();
+  const authDir = mkdtempSync(join(tmpdir(), "inklens-auth-"));
   let successUpstream = null;
+  let accountClient = "";
   const child = spawn(
     process.execPath,
     [serverEntryPath, "--host", "127.0.0.1", "--port", String(port)],
-    { stdio: ["ignore", "pipe", "pipe"] }
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        STRIPE_FAKE_MODE: "1",
+        APP_BASE_URL: `http://127.0.0.1:${port}`,
+        INKLENS_AUTH_TEST_MODE: "1",
+        INKLENS_AUTH_DIR: authDir
+      }
+    }
   );
   const output = collectOutput(child);
   const ipA = `2001:db8::${port.toString(16)}`;
   const ipB = `2001:db8::${(port + 1).toString(16)}`;
   const clientA = historyClientKey(ipA);
   const clientB = historyClientKey(ipB);
+  const explicitClient = historyClientKey(`wallet-client-${port}`);
   const historyTaskId = `ip-history-${port}`;
   cleanupHistoryClient(clientA);
   cleanupHistoryClient(clientB);
+  cleanupHistoryClient(explicitClient);
   cleanupCreditClient(clientA);
   cleanupCreditClient(clientB);
+  cleanupCreditClient(explicitClient);
+  cleanupOrderClient(clientA);
+  cleanupOrderClient(clientB);
+  cleanupOrderClient(explicitClient);
 
   try {
     const baseUrl = `http://127.0.0.1:${port}`;
@@ -36,9 +55,49 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     const html = await fetchText(baseUrl);
     assert.match(html, /图片生成工作台|id="templatesPanel"/);
     assert.match(html, /data-tab="studio"/);
+    assert.match(html, /data-tab="create"/);
+    assert.match(html, /data-tab="history"/);
+    assert.match(html, /data-tab="credits"/);
+    assert.match(html, /data-tab="register"/);
+    assert.doesNotMatch(html, /data-tab="templates"/);
+    assert.doesNotMatch(html, /data-tab="generate"/);
     assert.match(html, /id="studioPanel"/);
+    assert.match(html, /img\.inklens\.art/);
+    assert.match(html, /Inklens AI 影像工作台/);
+    assert.match(html, /拍摄定制/);
+    assert.match(html, /图片创作/);
+    assert.match(html, /我的作品/);
+    assert.match(html, /账户权益/);
+    assert.match(html, /注册开通/);
+    assert.match(html, /<nav class="primary-nav"[\s\S]*拍摄定制[\s\S]*图片创作[\s\S]*我的作品[\s\S]*注册开通[\s\S]*账户权益[\s\S]*<\/nav>/);
+    assert.match(html, /账户权益/);
+    assert.match(html, /id="paymentStatusBadge"/);
+    assert.match(html, /id="creditOrderList"/);
+    assert.match(html, /id="secondaryNav"/);
+    assert.match(html, /id="openTemplateLibraryBtn"/);
+    assert.match(html, /id="creatorSettingsPanel"/);
+    assert.match(html, /id="registerPanel"/);
+    assert.match(html, /id="registerNowBtn"/);
+    assert.match(html, /id="registerSetupBtn"/);
+    assert.match(html, /<h2>我的作品<\/h2>/);
+    assert.match(html, /商业服务分区/);
+    assert.match(html, /id="studioCurrentStep"/);
     const appScript = await fetchText(`${baseUrl}/app.js`);
     assert.match(appScript, /婚纱照/);
+    assert.match(appScript, /studioNextAction/);
+    assert.match(appScript, /secondaryMenus/);
+    assert.match(appScript, /creatorSettings/);
+    assert.match(appScript, /label: "模板库"/);
+    assert.match(appScript, /label: "智能生图"/);
+    assert.match(appScript, /label: "连接设置"/);
+    assert.match(appScript, /label: "场景套餐"/);
+    assert.match(appScript, /label: "成片交付"/);
+    assert.match(appScript, /label: "全部作品"/);
+    assert.match(appScript, /label: "已删除"/);
+    assert.match(appScript, /label: "登录"/);
+    assert.match(appScript, /label: "权益总览"/);
+    assert.match(appScript, /X-Client-Key/);
+    assert.match(appScript, /\/api\/payments\/checkout-session/);
     assert.match(appScript, /20260502-personal-studio/);
 
     const health = await fetchJson(`${baseUrl}/api/health`);
@@ -49,6 +108,144 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(initialCredits.clientKey, clientA);
     assert.equal(initialCredits.balance, 0);
     assert.ok(initialCredits.packages.some((item) => item.id === "starter"));
+
+    const explicitCredits = await fetchJson(`${baseUrl}/api/credits`, {
+      headers: { "X-Forwarded-For": ipA, "X-Client-Key": explicitClient }
+    });
+    assert.equal(explicitCredits.clientKey, explicitClient);
+    assert.equal(explicitCredits.balance, 0);
+
+    const paymentConfig = await fetchJson(`${baseUrl}/api/payments/config`);
+    assert.equal(paymentConfig.ok, true);
+    assert.equal(paymentConfig.payment.ready, true);
+    assert.equal(paymentConfig.payment.mode, "fake");
+
+    const pendingOrder = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      body: JSON.stringify({ packageId: "starter" })
+    });
+    assert.equal(pendingOrder.ok, true);
+    assert.equal(pendingOrder.clientKey, explicitClient);
+    assert.equal(pendingOrder.order.status, "pending");
+    assert.equal(pendingOrder.order.packageId, "starter");
+    assert.match(pendingOrder.checkoutUrl, /payment=success/);
+    assert.match(pendingOrder.sessionId, /^cs_fake_/);
+
+    const explicitOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": explicitClient } });
+    assert.equal(explicitOrders.clientKey, explicitClient);
+    assert.equal(explicitOrders.orders[0].id, pendingOrder.order.id);
+
+    const webhookResponse = await fetch(`${baseUrl}/api/payments/stripe/webhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Stripe-Signature": "fake" },
+      body: JSON.stringify({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: pendingOrder.sessionId,
+            client_reference_id: pendingOrder.order.id,
+            payment_status: "paid",
+            payment_intent: "pi_fake_checkout_paid",
+            metadata: {
+              clientKey: explicitClient,
+              orderId: pendingOrder.order.id,
+              packageId: "starter"
+            }
+          }
+        }
+      })
+    });
+    assert.equal(webhookResponse.ok, true, `webhook returned ${webhookResponse.status}`);
+    const webhookJson = await webhookResponse.json();
+    assert.equal(webhookJson.ok, true);
+    assert.equal(webhookJson.received, true);
+
+    const explicitCreditsAfterWebhook = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": explicitClient } });
+    assert.equal(explicitCreditsAfterWebhook.balance, 330);
+
+    const paidOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": explicitClient } });
+    assert.equal(paidOrders.orders[0].status, "paid");
+    assert.match(paidOrders.orders[0].ledgerId, /^recharge-/);
+
+    const accountHistoryTaskId = `account-history-${port}`;
+    const explicitHistorySync = await fetchJson(`${baseUrl}/api/history/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      body: JSON.stringify({
+        history: [{
+          id: accountHistoryTaskId,
+          prompt: "register migration check",
+          params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
+          references: [],
+          status: "succeeded",
+          images: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="],
+          createdAt: Date.now(),
+          finishedAt: Date.now()
+        }]
+      })
+    });
+    assert.equal(explicitHistorySync.ok, true);
+    assert.equal(explicitHistorySync.clientKey, explicitClient);
+
+    const verification = await fetchJson(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `customer-${port}@example.com` })
+    });
+    assert.equal(verification.ok, true);
+    assert.equal(verification.delivery, "test");
+    assert.match(String(verification.code || ""), /^\d{6}$/);
+
+    const registered = await fetchJson(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `customer-${port}@example.com`,
+        username: "客户测试",
+        code: verification.code,
+        password: "secret123",
+        clientKey: explicitClient
+      })
+    });
+    assert.equal(registered.ok, true);
+    accountClient = registered.clientKey;
+    assert.equal(accountClient, accountClientKey(registered.user.id));
+
+    const accountCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(accountCredits.clientKey, accountClient);
+    assert.equal(accountCredits.balance, 330);
+
+    const migratedOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(migratedOrders.orders[0].status, "paid");
+    assert.equal(migratedOrders.orders[0].id, pendingOrder.order.id);
+
+    const migratedHistory = await fetchJson(`${baseUrl}/api/history`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(migratedHistory.clientKey, accountClient);
+    assert.equal(migratedHistory.history.some((item) => item.id === accountHistoryTaskId), true);
+    const migratedTask = migratedHistory.history.find((item) => item.id === accountHistoryTaskId);
+    assert.ok(migratedTask.images[0].startsWith(`/generated-history/${explicitClient}/`), migratedTask.images[0]);
+
+    const oldExplicitCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": explicitClient } });
+    assert.equal(oldExplicitCredits.balance, 0);
+    const oldExplicitOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": explicitClient } });
+    assert.equal(oldExplicitOrders.orders.length, 0);
+    const oldExplicitHistory = await fetchJson(`${baseUrl}/api/history`, { headers: { "X-Client-Key": explicitClient } });
+    assert.equal(oldExplicitHistory.history.length, 0);
+
+    const loggedIn = await fetchJson(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `customer-${port}@example.com`,
+        password: "secret123",
+        clientKey: clientB
+      })
+    });
+    assert.equal(loggedIn.ok, true);
+    assert.equal(loggedIn.clientKey, accountClient);
 
     const recharge = await fetchJson(`${baseUrl}/api/credits/recharge`, {
       method: "POST",
@@ -222,8 +419,17 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     if (child.exitCode === null) child.kill("SIGKILL");
     cleanupHistoryClient(clientA);
     cleanupHistoryClient(clientB);
+    cleanupHistoryClient(explicitClient);
+    if (accountClient) cleanupHistoryClient(accountClient);
     cleanupCreditClient(clientA);
     cleanupCreditClient(clientB);
+    cleanupCreditClient(explicitClient);
+    if (accountClient) cleanupCreditClient(accountClient);
+    cleanupOrderClient(clientA);
+    cleanupOrderClient(clientB);
+    cleanupOrderClient(explicitClient);
+    if (accountClient) cleanupOrderClient(accountClient);
+    rmSync(authDir, { recursive: true, force: true });
   }
 
   assert.notEqual(child.exitCode, 1, output());
@@ -236,6 +442,7 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
   const htmlClient = historyClientKey(htmlIp);
   cleanupHistoryClient(htmlClient);
   cleanupCreditClient(htmlClient);
+  cleanupOrderClient(htmlClient);
   const upstream = createHttpServer((request, response) => {
     if (request.url === "/v1/images/generations") {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
@@ -306,6 +513,65 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
     if (child.exitCode === null) child.kill("SIGKILL");
     cleanupHistoryClient(htmlClient);
     cleanupCreditClient(htmlClient);
+    cleanupOrderClient(htmlClient);
+  }
+
+  assert.notEqual(child.exitCode, 1, output());
+});
+
+test("Node server only exposes onscreen auth codes on local hosts", { skip: !existsSync(serverEntryPath) }, async () => {
+  const port = await getOpenPort();
+  const authDir = mkdtempSync(join(tmpdir(), "inklens-auth-local-"));
+  const child = spawn(
+    process.execPath,
+    [serverEntryPath, "--host", "127.0.0.1", "--port", String(port)],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        STRIPE_FAKE_MODE: "1",
+        APP_BASE_URL: `http://127.0.0.1:${port}`,
+        INKLENS_AUTH_DIR: authDir,
+        INKLENS_SMTP_HOST: "",
+        SMTP_HOST: "",
+        IDENTITY_WORKFLOW_SMTP_HOST: ""
+      }
+    }
+  );
+  const output = collectOutput(child);
+
+  try {
+    const baseUrl = `http://127.0.0.1:${port}`;
+    await waitForHttp(baseUrl, child, output);
+
+    const localVerification = await fetchJson(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `local-${port}@example.com` })
+    });
+    assert.equal(localVerification.ok, true);
+    assert.equal(localVerification.delivery, "onscreen");
+    assert.match(String(localVerification.code || ""), /^\d{6}$/);
+    assert.match(localVerification.message, /本机模式/);
+
+    const publicVerification = await fetch(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Forwarded-Host": "img.inklens.art",
+        "X-Forwarded-For": "198.51.100.23"
+      },
+      body: JSON.stringify({ type: "email", account: `public-${port}@example.com` })
+    });
+    assert.equal(publicVerification.status, 400);
+    const publicJson = await publicVerification.json();
+    assert.equal(publicJson.ok, false);
+    assert.match(publicJson.message, /INKLENS_SMTP_HOST/);
+  } finally {
+    child.kill("SIGTERM");
+    await Promise.race([once(child, "exit"), delay(1500)]);
+    if (child.exitCode === null) child.kill("SIGKILL");
+    rmSync(authDir, { recursive: true, force: true });
   }
 
   assert.notEqual(child.exitCode, 1, output());
@@ -375,6 +641,10 @@ function historyClientKey(value) {
   return clean || "local";
 }
 
+function accountClientKey(userId) {
+  return historyClientKey(`account-${userId}`);
+}
+
 function cleanupHistoryClient(clientKey) {
   rmSync(new URL(`../data/history/${clientKey}.json`, import.meta.url), { force: true });
   rmSync(new URL(`../data/generated-history/${clientKey}`, import.meta.url), { recursive: true, force: true });
@@ -382,4 +652,8 @@ function cleanupHistoryClient(clientKey) {
 
 function cleanupCreditClient(clientKey) {
   rmSync(new URL(`../data/credits/${clientKey}.json`, import.meta.url), { force: true });
+}
+
+function cleanupOrderClient(clientKey) {
+  rmSync(new URL(`../data/credit-orders/${clientKey}.json`, import.meta.url), { force: true });
 }

@@ -6,10 +6,13 @@ __pycache__/
 # Build and local runtime output
 dist/
 logs/
+output/
 data/logs/
 data/generated-history/
 data/history/
 data/credits/
+data/credit-orders/
+data/auth/
 data/history.json
 review/
 
@@ -21,6 +24,19 @@ reference/
 planning/*
 !planning/customer_flow_deployment_spec_v01.md
 !planning/build_report_customer_flow_deployment_spec_v01.md
+!planning/port_9999_unification_status_v01.md
+!planning/build_report_port_9999_unification_status_v01.md
+!planning/development_module_map_v01.md
+!planning/build_report_development_module_map_v01.md
+!planning/module_implementation_spec_v01.md
+!planning/build_report_module_implementation_spec_v01.md
+!planning/current_code_logic_diagram_v01.md
+!planning/build_report_current_code_logic_diagram_v01.md
+!planning/unified_codebase_structure_spec_v01.md
+!planning/build_report_unified_codebase_structure_spec_v01.md
+!planning/sample_management_spec_v01.md
+!planning/build_report_sample_management_spec_v01.md
+!planning/personal_ai_studio_competitor_research_v01.md
 
 # Local notes and source captures
 NEXT_*.md

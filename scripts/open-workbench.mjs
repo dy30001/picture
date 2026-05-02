@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const execFileAsync = promisify(execFile);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const host = "127.0.0.1";
-const port = 4174;
+const port = 9999;
 const baseUrl = `http://${host}:${port}`;
 
 if (!await appReady()) {
@@ -39,7 +39,7 @@ async function jsonOk(path) {
 async function stopExistingListener() {
   if (process.platform !== "darwin") return;
   try {
-    const { stdout } = await execFileAsync("lsof", ["-tiTCP:4174", "-sTCP:LISTEN"]);
+    const { stdout } = await execFileAsync("lsof", ["-tiTCP:9999", "-sTCP:LISTEN"]);
     const pids = stdout.split(/\s+/).filter(Boolean);
     for (const pid of pids) process.kill(Number(pid), "SIGTERM");
     if (pids.length) await delay(600);

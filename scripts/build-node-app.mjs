@@ -30,7 +30,7 @@ await writeFile(join(dist, "package.json"), `${JSON.stringify({
   private: true,
   description: "墨境图像工作台独立运行包",
   type: "module",
-  scripts: { start: "node server/index.mjs --host 127.0.0.1 --port 4174", open: "node scripts/open-workbench.mjs" },
+  scripts: { start: "node server/index.mjs --host 127.0.0.1 --port 9999", open: "node scripts/open-workbench.mjs" },
   dependencies: { express: "^5.2.1" }
 }, null, 2)}\n`);
 

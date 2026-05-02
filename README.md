@@ -106,8 +106,25 @@ server/                 Express 服务、模板缓存和 API 路由
 scripts/                构建、启动、模板导入、视觉检查和资产生成脚本
 src/                    可测试的核心逻辑
 tests/                  单元测试和服务集成测试
+generated/              生成过程中的源图和中间 4K 结果
+review/                 联系表、复核截图和修图队列
+final_4k/               唯一正式成片目录
+成片/                   历史重复目录，仅保留兼容数据，待后续清理
 启动图片生成工作台.command  macOS 双击启动入口
 ```
+
+当前主应用已经统一到一套入口：
+
+- 主工作台代码统一在 `public/ + server/`
+- `img.inklens.art` 当前主服务口径统一到 `127.0.0.1:9999`
+- 香港 VPS Nginx 的 `/api/` 也统一反向代理到 `127.0.0.1:9999`
+- 注册开通、账户权益、充值订单和生成记录都归到同一套主应用
+- 正式成片目录统一为 `final_4k/`
+- `成片/` 只保留历史重复数据，不再作为正式交付目录
+
+后续统一规格见：
+
+- `planning/unified_codebase_structure_spec_v01.md`
 
 ## 模板库
 
@@ -117,6 +134,17 @@ tests/                  单元测试和服务集成测试
 - `public/sorry-templates.json`：补充模板数据
 
 服务端会合并、去重并缓存模板。默认 `/api/templates` 返回轻量列表，不返回完整 prompt；完整提示词通过 `/api/templates/:id` 按需读取，这样 2000+ 模板也能快速打开。
+
+## 个人 AI 摄影棚文档
+
+- `planning/personal_ai_studio_competitor_research_v01.md`：个人 AI 摄影棚竞品研究，记录直接对标产品、优点拆解、可借鉴能力和不建议照搬的做法。
+- `planning/development_module_map_v01.md`：开发文档总图，统一当前开发板块、代码范围、参考文档和验证方式。
+- `planning/module_implementation_spec_v01.md`：板块实施规格，逐块记录怎么做，第一条固定统一网址为 `9999`。
+- `planning/current_code_logic_diagram_v01.md`：当前代码逻辑图，画出主工作台、复核台、样片和交付的现状关系。
+- `planning/unified_codebase_structure_spec_v01.md`：统一代码树规格，明确“一个代码根目录 + 子文件夹”的目标结构。
+- `planning/sample_management_spec_v01.md`：样片管理规格，把样片预览、入围、淘汰、重生、转成交付写成正式模块。
+- `planning/customer_flow_deployment_spec_v01.md`：客户选片、三视图、样片、批量成片和部署门禁规格。
+- `planning/port_9999_unification_status_v01.md`：`9999` 统一入口现状、差距和后续融合口径。
 
 ## 视觉资产
 
@@ -168,9 +196,9 @@ npm run assets:brand
 - `review/`
 - `generated/`
 - `final_4k/`
-- `成片/`
+- `成片/`（历史重复目录）
 - `reference/`
-- `planning/`
+- `planning/` 下的大多数本地过程文件（仅保留少数正式规划/研究文档）
 - `.env`
 
 ## License

@@ -287,7 +287,8 @@ def write_report(scene_id: str, job_id: str, concurrency: int, shots: list[dict[
         f"- expected: `{len(shots)}`",
         f"- failed: `{len(failed)}`",
         f"- scene_result: `{FINAL_ROOT / output_folder(scene_id, job_id)}`",
-        "- chengpin: `not copied; template scene results stay out of 成片`",
+        "- delivery_root: `final_4k/`",
+        "- legacy_chengpin: `not synced; 成片/ only remains as historical compatibility data`",
         f"- contact_sheet: `{contact_sheet_path(scene_id, job_id)}`",
     ]
     if failed:
