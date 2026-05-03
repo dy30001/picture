@@ -123,7 +123,6 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(appScript, /renderCreateGenerateOverview/);
     assert.match(appScript, /goToCreateWorkspace/);
     assert.match(appScript, /趣味生图/);
-    assert.match(appScript, /形象确认/);
     assert.match(appScript, /套图写真/);
     assert.match(appScript, /换背景/);
     assert.match(appScript, /换装/);

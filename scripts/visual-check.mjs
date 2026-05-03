@@ -79,7 +79,6 @@ for (const item of cases) {
   await expectNotText(page, "#secondaryNav", "测试连接", `${item.name}: create submenu should not expose test connection`);
   await expectVisible(page, "#templateCollections", `${item.name}: template library should expose group collections`);
   await expectText(page, "#templateCollections", "趣味生图", `${item.name}: template library should expose 趣味生图 group`);
-  await expectText(page, "#templateCollections", "形象确认", `${item.name}: template library should expose 形象确认 group`);
   await expectText(page, "#templateCollections", "套图写真", `${item.name}: template library should expose 套图写真 group`);
   await expectText(page, "#templatesPanel", "精选优先", `${item.name}: template library should expose featured toggle`);
   await expectVisible(page, "#templateCount", `${item.name}: template library should expose template count`);
@@ -149,7 +148,7 @@ for (const item of cases) {
   await expectHidden(page, ".studio-sample-modal", `${item.name}: group click should not open modal`);
   await expectText(page, "#sampleSummary", "当前", `${item.name}: sample summary did not keep grouped focus`);
   await waitForStudioGalleryCount(page, 3, `${item.name}: group selection should keep inline photos visible`);
-  await clickFirst(page, "#sampleDirectionList [data-studio-sample-photo]", `${item.name}: missing inline sample photo`);
+  await clickFirst(page, "#samplePreviewPanel [data-studio-sample-photo]", `${item.name}: missing inline sample photo`);
   await expectHidden(page, ".studio-sample-modal", `${item.name}: photo click should not open modal`);
   await expectText(page, "#sampleSummary", "当前", `${item.name}: sample summary should stay in the one-screen view`);
   await clickFirst(page, "#openGenerationFlowBtn", `${item.name}: missing start-generation button`);
@@ -272,7 +271,7 @@ async function expectVisibleAny(page, selectors, message) {
 
 async function waitForStudioGalleryCount(page, minimum, message) {
   await page.waitForFunction((minCount) => {
-    return document.querySelectorAll("#sampleDirectionList [data-studio-gallery-item]").length >= minCount;
+    return document.querySelectorAll("#samplePreviewPanel [data-studio-gallery-item]").length >= minCount;
   }, minimum, { timeout: 15_000 }).catch(() => {
     throw new Error(message);
   });

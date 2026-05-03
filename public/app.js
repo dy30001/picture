@@ -366,13 +366,6 @@ const templateLibraryGroups = [
     kind: "template"
   },
   {
-    id: "identity",
-    label: "形象确认",
-    note: "像本人基准和身份起版参考",
-    image: "./assets/studio-showcase-3view.png",
-    kind: "reference"
-  },
-  {
     id: "set",
     label: "套图写真",
     note: "婚纱、情侣、闺蜜、儿童、写真等成组参考",
@@ -534,7 +527,7 @@ function bindEvents() {
 }
 
 async function loadTemplates() {
-  status("模板读取中");
+  status("模板库读取中");
   try {
     const response = await apiFetch("/api/templates", { headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -542,13 +535,13 @@ async function loadTemplates() {
     renderTemplateCollections();
     renderCategories();
     renderTemplates();
-    status(`已读取 ${state.templates.length} 个模板`);
+    status(`已读取 ${state.templates.length} 条模板与参考`);
   } catch (error) {
     state.templates = [];
     renderTemplateCollections();
     renderCategories();
     renderTemplates(errorMessage(error));
-    status("模板读取失败");
+    status("模板库读取失败");
   }
 }
 
@@ -675,7 +668,6 @@ function visibleTemplates() {
 function matchesTemplateLibraryGroup(item, groupId = "all") {
   if (groupId === "all") return true;
   if (groupId === "fun") return !item.isLocal;
-  if (groupId === "identity") return item.isLocal && item.category === "人像基准";
   if (groupId === "set") return item.isLocal && item.category !== "人像基准";
   return true;
 }
@@ -791,7 +783,7 @@ function renderStudio() {
     .join("");
   dom.scenePackGrid.innerHTML = scenePacks.map((item) => scenePackCard(item)).join("");
   dom.scenePackGrid.querySelectorAll("[data-studio-scene]").forEach((button) => {
-    button.addEventListener("click", () => {
+    const selectScene = () => {
       const nextSceneId = button.dataset.studioScene;
       const sceneChanged = nextSceneId !== state.studio.selectedSceneId;
       const nextScene = scenePacks.find((item) => item.id === nextSceneId) || selectedStudioScene();
@@ -807,6 +799,12 @@ function renderStudio() {
         ...(sceneChanged ? emptyStudioTemplateSelection() : {})
       });
       status(`已选 ${nextScene.name}，同屏查看样片组和组内照片`);
+    };
+    button.addEventListener("click", selectScene);
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      selectScene();
     });
   });
   const referenceSummary = studioReferenceSummary();
@@ -860,21 +858,8 @@ function renderStudio() {
       status(`${selectedGroup.title} · ${nextPhoto.label} 已在同屏预览`);
     });
   });
-  dom.sampleDirectionList.innerHTML = studioSamplePhotoGrid(scene, selectedGroup, selectedPhoto);
-  dom.sampleDirectionList.querySelectorAll("[data-studio-sample-photo]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const nextPhotoId = button.dataset.studioSamplePhoto;
-      const nextPhoto = studioGroupPreviewEntries(scene, selectedGroup).find((item) => item.id === nextPhotoId);
-      if (!nextPhoto || !selectedGroup) return;
-      saveStudio({
-        selectedSampleId: selectedGroup.sampleId,
-        selectedSampleGroupId: selectedGroup.id,
-        selectedSamplePhotoId: nextPhoto.id,
-        previewedSampleKey: studioGroupPreviewKey(scene, selectedGroup)
-      });
-      status(`${selectedGroup.title} · ${nextPhoto.label} 已在同屏预览`);
-    });
-  });
+  dom.sampleDirectionList.hidden = true;
+  dom.sampleDirectionList.innerHTML = "";
   if (dom.studioTemplateSummary) {
     dom.studioTemplateSummary.textContent = templateSelected
       ? "模板已定，成片气质在线。"
@@ -1227,7 +1212,7 @@ function scenePackCard(scene) {
   const tags = scene.samples.slice(0, 2).map((item) => `<span>${esc(item.title)}</span>`).join("");
   const extra = groupCount > 2 ? `<span>+${Math.max(0, groupCount - 2)} 组样片</span>` : "";
   return `
-    <article class="scene-pack-card ${selected ? "selected" : ""}">
+    <article class="scene-pack-card ${selected ? "selected" : ""}" data-studio-scene="${attr(scene.id)}" role="button" tabindex="0" aria-pressed="${selected ? "true" : "false"}">
       <div class="scene-pack-cover">
         <img src="${attr(cover.src)}" alt="${attr(cover.alt)}" loading="lazy" />
         <div class="scene-pack-cover-overlay">
@@ -1246,7 +1231,7 @@ function scenePackCard(scene) {
         <span>${esc(scene.recommendedShots)}</span>
         <span>${groupCount} 组 / ${galleryCount} 张</span>
       </div>
-      <button class="${selected ? "primary-btn" : "ghost-btn"} small" data-studio-scene="${attr(scene.id)}" type="button" aria-pressed="${selected ? "true" : "false"}">${selected ? "已选场景" : "选择场景"}</button>
+      <button class="${selected ? "primary-btn" : "ghost-btn"} small" type="button" tabindex="-1">${selected ? "已选场景" : "选择场景"}</button>
     </article>`;
 }
 
@@ -1445,7 +1430,8 @@ function sampleStatusClass(statusValue) {
 function studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto) {
   if (!groups.length) return `<div class="empty-inline">本场景暂无样片组</div>`;
   const photoCount = groups.reduce((sum, item) => sum + studioGroupPreviewEntries(scene, item).length, 0);
-  const activePhoto = selectedPhoto || studioGroupPreviewEntries(scene, selectedGroup)[0] || null;
+  const activeEntries = studioGroupPreviewEntries(scene, selectedGroup);
+  const activePhoto = selectedPhoto || activeEntries[0] || null;
   const activeSample = sampleForStudioGroup(scene, selectedGroup);
   const loadingCopy = state.studioSamples.loaded ? `${groups.length} 组 / ${photoCount} 张` : "正在读取全部样片";
   return `
@@ -1467,19 +1453,16 @@ function studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto) {
           ${activePhoto ? `<img src="${attr(activePhoto.src)}" alt="${attr(activePhoto.alt)}" />` : ""}
           <span>${esc(activePhoto ? `${selectedGroup?.title || scene.name} · ${activePhoto.label}` : "选择左侧样片组")}</span>
         </div>
+        ${studioSamplePhotoGrid(scene, selectedGroup, activePhoto)}
         <div class="sample-group-copy">
           <strong>${esc(selectedGroup?.title || scene.name)}</strong>
           <p>${esc(selectedGroup?.subtitle || "同一屏完成选组和看片")}</p>
           <div>
             <span>${esc(activeSample?.title || scene.name)}</span>
-            <span>${studioGroupPreviewEntries(scene, selectedGroup).length} 张</span>
+            <span>${activeEntries.length} 张</span>
           </div>
         </div>
       </aside>
-    </div>
-    <div class="sample-preview-meta">
-      <span>不跳弹窗，不换页面；当前组照片就在下方。</span>
-      <strong>一屏完成查看</strong>
     </div>
   `;
 }
@@ -2087,11 +2070,9 @@ function renderTemplates(error = "") {
       ? "精选模板，出片更稳"
       : currentGroup.id === "fun"
         ? "趣味生图分类 · 快速挑风格"
-        : currentGroup.id === "identity"
-          ? "形象确认分类 · 先锁定像本人"
-          : currentGroup.id === "set"
-            ? "套图写真分类 · 婚纱情侣闺蜜等成组参考"
-            : "模板库已按分类整理";
+        : currentGroup.id === "set"
+          ? "套图写真分类 · 婚纱情侣闺蜜等成组参考"
+          : "模板库已按分类整理";
   dom.loadMoreBtn.hidden = filtered.length <= visible.length;
   if (error) {
     dom.templateGrid.innerHTML = empty(`模板读取失败：${error}`);
@@ -3555,11 +3536,13 @@ function renderCreditOrders(error = "") {
   const pendingCount = state.creditOrders.filter((item) => ["pending", "failed"].includes(item.status)).length;
   dom.creditOrderCount.textContent = `${state.creditOrders.length} 条`;
   if (dom.creditOrderSummaryHint) {
-    dom.creditOrderSummaryHint.textContent = pendingCount
+    const hint = pendingCount
       ? `${pendingCount} 笔待处理`
       : state.creditOrders.length
         ? creditCopy.recentOrders
-        : creditCopy.emptyOrders;
+        : "";
+    dom.creditOrderSummaryHint.textContent = hint;
+    dom.creditOrderSummaryHint.hidden = !hint;
   }
   if (error) {
     dom.creditOrderList.innerHTML = empty(error);
@@ -3594,7 +3577,9 @@ function renderCreditLedger() {
   const ledger = state.credits.ledger.slice(0, 20);
   dom.creditLedgerCount.textContent = `${state.credits.ledger.length} 条`;
   if (dom.creditLedgerSummaryHint) {
-    dom.creditLedgerSummaryHint.textContent = state.credits.ledger.length ? creditCopy.recentLedger : creditCopy.emptyLedger;
+    const hint = state.credits.ledger.length ? creditCopy.recentLedger : "";
+    dom.creditLedgerSummaryHint.textContent = hint;
+    dom.creditLedgerSummaryHint.hidden = !hint;
   }
   if (!ledger.length) {
     dom.creditLedger.innerHTML = empty(creditCopy.emptyLedger);
@@ -3622,6 +3607,8 @@ function renderCreditError(message) {
   if (dom.creditLedger) dom.creditLedger.innerHTML = empty(creditCopy.ledgerUnavailable);
   if (dom.creditOrderSummaryHint) dom.creditOrderSummaryHint.textContent = creditCopy.ordersLoadError;
   if (dom.creditLedgerSummaryHint) dom.creditLedgerSummaryHint.textContent = creditCopy.ledgerLoadError;
+  if (dom.creditOrderSummaryHint) dom.creditOrderSummaryHint.hidden = false;
+  if (dom.creditLedgerSummaryHint) dom.creditLedgerSummaryHint.hidden = false;
 }
 
 async function rechargeCredits(packageId) {
