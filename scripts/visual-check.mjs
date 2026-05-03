@@ -77,6 +77,10 @@ for (const item of cases) {
   await expectText(page, "#secondaryNav", "模板库", `${item.name}: missing templates submenu`);
   await expectText(page, "#secondaryNav", "智能生图", `${item.name}: missing generate submenu`);
   await expectNotText(page, "#secondaryNav", "测试连接", `${item.name}: create submenu should not expose test connection`);
+  await expectVisible(page, "#templateCollections", `${item.name}: template library should expose group collections`);
+  await expectText(page, "#templateCollections", "趣味生图", `${item.name}: template library should expose 趣味生图 group`);
+  await expectText(page, "#templateCollections", "形象确认", `${item.name}: template library should expose 形象确认 group`);
+  await expectText(page, "#templateCollections", "套图写真", `${item.name}: template library should expose 套图写真 group`);
   await expectText(page, "#templatesPanel", "精选优先", `${item.name}: template library should expose featured toggle`);
   await expectVisible(page, "#templateCount", `${item.name}: template library should expose template count`);
   await expectVisible(page, "#templateGrid", `${item.name}: template library should expose template grid`);
