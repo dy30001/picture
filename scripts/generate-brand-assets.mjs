@@ -30,20 +30,6 @@ await renderAsset({
 });
 
 await renderAsset({
-  file: "mojing-icon-512.png",
-  width: 512,
-  height: 512,
-  body: sealIcon(512)
-});
-
-await renderAsset({
-  file: "mojing-icon-192.png",
-  width: 192,
-  height: 192,
-  body: sealIcon(192)
-});
-
-await renderAsset({
   file: "mojing-share-card.png",
   width: 1200,
   height: 630,
@@ -233,31 +219,6 @@ function panelArtwork() {
     </div>`;
 }
 
-function sealIcon(size) {
-  return `
-    <div class="stage">
-      <svg viewBox="0 0 512 512" width="${size}" height="${size}" aria-hidden="true">
-        <defs>
-          <filter id="texture">
-            <feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="4" seed="7"/>
-            <feColorMatrix type="matrix" values="0 0 0 0 .66  0 0 0 0 .18  0 0 0 0 .14  0 0 0 .22 0"/>
-          </filter>
-          <linearGradient id="red" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#c94d3c"/>
-            <stop offset=".58" stop-color="#a93127"/>
-            <stop offset="1" stop-color="#7f251f"/>
-          </linearGradient>
-        </defs>
-        <rect width="512" height="512" rx="112" fill="#fffaf0"/>
-        <rect x="56" y="56" width="400" height="400" rx="92" fill="url(#red)"/>
-        <rect x="56" y="56" width="400" height="400" rx="92" filter="url(#texture)" opacity=".42"/>
-        <rect x="104" y="104" width="304" height="304" rx="52" fill="none" stroke="#fffaf0" stroke-width="24"/>
-        <path d="M168 178 C222 118 336 146 342 234 C348 322 260 370 194 326 C138 288 142 218 200 198 C244 184 286 214 284 254 C282 296 238 314 208 292" fill="none" stroke="#fffaf0" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M160 374 H352 M256 124 V160 M256 352 V388" stroke="#fffaf0" stroke-width="22" stroke-linecap="round"/>
-      </svg>
-    </div>`;
-}
-
 function shareCard() {
   return `
     <div class="stage">
@@ -269,16 +230,16 @@ function shareCard() {
         <rect x="62" y="62" width="1076" height="506" rx="26" fill="#fffdf7" opacity=".78" stroke="#c9ad7a" stroke-width="2"/>
         <g transform="translate(114 130)">
           <rect width="104" height="104" rx="24" fill="#a93127"/>
-          <rect x="24" y="24" width="56" height="56" rx="10" fill="none" stroke="#fffaf0" stroke-width="10"/>
-          <path d="M35 58 C52 28 87 46 78 74 C70 102 32 94 42 62" fill="none" stroke="#fffaf0" stroke-width="8" stroke-linecap="round"/>
+          <rect x="20" y="20" width="64" height="64" rx="12" fill="none" stroke="#fffaf0" stroke-width="10"/>
+          <text x="52" y="72" fill="#fffaf0" text-anchor="middle" font-family="Songti SC, STSong, PingFang SC, Microsoft YaHei, serif" font-size="44" font-weight="700">墨</text>
         </g>
-        <text x="246" y="172" fill="#1f6f61" font-size="26" font-weight="800">本地图像创作</text>
-        <text x="246" y="240" fill="#172033" font-size="64" font-weight="900">墨境图像工作台</text>
-        <text x="246" y="304" fill="#5f5a51" font-size="30">模板、参考图、生成历史和下载整理在一个紧凑界面里</text>
+        <text x="246" y="172" fill="#1f6f61" font-size="26" font-weight="800">客户工作台</text>
+        <text x="246" y="240" fill="#172033" font-size="64" font-weight="900">墨境个人 AI 摄影棚</text>
+        <text x="246" y="304" fill="#5f5a51" font-size="30">站内注册、充值、生成照片和生图都收在一套紧凑界面里</text>
         <g transform="translate(246 372)" font-size="24" font-weight="800">
-          <rect width="178" height="48" rx="12" fill="#a93127"/><text x="28" y="32" fill="#fffaf0">2300+ 模板</text>
-          <rect x="196" width="166" height="48" rx="12" fill="#1f6f61"/><text x="224" y="32" fill="#fffaf0">本地运行</text>
-          <rect x="382" width="192" height="48" rx="12" fill="#172033"/><text x="410" y="32" fill="#fffaf0">一键保存</text>
+          <rect width="178" height="48" rx="12" fill="#a93127"/><text x="28" y="32" fill="#fffaf0">站内注册</text>
+          <rect x="196" width="166" height="48" rx="12" fill="#1f6f61"/><text x="236" y="32" fill="#fffaf0">生成照片</text>
+          <rect x="382" width="144" height="48" rx="12" fill="#172033"/><text x="430" y="32" fill="#fffaf0">生图</text>
         </g>
         <path d="M66 532 C282 492 456 520 644 500 C832 480 972 512 1138 488" fill="none" stroke="#b88945" stroke-width="3" opacity=".46"/>
       </svg>

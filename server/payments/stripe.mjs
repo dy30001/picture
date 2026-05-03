@@ -9,7 +9,7 @@ export class PaymentProviderError extends Error {
   }
 }
 
-export function createStripePaymentProvider({ env = process.env } = {}) {
+export function createStripePaymentProvider({ env = process.env, stripeClient = null } = {}) {
   const fakeMode = truthy(env.STRIPE_FAKE_MODE);
   const secretKey = String(env.STRIPE_SECRET_KEY || "").trim();
   const webhookSecret = String(env.STRIPE_WEBHOOK_SECRET || "").trim();
@@ -17,9 +17,10 @@ export function createStripePaymentProvider({ env = process.env } = {}) {
   const appBaseUrl = String(env.APP_BASE_URL || "").trim();
   const successUrl = String(env.PAYMENT_SUCCESS_URL || "").trim();
   const cancelUrl = String(env.PAYMENT_CANCEL_URL || "").trim();
-  const stripe = !fakeMode && secretKey ? new Stripe(secretKey) : null;
+  const stripe = stripeClient || (!fakeMode && secretKey ? new Stripe(secretKey) : null);
 
   function publicConfig(origin = "") {
+    const baseUrl = resolvedBaseUrl(origin);
     if (fakeMode) {
       return {
         provider: "stripe",
@@ -27,6 +28,8 @@ export function createStripePaymentProvider({ env = process.env } = {}) {
         enabled: true,
         ready: true,
         currency,
+        webhookConfigured: true,
+        confirmationMode: "fake",
         message: "测试支付模式已启用，可联调整体充值流程"
       };
     }
@@ -37,29 +40,34 @@ export function createStripePaymentProvider({ env = process.env } = {}) {
         enabled: false,
         ready: false,
         currency,
-        message: "支付未开通：缺少 STRIPE_SECRET_KEY"
+        webhookConfigured: false,
+        confirmationMode: "disabled",
+        message: "支付功能准备中"
       };
     }
-    if (!webhookSecret) {
+    if (!baseUrl) {
       return {
         provider: "stripe",
         mode: stripeKeyMode(secretKey),
         enabled: true,
         ready: false,
         currency,
-        message: "支付页已接通，但缺少 STRIPE_WEBHOOK_SECRET，支付后不会自动入账"
+        webhookConfigured: Boolean(webhookSecret),
+        confirmationMode: webhookSecret ? "webhook" : "return",
+        message: "支付功能准备中，请稍后再试"
       };
     }
-    const baseUrl = resolvedBaseUrl(origin);
     return {
       provider: "stripe",
       mode: stripeKeyMode(secretKey),
       enabled: true,
       ready: Boolean(baseUrl),
       currency,
-      message: baseUrl
+      webhookConfigured: Boolean(webhookSecret),
+      confirmationMode: webhookSecret ? "webhook" : "return",
+      message: webhookSecret
         ? `Stripe Checkout 已就绪（${stripeKeyMode(secretKey) === "live" ? "正式" : "测试"}模式）`
-        : "支付已配置，但缺少 APP_BASE_URL 或当前访问域名，暂时不能生成支付链接"
+        : `Stripe Checkout 已就绪（${stripeKeyMode(secretKey) === "live" ? "正式" : "测试"}模式，支付完成后将在回跳页确认到账）`
     };
   }
 
@@ -136,6 +144,49 @@ export function createStripePaymentProvider({ env = process.env } = {}) {
     }
   }
 
+  async function confirmCheckoutSession({ sessionId, clientKey = "", expectedOrderId = "" } = {}) {
+    const session = await retrieveCheckoutSession(sessionId);
+    const metadata = session?.metadata && typeof session.metadata === "object" ? session.metadata : {};
+    const actualClientKey = String(metadata.clientKey || "").trim();
+    const actualOrderId = String(metadata.orderId || session.client_reference_id || "").trim();
+    if (!actualOrderId) throw new PaymentProviderError("Stripe 会话缺少订单信息", 409);
+    if (clientKey && actualClientKey && clientKey !== actualClientKey) {
+      throw new PaymentProviderError("支付会话与当前账户不匹配", 403);
+    }
+    if (expectedOrderId && actualOrderId !== expectedOrderId) {
+      throw new PaymentProviderError("支付会话与当前订单不匹配", 409);
+    }
+    return {
+      sessionId: String(session.id || sessionId || ""),
+      orderId: actualOrderId,
+      clientKey: actualClientKey || String(clientKey || ""),
+      paymentStatus: String(session.payment_status || ""),
+      sessionStatus: String(session.status || ""),
+      paymentIntentId: String(session.payment_intent?.id || session.payment_intent || ""),
+      orderStatus: checkoutOrderStatus(session)
+    };
+  }
+
+  async function retrieveCheckoutSession(sessionId) {
+    const cleanSessionId = String(sessionId || "").trim();
+    if (!cleanSessionId) throw new PaymentProviderError("缺少 session_id", 400);
+    if (fakeMode) {
+      return {
+        id: cleanSessionId,
+        payment_status: "paid",
+        status: "complete",
+        metadata: {},
+        client_reference_id: ""
+      };
+    }
+    if (!stripe) throw new PaymentProviderError("Stripe 客户端未初始化", 503);
+    try {
+      return await stripe.checkout.sessions.retrieve(cleanSessionId);
+    } catch (error) {
+      throw normalizeStripeError(error);
+    }
+  }
+
   function buildReturnUrl(kind, orderId, origin = "", sessionId = "") {
     const override = kind === "success" ? successUrl : cancelUrl;
     const url = override ? new URL(override, resolvedBaseUrl(origin)) : new URL("/", resolvedBaseUrl(origin));
@@ -152,7 +203,7 @@ export function createStripePaymentProvider({ env = process.env } = {}) {
     return preferred || fallback;
   }
 
-  return { publicConfig, createCheckoutSession, constructWebhookEvent };
+  return { publicConfig, createCheckoutSession, constructWebhookEvent, confirmCheckoutSession };
 }
 
 function normalizeCurrency(value) {
@@ -167,6 +218,12 @@ function truthy(value) {
 function stripeKeyMode(secretKey) {
   if (String(secretKey || "").startsWith("sk_live_")) return "live";
   return "test";
+}
+
+function checkoutOrderStatus(session) {
+  if (String(session?.payment_status || "") === "paid") return "paid";
+  if (String(session?.status || "") === "expired") return "cancelled";
+  return "pending";
 }
 
 function normalizeStripeError(error) {

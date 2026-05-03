@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 const creditReadyPromises = new Map();
 let creditWriteQueue = Promise.resolve();
+export const welcomeCreditAmount = 80;
+const welcomeCreditTitle = "新客赠送";
 
 export function createCreditStore({ dataDir, safeClientKey }) {
   const creditStoreDir = join(dataDir, "credits");
@@ -61,7 +63,12 @@ export function createCreditStore({ dataDir, safeClientKey }) {
 
 export function emptyCreditStore() {
   const now = new Date().toISOString();
-  return { balance: 0, ledger: [], createdAt: now, updatedAt: now };
+  return {
+    balance: welcomeCreditAmount,
+    ledger: [welcomeCreditEntry(now)],
+    createdAt: now,
+    updatedAt: now
+  };
 }
 
 export function normalizeCreditStore(value) {
@@ -74,6 +81,13 @@ export function normalizeCreditStore(value) {
     createdAt: String(store.createdAt || now),
     updatedAt: String(store.updatedAt || store.createdAt || now)
   };
+}
+
+export function isWelcomeOnlyCreditStore(store) {
+  const normalized = normalizeCreditStore(store);
+  return normalized.balance === welcomeCreditAmount
+    && normalized.ledger.length === 1
+    && isWelcomeCreditEntry(normalized.ledger[0]);
 }
 
 export function normalizeCreditEntry(entry) {
@@ -105,4 +119,30 @@ export function trimCreditLedger(store) {
 
 function normalizeCreditType(type) {
   return ["recharge", "spend", "refund", "adjustment"].includes(type) ? type : "recharge";
+}
+
+function welcomeCreditEntry(createdAt) {
+  return {
+    id: `welcome-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+    type: "adjustment",
+    packageId: "",
+    orderId: "",
+    taskId: "",
+    provider: "system",
+    title: welcomeCreditTitle,
+    reason: `首次进入赠送 ${welcomeCreditAmount} 积分`,
+    credits: welcomeCreditAmount,
+    balanceAfter: welcomeCreditAmount,
+    amountCny: 0,
+    imageCount: 0,
+    unitCost: 0,
+    status: "succeeded",
+    createdAt
+  };
+}
+
+function isWelcomeCreditEntry(entry) {
+  return String(entry?.provider || "") === "system"
+    && String(entry?.title || "") === welcomeCreditTitle
+    && Number(entry?.credits || 0) === welcomeCreditAmount;
 }

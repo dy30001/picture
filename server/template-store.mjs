@@ -75,6 +75,7 @@ function summarizeTemplate(template) {
     imageUrl: template.imageUrl,
     featured: template.featured,
     language: template.language,
+    sourceUrl: template.sourceUrl,
     promptPreview,
     promptLength: template.prompt.length
   };
@@ -158,7 +159,7 @@ function normalizeTemplateKey(value) {
     .slice(0, 220);
 }
 
-const priorityCategories = ["婚纱照", "人像基准", "情侣照", "闺蜜照", "女生写真", "10 岁照", "夕阳红"];
+const priorityCategories = ["婚纱照", "人像基准", "情侣照", "闺蜜照", "女生写真", "10岁照", "10 岁照", "夕阳红"];
 
 function promptTemplateCategories(templates, max = 16) {
   const counts = new Map();

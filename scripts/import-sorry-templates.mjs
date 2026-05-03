@@ -1,12 +1,16 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { cacheTemplatePreviews, clearOrphanedTemplatePreviews } from "./template-preview-cache.mjs";
 
 const sourceListUrl = "https://img.sorry.ink/api/templates";
 const sourceTemplateUrl = "https://img.sorry.ink/api/templates/";
 const outputPath = new URL("../public/sorry-templates.json", import.meta.url);
 const readmePath = new URL("../public/README_zh.md", import.meta.url);
+const publicDir = join(process.cwd(), "public");
 const maxPerCategory = 260;
 const maxTotal = 2200;
 const detailConcurrency = 12;
+const previewConcurrency = 12;
 const genericTokens = new Set([
   "生成", "现代", "详细", "高清", "风格", "设计", "场景", "具有", "包含", "一个", "使用", "模板", "图片",
   "image", "style", "modern", "detailed", "generate", "featuring", "with", "using", "design", "scene",
@@ -70,18 +74,26 @@ async function enrichTemplate(item) {
     description: item.description,
     prompt,
     imageUrl: item.imageUrl,
+    previewSourceUrl: item.imageUrl,
     sourceUrl: "https://img.sorry.ink/templates",
     language: /[\u4e00-\u9fff]/.test(prompt) ? "ZH" : "EN",
     importedAt: new Date().toISOString().slice(0, 10)
   };
 }
 
-await writeFile(outputPath, `${JSON.stringify({ source: sourceListUrl, imported: enriched.length, local: localTemplates.length, templates: [...localTemplates, ...enriched] }, null, 2)}\n`);
+const cached = await cacheTemplatePreviews(enriched, {
+  publicDir,
+  concurrency: previewConcurrency
+});
+const allTemplates = [...localTemplates, ...cached];
+await clearOrphanedTemplatePreviews(publicDir, allTemplates);
+await writeFile(outputPath, `${JSON.stringify({ source: sourceListUrl, imported: enriched.length, local: localTemplates.length, templates: allTemplates }, null, 2)}\n`);
 
 console.log(JSON.stringify({
   source: sourceListUrl,
   sourceCount: sourceList.length,
   selected: enriched.length,
+  cachedPreviews: cached.filter((item) => String(item.imageUrl || "").startsWith("/template-previews/")).length,
   local: localTemplates.length,
   maxPerCategory,
   categories: Object.fromEntries([...categoryCounts.entries()].sort((left, right) => left[0].localeCompare(right[0], "zh-CN")))

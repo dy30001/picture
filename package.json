@@ -29,6 +29,7 @@
     "start": "node server/index.mjs --host 127.0.0.1 --port 9999",
     "open": "node scripts/open-workbench.mjs",
     "assets:brand": "node scripts/generate-brand-assets.mjs",
+    "templates:freeze-previews": "node scripts/freeze-template-previews.mjs",
     "build": "node scripts/build-node-app.mjs",
     "preview": "node server/index.mjs --host 127.0.0.1 --port 9999",
     "lint:strict": "node scripts/lint-strict.mjs",

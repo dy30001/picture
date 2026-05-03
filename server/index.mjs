@@ -1,13 +1,14 @@
 import express from "express";
 import nodemailer from "nodemailer";
-import { access, appendFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, appendFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createCreditOrderStore } from "./credits/orders.mjs";
 import { createCreditService, CreditServiceError } from "./credits/service.mjs";
-import { createCreditStore } from "./credits/store.mjs";
+import { createCreditStore, isWelcomeOnlyCreditStore } from "./credits/store.mjs";
+import { createAlipayPaymentProvider } from "./payments/alipay.mjs";
 import { createStripePaymentProvider } from "./payments/stripe.mjs";
 import { createTemplateStore } from "./template-store.mjs";
 
@@ -29,7 +30,8 @@ const templateStore = createTemplateStore({ publicDir });
 const creditStore = createCreditStore({ dataDir, safeClientKey });
 const creditOrderStore = createCreditOrderStore({ dataDir, safeClientKey });
 const creditService = createCreditService({ store: creditStore, orderStore: creditOrderStore, safeId });
-const paymentProvider = createStripePaymentProvider({ env: process.env });
+const stripePaymentProvider = createStripePaymentProvider({ env: process.env });
+const alipayPaymentProvider = createAlipayPaymentProvider({ env: process.env });
 const verificationCodes = new Map();
 const defaultSettings = {
   apiUrl: "https://img.inklens.art/v1",
@@ -41,6 +43,35 @@ const defaultSettings = {
   toolName: "image_generation",
   timeoutSeconds: 120
 };
+const studioSampleSceneIds = ["wedding", "couple", "friends", "child10", "portrait", "senior"];
+const studioSampleSceneLabels = {
+  wedding: "婚纱照",
+  couple: "情侣照",
+  friends: "闺蜜照",
+  child10: "儿童10岁照",
+  portrait: "女生写真",
+  senior: "夕阳红"
+};
+const studioSampleDirectionLabels = {
+  wedding: { chinese: "中式礼服", travel: "旅拍大片", registry: "婚登照" },
+  couple: { daily: "日常胶片", travel: "旅行同行", cinema: "城市地标" },
+  friends: { studio: "棚拍合照", street: "城市街拍", birthday: "闺蜜婚礼" },
+  child10: { campus: "校园成长", birthday: "生日纪念", outdoor: "户外奔跑" },
+  portrait: { french: "法式胶片", magazine: "杂志肖像", guofeng: "轻国风" },
+  senior: { anniversary: "纪念合照", travel: "旅行留念", qipao: "旗袍礼服" }
+};
+const studioDestinationLabels = {
+  "01_paris_v02": "巴黎旅拍",
+  "02_santorini_v02": "圣托里尼",
+  "03_venice_v09_repair": "威尼斯",
+  "04_kyoto_v01": "京都",
+  "05_swiss_alps_v01": "瑞士雪山",
+  "06_maldives_v01": "马尔代夫",
+  "07_new_york_v01": "纽约",
+  "08_cappadocia_v01": "卡帕多奇亚",
+  "09_prague_v01": "布拉格"
+};
+const studioSampleImagePattern = /\.(?:png|jpe?g|webp|gif)$/i;
 
 const app = express();
 app.use((_request, response, next) => {
@@ -49,11 +80,31 @@ app.use((_request, response, next) => {
 });
 app.post("/api/payments/stripe/webhook", express.raw({ type: "application/json" }), async (request, response) => {
   try {
-    const event = paymentProvider.constructWebhookEvent(request.body, request.headers?.["stripe-signature"]);
+    const event = stripePaymentProvider.constructWebhookEvent(request.body, request.headers?.["stripe-signature"]);
     await handlePaymentWebhookEvent(event);
     response.json({ ok: true, received: true });
   } catch (error) {
     response.status(errorStatus(error, 400)).json({ ok: false, message: errorMessage(error) });
+  }
+});
+app.post("/api/payments/alipay/notify", express.urlencoded({ extended: false }), async (request, response) => {
+  try {
+    const notification = alipayPaymentProvider.verifyNotificationPayload(request.body);
+    if (!notification.clientKey || !notification.orderId) {
+      throw new Error("支付宝通知缺少订单归属信息");
+    }
+    await syncRechargeOrderFromProvider({
+      provider: "alipay",
+      clientKey: notification.clientKey,
+      orderId: notification.orderId,
+      orderStatus: notification.orderStatus,
+      providerSessionId: notification.orderId,
+      providerPaymentId: notification.tradeNo,
+      failureReason: notification.orderStatus === "failed" ? "支付宝异步通知失败" : ""
+    });
+    response.type("text/plain").send("success");
+  } catch (error) {
+    response.status(errorStatus(error, 400)).type("text/plain").send("failure");
   }
 });
 app.use(express.json({ limit: "80mb" }));
@@ -63,6 +114,14 @@ app.use("/studio-review", express.static(studioReviewDir));
 
 app.get("/api/health", (_request, response) => {
   response.json({ ok: true, service: "gpt-image-node", time: new Date().toISOString() });
+});
+
+app.get("/api/studio-samples", async (_request, response) => {
+  try {
+    response.json({ ok: true, ...await studioSampleCatalog() });
+  } catch (error) {
+    response.status(500).json({ ok: false, message: errorMessage(error) });
+  }
 });
 
 app.get("/api/auth/options", (_request, response) => {
@@ -102,9 +161,9 @@ app.post("/api/auth/register", async (request, response) => {
   try {
     const type = normalizeAccountType(request.body?.type);
     const account = normalizeAccount(request.body?.account, type);
-    const username = normalizeUsername(request.body?.username ?? request.body?.nickname);
-    const password = normalizePassword(request.body?.password);
     const users = await readUsers();
+    const username = normalizeUsername(request.body?.username ?? request.body?.nickname, account, users);
+    const password = normalizePassword(request.body?.password);
     if (users.some((user) => user.type === type && user.account === account)) {
       response.status(409).json({ ok: false, message: "账号已注册" });
       return;
@@ -246,7 +305,7 @@ app.post("/api/credits/orders", async (request, response) => {
 });
 
 app.get("/api/payments/config", (request, response) => {
-  response.json({ ok: true, payment: paymentProvider.publicConfig(requestOrigin(request)) });
+  response.json({ ok: true, payment: selectedPayment(requestOrigin(request)).payment });
 });
 
 app.post("/api/payments/checkout-session", async (request, response) => {
@@ -254,15 +313,18 @@ app.post("/api/payments/checkout-session", async (request, response) => {
     const clientKey = clientKeyFromRequest(request);
     const packageId = String(request.body?.packageId || "");
     const origin = requestOrigin(request);
-    const payment = paymentProvider.publicConfig(origin);
+    const { provider, payment } = selectedPayment(origin);
     if (!payment.ready) {
       response.status(503).json({ ok: false, message: payment.message, payment });
       return;
     }
-    const created = await creditService.createRechargeOrder(packageId, clientKey, { status: "draft", provider: "stripe" });
+    const created = await creditService.createRechargeOrder(packageId, clientKey, {
+      status: "draft",
+      provider: payment.provider
+    });
     let session = null;
     try {
-      session = await paymentProvider.createCheckoutSession({
+      session = await provider.createCheckoutSession({
         order: created.order,
         clientKey,
         origin
@@ -270,14 +332,14 @@ app.post("/api/payments/checkout-session", async (request, response) => {
     } catch (error) {
       await creditService.updateRechargeOrder(created.order.id, clientKey, {
         status: "failed",
-        provider: "stripe",
+        provider: payment.provider,
         failureReason: errorMessage(error)
       }).catch(() => {});
       throw error;
     }
     const updated = await creditService.updateRechargeOrder(created.order.id, clientKey, {
       status: "pending",
-      provider: "stripe",
+      provider: payment.provider,
       providerSessionId: session.sessionId,
       failureReason: ""
     });
@@ -287,6 +349,53 @@ app.post("/api/payments/checkout-session", async (request, response) => {
       order: updated.order,
       checkoutUrl: session.checkoutUrl,
       sessionId: session.sessionId,
+      payment
+    });
+  } catch (error) {
+    response.status(errorStatus(error, 503)).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.get("/api/payments/alipay/return", (request, response) => {
+  try {
+    response.redirect(303, alipayPaymentProvider.buildReturnRedirectUrl(request.query, requestOrigin(request)));
+  } catch {
+    response.redirect(303, "/?tab=credits&payment=cancel");
+  }
+});
+
+app.post("/api/payments/confirm-session", async (request, response) => {
+  try {
+    const origin = requestOrigin(request);
+    const { provider, payment } = selectedPayment(origin);
+    const requestClientKey = clientKeyFromRequest(request);
+    const sessionId = safeId(request.body?.sessionId || request.body?.session_id || "");
+    const orderId = safeId(request.body?.orderId || request.body?.order || "");
+    const tradeNo = safeId(request.body?.tradeNo || request.body?.trade_no || "");
+    const confirmation = payment.provider === "alipay"
+      ? await provider.confirmPayment({
+        orderId,
+        tradeNo
+      })
+      : await provider.confirmCheckoutSession({
+        sessionId,
+        clientKey: requestClientKey,
+        expectedOrderId: orderId
+      });
+    const confirmedClientKey = normalizeExplicitClientKey(confirmation.clientKey) || requestClientKey;
+    const result = await syncRechargeOrderFromProvider({
+      provider: payment.provider,
+      clientKey: confirmedClientKey,
+      orderId: confirmation.orderId,
+      orderStatus: confirmation.orderStatus,
+      providerSessionId: confirmation.sessionId,
+      providerPaymentId: confirmation.paymentIntentId || confirmation.tradeNo || tradeNo
+    });
+    response.json({
+      ok: true,
+      clientKey: confirmedClientKey,
+      confirmation,
+      ...result,
       payment
     });
   } catch (error) {
@@ -959,43 +1068,99 @@ async function handlePaymentWebhookEvent(event) {
   if (!clientKey || !orderId) return;
 
   if (type === "checkout.session.completed" || type === "checkout.session.async_payment_succeeded") {
-    if (String(session.payment_status || "") === "paid" || type === "checkout.session.async_payment_succeeded") {
-      await creditService.fulfillRechargeOrder({
-        orderId,
-        clientKey,
-        provider: "stripe",
-        providerSessionId: safeId(session.id || ""),
-        providerPaymentId: safeId(session.payment_intent || "")
-      });
-      return;
-    }
-    await creditService.updateRechargeOrder(orderId, clientKey, {
-      status: "pending",
+    await syncRechargeOrderFromProvider({
       provider: "stripe",
-      providerSessionId: safeId(session.id || "")
+      clientKey,
+      orderId,
+      orderStatus: String(session.payment_status || "") === "paid" || type === "checkout.session.async_payment_succeeded" ? "paid" : "pending",
+      providerSessionId: safeId(session.id || ""),
+      providerPaymentId: safeId(session.payment_intent || "")
     });
     return;
   }
 
   if (type === "checkout.session.expired") {
-    await creditService.updateRechargeOrder(orderId, clientKey, {
-      status: "cancelled",
+    await syncRechargeOrderFromProvider({
       provider: "stripe",
+      clientKey,
+      orderId,
+      orderStatus: "cancelled",
       providerSessionId: safeId(session.id || ""),
-      failureReason: ""
+      providerPaymentId: safeId(session.payment_intent || "")
     });
     return;
   }
 
   if (type === "checkout.session.async_payment_failed") {
-    await creditService.updateRechargeOrder(orderId, clientKey, {
-      status: "failed",
+    await syncRechargeOrderFromProvider({
       provider: "stripe",
+      clientKey,
+      orderId,
+      orderStatus: "failed",
       providerSessionId: safeId(session.id || ""),
       providerPaymentId: safeId(session.payment_intent || ""),
       failureReason: "Stripe 异步支付失败"
     });
   }
+}
+
+async function syncRechargeOrderFromProvider({
+  provider,
+  clientKey,
+  orderId,
+  orderStatus,
+  providerSessionId = "",
+  providerPaymentId = "",
+  failureReason = ""
+}) {
+  if (!clientKey || !orderId) return { order: null, entry: null };
+  if (orderStatus === "paid") {
+    return await creditService.fulfillRechargeOrder({
+      orderId,
+      clientKey,
+      provider: String(provider || "stripe"),
+      providerSessionId: safeId(providerSessionId || ""),
+      providerPaymentId: safeId(providerPaymentId || "")
+    });
+  }
+  const updated = await creditService.updateRechargeOrder(orderId, clientKey, {
+    status: ["pending", "cancelled", "failed", "refunded"].includes(orderStatus) ? orderStatus : "pending",
+    provider: String(provider || "stripe"),
+    providerSessionId: safeId(providerSessionId || ""),
+    providerPaymentId: safeId(providerPaymentId || ""),
+    failureReason: orderStatus === "failed" ? String(failureReason || `${providerLabel(provider)}支付失败`) : ""
+  });
+  return { order: updated.order, entry: null };
+}
+
+function selectedPayment(origin = "") {
+  const preferred = String(process.env.PAYMENT_PROVIDER || "auto").trim().toLowerCase();
+  const alipay = { provider: alipayPaymentProvider, payment: alipayPaymentProvider.publicConfig(origin), weight: alipaySelectionWeight() };
+  const stripe = { provider: stripePaymentProvider, payment: stripePaymentProvider.publicConfig(origin), weight: stripeSelectionWeight() };
+  const ordered = preferred === "stripe"
+    ? [stripe, alipay]
+    : preferred === "alipay"
+      ? [alipay, stripe]
+      : [alipay, stripe];
+  const selected = ordered.find((item) => item.weight > 0) || ordered[0];
+  return { provider: selected.provider, payment: selected.payment };
+}
+
+function alipaySelectionWeight() {
+  const hasAppId = Boolean(String(process.env.ALIPAY_APP_ID || "").trim());
+  const hasPrivateKey = Boolean(String(process.env.ALIPAY_APP_PRIVATE_KEY || "").trim());
+  if (hasAppId && hasPrivateKey) return 3;
+  if (hasAppId || hasPrivateKey) return 1;
+  return 0;
+}
+
+function stripeSelectionWeight() {
+  if (["1", "true", "yes", "on"].includes(String(process.env.STRIPE_FAKE_MODE || "").trim().toLowerCase())) return 3;
+  return String(process.env.STRIPE_SECRET_KEY || "").trim() ? 2 : 0;
+}
+
+function providerLabel(provider) {
+  return String(provider || "").trim() === "alipay" ? "支付宝" : "Stripe";
 }
 
 function clientKeyFromRequest(request) {
@@ -1032,10 +1197,29 @@ function normalizeAccount(value, type) {
   return email;
 }
 
-function normalizeUsername(value) {
+function normalizeUsername(value, account = "", users = []) {
   const username = String(value || "").trim().replace(/\s+/g, " ");
+  if (!username) return deriveDefaultUsername(account, users);
   if (username.length < 2 || username.length > 24) throw new Error("用户名需为 2-24 个字符");
   return username;
+}
+
+function deriveDefaultUsername(account, users = []) {
+  const [localPart = ""] = String(account || "").split("@");
+  let base = String(localPart || "").trim().replace(/\s+/g, "");
+  if (!base) base = "新用户";
+  if (base.length < 2) base = `${base}用户`;
+  base = base.slice(0, 24);
+  const taken = new Set(users.map((user) => String(user.username || "").trim()).filter(Boolean));
+  if (!taken.has(base)) return base;
+  let index = 2;
+  while (index < 1000) {
+    const suffix = String(index);
+    const candidate = `${base.slice(0, Math.max(1, 24 - suffix.length))}${suffix}`;
+    if (!taken.has(candidate)) return candidate;
+    index += 1;
+  }
+  return `${base.slice(0, 21)}001`;
 }
 
 function normalizePassword(value) {
@@ -1074,19 +1258,19 @@ async function sendVerificationEmail(account, code) {
   await transporter.sendMail({
     from: config.from,
     to: account,
-    subject: "墨境邮箱注册码",
-    text: `你正在注册墨境，邮箱注册码是 ${code}，5 分钟内有效。若非本人操作，请忽略这封邮件。`,
+    subject: "墨境邮箱验证码",
+    text: `你正在创建墨境账号，邮箱验证码是 ${code}，5 分钟内有效。若非本人操作，请忽略这封邮件。`,
     html: `
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;line-height:1.6;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-          <img src="https://img.inklens.art/assets/mojing-icon-192.png" alt="墨境" width="48" height="48" style="display:block;border-radius:12px;" />
+          <img src="https://img.inklens.art/assets/icon-192.png" alt="墨境" width="48" height="48" style="display:block;border-radius:12px;" />
           <div>
             <div style="font-size:18px;font-weight:700;color:#111827;">墨境</div>
-            <div style="font-size:13px;color:#6b7280;">邮箱注册码</div>
+            <div style="font-size:13px;color:#6b7280;">邮箱验证码</div>
           </div>
         </div>
-        <p>你正在注册 <strong>墨境</strong></p>
-        <p>邮箱注册码是 <strong style="font-size:20px;color:#9f2f22;">${code}</strong></p>
+        <p>你正在创建 <strong>墨境</strong> 账号</p>
+        <p>邮箱验证码是 <strong style="font-size:20px;color:#9f2f22;">${code}</strong></p>
         <p>5 分钟内有效。若非本人操作，请忽略这封邮件。</p>
       </div>`
   });
@@ -1113,8 +1297,8 @@ function authCodeDelivery(request) {
 }
 
 function authCodeMessage(delivery) {
-  if (delivery === "test") return "测试模式已返回注册码，5 分钟内有效";
-  if (delivery === "onscreen") return "当前未配置邮箱服务，本机模式已直接显示注册码，可继续完成注册";
+  if (delivery === "test") return "测试模式已返回验证码，5 分钟内有效";
+  if (delivery === "onscreen") return "当前未配置邮箱服务，本机模式已直接显示验证码，可继续完成注册";
   return "验证码已发送到邮箱，5 分钟内有效";
 }
 
@@ -1211,7 +1395,15 @@ async function migrateClientData(sourceKey, targetKey) {
 async function migrateCreditStore(sourceKey, targetKey) {
   const source = await creditStore.readCreditStore(sourceKey);
   if (!source.balance && !source.ledger.length) return;
+  const sourceIsWelcomeOnly = isWelcomeOnlyCreditStore(source);
   await creditStore.mutateCreditStore((draft) => {
+    const targetIsWelcomeOnly = isWelcomeOnlyCreditStore(draft);
+    if (sourceIsWelcomeOnly && !targetIsWelcomeOnly) return draft;
+    if (targetIsWelcomeOnly) {
+      draft.balance = 0;
+      draft.ledger = [];
+      draft.updatedAt = source.updatedAt || draft.updatedAt;
+    }
     const seen = new Set((Array.isArray(draft.ledger) ? draft.ledger : []).map((entry) => String(entry?.id || "")));
     for (const entry of source.ledger || []) {
       const id = String(entry?.id || "");
@@ -1395,6 +1587,227 @@ function safeLogUrl(value) {
 function safeDate(value, fallback) {
   const date = value ? new Date(value) : fallback;
   return Number.isNaN(date.getTime()) ? fallback : date;
+}
+
+async function studioSampleCatalog() {
+  const scenes = Object.fromEntries(studioSampleSceneIds.map((sceneId) => [sceneId, []]));
+  const sceneGroups = Object.fromEntries(studioSampleSceneIds.map((sceneId) => [sceneId, []]));
+  const groupIndex = new Map();
+  let total = 0;
+  let updatedAt = "";
+  let entries = [];
+  try {
+    entries = await readStudioSampleEntries(studioPreviewDir);
+  } catch (error) {
+    if (error?.code === "ENOENT") return { total: 0, updatedAt: "", scenes, sceneGroups };
+    throw error;
+  }
+  for (const entry of entries) {
+    const classification = classifyStudioSampleEntry(entry);
+    if (!classification) continue;
+    const item = buildStudioSampleItem(entry, classification);
+    scenes[classification.sceneId].push(item);
+    const groupKey = `${classification.sceneId}:${classification.groupId}`;
+    if (!groupIndex.has(groupKey)) {
+      const group = buildStudioSampleGroup(entry, classification);
+      groupIndex.set(groupKey, group);
+      sceneGroups[classification.sceneId].push(group);
+    }
+    const group = groupIndex.get(groupKey);
+    group.items.push(item);
+    total += 1;
+    if (item.updatedAt) updatedAt = updatedAt ? newestIsoDate(updatedAt, item.updatedAt) : item.updatedAt;
+  }
+  for (const sceneId of studioSampleSceneIds) {
+    scenes[sceneId].sort((left, right) => right.sortKey.localeCompare(left.sortKey, "en") || left.title.localeCompare(right.title, "zh-CN"));
+    sceneGroups[sceneId].forEach(finalizeStudioSampleGroup);
+    sceneGroups[sceneId].sort(compareStudioSampleGroups);
+  }
+  return { total, updatedAt, scenes, sceneGroups };
+}
+
+async function readStudioSampleEntries(baseDir) {
+  const groups = (await readdir(baseDir, { withFileTypes: true }))
+    .sort((left, right) => left.name.localeCompare(right.name, "en"));
+  const entries = [];
+  for (const group of groups) {
+    if (group.name.startsWith(".")) continue;
+    if (group.isDirectory()) {
+      const groupPath = join(baseDir, group.name);
+      const files = (await readdir(groupPath, { withFileTypes: true }))
+        .sort((left, right) => left.name.localeCompare(right.name, "en"));
+      for (const file of files) {
+        if (!file.isFile() || !studioSampleImagePattern.test(file.name)) continue;
+        entries.push({
+          group: group.name,
+          fileName: file.name,
+          relativePath: join(group.name, file.name),
+          absolutePath: join(groupPath, file.name)
+        });
+      }
+      continue;
+    }
+    if (group.isFile() && studioSampleImagePattern.test(group.name)) {
+      entries.push({
+        group: "",
+        fileName: group.name,
+        relativePath: group.name,
+        absolutePath: join(baseDir, group.name)
+      });
+    }
+  }
+  return entries;
+}
+
+function classifyStudioSampleEntry(entry) {
+  const groupClassification = classifyStudioSampleGroup(entry.group, entry.fileName);
+  return groupClassification ? { ...groupClassification, sortKey: sortKeyForEntry(entry) } : null;
+}
+
+function classifyStudioSampleGroup(group, fileName = "") {
+  const groupName = String(group || "");
+  const text = `${groupName}/${fileName}`.toLowerCase();
+  if (studioDestinationLabels[groupName]) {
+    return {
+      sceneId: "wedding",
+      sampleId: "travel",
+      groupId: groupName,
+      groupTitle: studioDestinationLabels[groupName],
+      groupSubtitle: "目的地婚纱",
+      groupRank: 0
+    };
+  }
+  if (/identity_wedding/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "wedding", "registry", "婚登照", "身份婚纱批次", 1);
+  }
+  if (/identity_travel/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "couple", "travel", "情侣旅行", "旅行同行批次", 0);
+  }
+  if (/identity_landmark/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "couple", "cinema", "城市地标", "地标情侣批次", 1);
+  }
+  if (/identity_friendswedding/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "friends", "birthday", "闺蜜婚礼", "婚礼合照批次", 1);
+  }
+  if (/identity_friends/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "friends", "studio", "闺蜜合照", "棚拍合照批次", 0);
+  }
+  if (/identity_child10/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "child10", "campus", "10岁成长", "儿童成长批次", 0);
+  }
+  return null;
+}
+
+function buildStudioSampleItem(entry, classification) {
+  const sceneId = classification.sceneId;
+  const sampleId = classification.sampleId;
+  const sceneLabel = studioSampleSceneLabels[sceneId] || sceneId;
+  const sampleLabel = studioSampleDirectionLabels[sceneId]?.[sampleId] || sampleId;
+  const groupLabel = classification.groupTitle || studioSampleGroupLabel(entry.group, sceneId);
+  const shotNumber = extractStudioShotNumber(entry.fileName);
+  return {
+    id: safeId(`sample-${entry.relativePath}`),
+    sceneId,
+    sampleId,
+    groupId: classification.groupId || entry.group,
+    groupTitle: groupLabel,
+    group: entry.group,
+    title: `${groupLabel} · ${sampleLabel}`,
+    label: shotNumber ? `第 ${shotNumber} 张` : sampleLabel,
+    alt: `${sceneLabel} · ${groupLabel} · ${sampleLabel}`,
+    src: `/studio-previews/${entry.relativePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`,
+    updatedAt: studioTimestampIso(groupTimestamp(entry.group)),
+    sortKey: classification.sortKey
+  };
+}
+
+function studioIdentityGroupClassification(groupName, sceneId, sampleId, titlePrefix, subtitle, groupRank) {
+  const timestamp = groupTimestamp(groupName);
+  const titleSuffix = timestamp ? ` · ${formatStudioSampleTimestamp(timestamp)}` : "";
+  return {
+    sceneId,
+    sampleId,
+    groupId: groupName,
+    groupTitle: `${titlePrefix}${titleSuffix}`,
+    groupSubtitle: subtitle,
+    groupRank
+  };
+}
+
+function buildStudioSampleGroup(entry, classification) {
+  const sceneId = classification.sceneId;
+  const sampleId = classification.sampleId;
+  const sampleLabel = studioSampleDirectionLabels[sceneId]?.[sampleId] || sampleId;
+  const groupTitle = classification.groupTitle || studioSampleGroupLabel(entry.group, sceneId);
+  return {
+    id: safeId(`sample-group-${sceneId}-${classification.groupId || entry.group || entry.fileName}`),
+    sceneId,
+    sampleId,
+    sampleTitle: sampleLabel,
+    groupId: classification.groupId || entry.group,
+    group: entry.group,
+    title: groupTitle,
+    subtitle: classification.groupSubtitle || sampleLabel,
+    cover: "",
+    coverAlt: "",
+    count: 0,
+    items: [],
+    updatedAt: studioTimestampIso(groupTimestamp(entry.group)),
+    sortKey: entry.group || entry.fileName,
+    groupRank: Number(classification.groupRank) || 0
+  };
+}
+
+function finalizeStudioSampleGroup(group) {
+  group.items.sort((left, right) => left.sortKey.localeCompare(right.sortKey, "en") || left.label.localeCompare(right.label, "zh-CN"));
+  const cover = group.items[0] || {};
+  group.cover = cover.src || "";
+  group.coverAlt = cover.alt || group.title;
+  group.count = group.items.length;
+  group.subtitle = `${group.subtitle} · ${group.count} 张`;
+}
+
+function compareStudioSampleGroups(left, right) {
+  if (left.groupRank !== right.groupRank) return left.groupRank - right.groupRank;
+  if (left.updatedAt || right.updatedAt) {
+    return String(right.updatedAt || "").localeCompare(String(left.updatedAt || ""), "en")
+      || left.title.localeCompare(right.title, "zh-CN");
+  }
+  return left.sortKey.localeCompare(right.sortKey, "en") || left.title.localeCompare(right.title, "zh-CN");
+}
+
+function extractStudioShotNumber(fileName) {
+  const matches = [...String(fileName || "").matchAll(/(?:^|_)(\d{1,3})(?=_)/g)].map((match) => Number(match[1])).filter((value) => Number.isFinite(value) && value > 0);
+  return matches.at(-1) || 0;
+}
+
+function studioSampleGroupLabel(group, sceneId) {
+  if (!group) return studioSampleSceneLabels[sceneId] || sceneId;
+  if (studioDestinationLabels[group]) return studioDestinationLabels[group];
+  const timestamp = groupTimestamp(group);
+  if (timestamp) return `${studioSampleSceneLabels[sceneId] || sceneId} 批次 ${formatStudioSampleTimestamp(timestamp)}`;
+  return group.replace(/^identity_/, "").replace(/_/g, " ");
+}
+
+function groupTimestamp(group) {
+  const match = String(group || "").match(/(20\d{12})/);
+  return match ? match[1] : "";
+}
+
+function formatStudioSampleTimestamp(value) {
+  if (!value || value.length < 12) return value;
+  return `${value.slice(4, 6)}/${value.slice(6, 8)} ${value.slice(8, 10)}:${value.slice(10, 12)}`;
+}
+
+function studioTimestampIso(value) {
+  if (!value || value.length < 14) return "";
+  return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}T${value.slice(8, 10)}:${value.slice(10, 12)}:${value.slice(12, 14)}.000Z`;
+}
+
+function sortKeyForEntry(entry) {
+  const timestamp = groupTimestamp(entry.group) || "0";
+  const shot = String(extractStudioShotNumber(entry.fileName)).padStart(3, "0");
+  return `${timestamp}-${entry.group}-${shot}-${entry.fileName}`;
 }
 
 function safeId(value) {

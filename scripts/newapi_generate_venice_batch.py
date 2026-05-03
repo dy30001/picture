@@ -22,7 +22,7 @@ from PIL import Image, ImageOps
 WORKSPACE = Path("/Users/dy3000/code/pic")
 API_BASE = os.environ.get("NEWAPI_BASE", "http://127.0.0.1:10000").rstrip("/")
 MODEL = os.environ.get("NEWAPI_IMAGE_MODEL", "gpt-5.4")
-PROMPT_CSV = WORKSPACE / "planning/prompts_venice_9_v01.csv"
+PROMPT_CSV = WORKSPACE / "planning/07-结构化清单/威尼斯九图提示词.csv"
 
 REFERENCE_IMAGE_PATHS = [
     WORKSPACE / "reference/selected/female/F01_face_side_garden.jpg",

@@ -29,7 +29,7 @@ DEFAULT_CONCURRENCY = int(os.environ.get("NEWAPI_IDENTITY_CONCURRENCY", "10"))
 SOURCE_ROOT = WORKSPACE / "generated/identity_accelerated"
 FINAL_ROOT = WORKSPACE / "final_4k"
 CONTACT_ROOT = WORKSPACE / "review/contact_sheets"
-REPORT_ROOT = WORKSPACE / "planning"
+REPORT_ROOT = WORKSPACE / "planning" / "06-执行报告"
 
 FEMALE_REFERENCE_IMAGE_PATHS = [
     WORKSPACE / "reference/selected/female/F01_face_side_garden.jpg",
@@ -176,7 +176,16 @@ def contact_sheet_path(scene_id: str, job_id: str) -> Path:
 
 
 def report_path(scene_id: str, job_id: str) -> Path:
-    return REPORT_ROOT / f"build_report_{output_folder(scene_id, job_id)}.md"
+    report_labels = {
+        "wedding": "婚纱照",
+        "friendsWedding": "闺蜜婚礼照",
+        "friends": "闺蜜照",
+        "travel": "旅行人像照",
+        "landmark": "地标人像照",
+        "child10": "10岁照",
+    }
+    label = report_labels.get(scene_id, scene_id)
+    return REPORT_ROOT / f"{label}-{job_id.replace('_', '-')}-执行报告.md"
 
 
 def reference_paths(scene_id: str, config: dict[str, Any]) -> list[Path]:

@@ -7,14 +7,14 @@ const dist = join(root, "dist");
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 await mkdir(join(dist, "public"), { recursive: true });
-await mkdir(join(dist, "public", "assets"), { recursive: true });
 await mkdir(join(dist, "server"), { recursive: true });
 await mkdir(join(dist, "scripts"), { recursive: true });
 
 for (const file of ["index.html", "app.js", "styles.css", "README_zh.md", "sorry-templates.json", "manifest.webmanifest"]) {
   await copyIfExists(join(root, "public", file), join(dist, "public", file));
 }
-await copyPublicAssets(join(root, "public", "assets"), join(dist, "public", "assets"));
+await copyPublicTree(join(root, "public", "assets"), join(dist, "public", "assets"));
+await copyPublicTree(join(root, "public", "template-previews"), join(dist, "public", "template-previews"), { optional: true });
 await copyIfExists(join(root, "index.html"), join(dist, "index.html"));
 await copyIfExists(join(root, "manifest.webmanifest"), join(dist, "manifest.webmanifest"));
 for (const file of ["index.mjs", "template-store.mjs"]) {
@@ -45,11 +45,23 @@ async function copyIfExists(from, to) {
   }
 }
 
-async function copyPublicAssets(fromDir, toDir) {
-  const entries = await readdir(fromDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    await copyIfExists(join(fromDir, entry.name), join(toDir, entry.name));
+async function copyPublicTree(fromDir, toDir, { optional = false } = {}) {
+  try {
+    const entries = await readdir(fromDir, { withFileTypes: true });
+    await mkdir(toDir, { recursive: true });
+    for (const entry of entries) {
+      const from = join(fromDir, entry.name);
+      const to = join(toDir, entry.name);
+      if (entry.isDirectory()) {
+        await copyPublicTree(from, to, { optional: false });
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      await copyIfExists(from, to);
+    }
+  } catch (error) {
+    if (optional && error?.code === "ENOENT") return;
+    throw error;
   }
 }
 

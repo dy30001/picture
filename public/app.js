@@ -8,29 +8,57 @@ const keys = {
   auth: "pic.native.auth"
 };
 
-const appVersion = "20260502-personal-studio";
+const appVersion = "20260503-sample-groups";
+const studioRequiredReferenceCount = 3;
+const sampleStatusLabels = ["待查看", "已查看", "已入围", "已淘汰", "待重生", "已转正"];
 const legacyHistoryKeys = ["alexai-replica-tasks", "gpt-image-node-tasks"];
 const referenceImageLimits = {
   maxEdge: 2048,
   maxBytes: 18 * 1024 * 1024,
   jpegQuality: 0.9
 };
+const creditCopy = {
+  rechargeMenu: "买积分",
+  ordersLoadError: "充值记录没加载出来",
+  ledgerLoadError: "积分明细没加载出来",
+  emptyOrders: "还没有充值记录",
+  emptyLedger: "还没有积分明细",
+  recentOrders: "最近充值",
+  recentLedger: "最近明细",
+  ordersUnavailable: "充值记录暂时没加载出来",
+  ledgerUnavailable: "积分明细暂时没加载出来",
+  paymentReturnHint: "付款已返回，请刷新充值记录确认是否到账"
+};
 
 const defaults = {
   settings: { apiUrl: "https://img.inklens.art/v1", apiKey: "", apiMode: "images", mainModelId: "gpt-5.5", modelId: "gpt-image-2", timeoutSeconds: 120 },
   params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
-  studio: { selectedSceneId: "wedding", identityStatus: "待上传", selectedSampleId: "", previewedSampleKey: "", referenceCount: 0, deliveryReadyCount: 0 },
+  studio: {
+    selectedSceneId: "wedding",
+    identityStatus: "待上传",
+    selectedSampleId: "",
+    selectedSampleGroupId: "",
+    selectedSamplePhotoId: "",
+    previewedSampleKey: "",
+    selectedTemplateId: "",
+    selectedTemplateTitle: "",
+    selectedTemplateCategory: "",
+    selectedTemplatePrompt: "",
+    templateConfirmed: false,
+    referenceCount: 0,
+    deliveryReadyCount: 0,
+    sampleDecisions: {}
+  },
   credits: { balance: 0, ledger: [], packages: [], updatedAt: "" },
-  payment: { provider: "stripe", mode: "disabled", enabled: false, ready: false, currency: "cny", message: "支付准备中" },
+  payment: { provider: "stripe", mode: "disabled", enabled: false, ready: false, currency: "cny", message: "现在还不能购买积分" },
   auth: { user: null }
 };
 
 const studioFlow = [
-  { key: "scene", title: "选场景", note: "婚纱、情侣、闺蜜等" },
-  { key: "identity", title: "数字底片", note: "先确认像本人" },
-  { key: "sample", title: "样片方向", note: "选 1-3 个风格" },
-  { key: "batch", title: "批量成片", note: "确认后再生成" },
-  { key: "delivery", title: "交付", note: "只放最终可用图" }
+  { key: "upload", title: "传三张图", note: "正脸、半身、全身参考" },
+  { key: "threeview", title: "确认像本人", note: "像本人，才更稳" },
+  { key: "template", title: "选模板", note: "风格统一，出片更稳" },
+  { key: "generate", title: "生成", note: "成片直达作品库" }
 ];
 
 const scenePacks = [
@@ -42,9 +70,9 @@ const scenePacks = [
     recommendedShots: "24-36 张",
     status: "优先",
     samples: [
-      { id: "chinese", title: "中式礼服", tags: "秀禾、旗袍、红金仪式感", query: "中式婚礼 写真 情侣", prompt: "以已确认的两位数字底片为身份锚点，生成一组中式婚礼写真样片。新娘穿高级秀禾或旗袍，新郎穿合身中式礼服，红金配色克制，脸部清晰像本人，真实皮肤质感，姿态自然，不要影楼站桩，不要夸张磨皮。" },
-      { id: "travel", title: "旅拍大片", tags: "目的地、自然互动、电影感", query: "婚纱 旅拍 情侣", prompt: "以已确认的情侣数字底片为身份锚点，生成目的地婚纱旅拍样片。真实旅拍光线，自然牵手互动，婚纱材质高级，地标背景可信，脸部清晰像本人，避免游客打卡感和假背景。" },
-      { id: "registry", title: "婚登照", tags: "干净、亲密、可分享", query: "婚登照 情侣 写真", prompt: "以两位数字底片为身份锚点，生成干净高级的婚登纪念照样片。浅色背景，亲密但克制的双人构图，服装整洁，五官清晰像本人，适合社交分享，不要证件照僵硬感。" }
+      { id: "chinese", title: "中式礼服", tags: "秀禾、旗袍、红金仪式感", query: "中式婚礼 写真 情侣", prompt: "以已确认的两位参考照为基础，生成一组中式婚礼写真样片。新娘穿高级秀禾或旗袍，新郎穿合身中式礼服，红金配色克制，脸部清晰像本人，真实皮肤质感，姿态自然，不要影楼站桩，不要夸张磨皮。" },
+      { id: "travel", title: "旅拍大片", tags: "目的地、自然互动、电影感", query: "婚纱 旅拍 情侣", prompt: "以已确认的情侣参考照为基础，生成目的地婚纱旅拍样片。真实旅拍光线，自然牵手互动，婚纱材质高级，地标背景可信，脸部清晰像本人，避免游客打卡感和假背景。" },
+      { id: "registry", title: "婚登照", tags: "干净、亲密、可分享", query: "婚登照 情侣 写真", prompt: "以两位参考照为基础，生成干净高级的婚登纪念照样片。浅色背景，亲密但克制的双人构图，服装整洁，五官清晰像本人，适合社交分享，不要证件照僵硬感。" }
     ]
   },
   {
@@ -55,9 +83,9 @@ const scenePacks = [
     recommendedShots: "18-30 张",
     status: "可用",
     samples: [
-      { id: "daily", title: "日常胶片", tags: "街拍、松弛、真实关系", query: "情侣 日常 胶片", prompt: "以两位数字底片为身份锚点，生成情侣日常胶片写真样片。城市街头或咖啡馆环境，自然说笑互动，色彩柔和，脸部像本人，关系亲密但不摆拍。" },
-      { id: "travel", title: "旅行同行", tags: "牵手、远景、目的地", query: "情侣 旅行 写真", prompt: "以情侣数字底片为身份锚点，生成旅行情侣写真样片。两人并肩或牵手走在目的地街道，背景真实，服装协调，脸部清晰，避免网红打卡姿势。" },
-      { id: "cinema", title: "电影情绪", tags: "夜景、眼神、故事感", query: "情侣 电影感 写真", prompt: "以两位数字底片为身份锚点，生成电影感情侣写真样片。低饱和城市夜景或室内窗光，眼神自然，有安静故事感，脸像本人，避免夸张亲吻和戏剧化表情。" }
+      { id: "daily", title: "日常胶片", tags: "街拍、松弛、真实关系", query: "情侣 日常 胶片", prompt: "以两位参考照为基础，生成情侣日常胶片写真样片。城市街头或咖啡馆环境，自然说笑互动，色彩柔和，脸部像本人，关系亲密但不摆拍。" },
+      { id: "travel", title: "旅行同行", tags: "牵手、远景、目的地", query: "情侣 旅行 写真", prompt: "以情侣参考照为基础，生成旅行情侣写真样片。两人并肩或牵手走在目的地街道，背景真实，服装协调，脸部清晰，避免网红打卡姿势。" },
+      { id: "cinema", title: "城市地标", tags: "地标、街区、旅行纪念", query: "情侣 城市地标 写真", prompt: "以两位参考照为基础，生成城市地标情侣写真样片。两人自然同行或并肩看向地标，背景真实可信，服装协调，脸像本人，避免游客打卡姿势和假背景。" }
     ]
   },
   {
@@ -68,9 +96,9 @@ const scenePacks = [
     recommendedShots: "12-24 张",
     status: "可用",
     samples: [
-      { id: "studio", title: "棚拍合照", tags: "干净、亲密、杂志感", query: "闺蜜照 棚拍 写真", prompt: "以已确认的闺蜜数字底片为身份锚点，生成棚拍闺蜜写真样片。两人亲密朋友关系，自然靠近但不僵硬，服装同系列但不完全相同，脸部各自像本人，不串脸。" },
-      { id: "street", title: "城市街拍", tags: "走路、说笑、轻纪实", query: "闺蜜照 街拍", prompt: "以闺蜜数字底片为身份锚点，生成城市街拍闺蜜写真样片。两人边走边笑，动作自然，有轻纪实感，背景有生活气，脸部清晰且身份不混淆。" },
-      { id: "birthday", title: "生日派对", tags: "庆祝、蛋糕、温暖", query: "闺蜜 生日 写真", prompt: "以闺蜜数字底片为身份锚点，生成生日纪念写真样片。小型派对场景，蛋糕、花束和暖光，情绪真实，五官像本人，避免过度装饰和廉价影棚感。" }
+      { id: "studio", title: "棚拍合照", tags: "干净、亲密、杂志感", query: "闺蜜照 棚拍 写真", prompt: "以已确认的闺蜜参考照为基础，生成棚拍闺蜜写真样片。两人亲密朋友关系，自然靠近但不僵硬，服装同系列但不完全相同，脸部各自像本人，不串脸。" },
+      { id: "street", title: "城市街拍", tags: "走路、说笑、轻纪实", query: "闺蜜照 街拍", prompt: "以闺蜜参考照为基础，生成城市街拍闺蜜写真样片。两人边走边笑，动作自然，有轻纪实感，背景有生活气，脸部清晰且身份不混淆。" },
+      { id: "birthday", title: "闺蜜婚礼", tags: "伴娘、仪式、温暖合照", query: "闺蜜 婚礼 伴娘 写真", prompt: "以闺蜜参考照为基础，生成闺蜜婚礼或伴娘合照样片。婚礼现场氛围真实，服装协调但不抢新人，情绪温暖，五官各自像本人，避免串脸和廉价影棚感。" }
     ]
   },
   {
@@ -81,9 +109,9 @@ const scenePacks = [
     recommendedShots: "12-24 张",
     status: "可用",
     samples: [
-      { id: "campus", title: "校园成长", tags: "书包、操场、自然笑容", query: "10岁 儿童 写真 校园", prompt: "以儿童数字底片为身份锚点，生成 10 岁成长纪念样片。校园或操场环境，自然笑容，服装干净，年龄感准确，脸像本人，不要成人化妆容。" },
-      { id: "birthday", title: "生日纪念", tags: "蛋糕、家庭、明亮", query: "儿童 生日 写真", prompt: "以儿童数字底片为身份锚点，生成 10 岁生日纪念写真样片。明亮室内或户外，蛋糕和气球克制点缀，孩子表情自然，身份像本人，画面温暖不幼稚。" },
-      { id: "outdoor", title: "户外奔跑", tags: "草地、阳光、活力", query: "儿童 户外 写真", prompt: "以儿童数字底片为身份锚点，生成户外成长写真样片。自然阳光、草地或公园，轻跑或回头笑，脸部清晰，动作真实，避免夸张童话滤镜。" }
+      { id: "campus", title: "校园成长", tags: "书包、操场、自然笑容", query: "10岁 儿童 写真 校园", prompt: "以儿童参考照为基础，生成 10 岁成长纪念样片。校园或操场环境，自然笑容，服装干净，年龄感准确，脸像本人，不要成人化妆容。" },
+      { id: "birthday", title: "生日纪念", tags: "蛋糕、家庭、明亮", query: "儿童 生日 写真", prompt: "以儿童参考照为基础，生成 10 岁生日纪念写真样片。明亮室内或户外，蛋糕和气球克制点缀，孩子表情自然，身份像本人，画面温暖不幼稚。" },
+      { id: "outdoor", title: "户外奔跑", tags: "草地、阳光、活力", query: "儿童 户外 写真", prompt: "以儿童参考照为基础，生成户外成长写真样片。自然阳光、草地或公园，轻跑或回头笑，脸部清晰，动作真实，避免夸张童话滤镜。" }
     ]
   },
   {
@@ -94,9 +122,9 @@ const scenePacks = [
     recommendedShots: "12-24 张",
     status: "可用",
     samples: [
-      { id: "french", title: "法式胶片", tags: "慵懒、自然、轻复古", query: "女生写真 法式 胶片", prompt: "以已确认的单人数字底片为身份锚点，生成法式胶片女生写真样片。自然妆发，轻复古服装，窗边或街角光线，脸像本人，皮肤真实，不要网红过度磨皮。" },
-      { id: "magazine", title: "杂志肖像", tags: "高级、干净、强质感", query: "女生写真 杂志 肖像", prompt: "以单人数字底片为身份锚点，生成高级杂志肖像样片。干净背景，精致但不过度的妆发，五官清晰像本人，构图克制，避免塑料皮肤和夸张脸型。" },
-      { id: "guofeng", title: "轻国风", tags: "中式、素雅、东方气质", query: "女生写真 国风", prompt: "以单人数字底片为身份锚点，生成轻国风女生写真样片。素雅中式服装或改良旗袍，浅色背景，东方气质克制，脸像本人，不要戏服化和夸张古装。" }
+      { id: "french", title: "法式胶片", tags: "慵懒、自然、轻复古", query: "女生写真 法式 胶片", prompt: "以已确认的单人参考照为基础，生成法式胶片女生写真样片。自然妆发，轻复古服装，窗边或街角光线，脸像本人，皮肤真实，不要网红过度磨皮。" },
+      { id: "magazine", title: "杂志肖像", tags: "高级、干净、强质感", query: "女生写真 杂志 肖像", prompt: "以单人参考照为基础，生成高级杂志肖像样片。干净背景，精致但不过度的妆发，五官清晰像本人，构图克制，避免塑料皮肤和夸张脸型。" },
+      { id: "guofeng", title: "轻国风", tags: "中式、素雅、东方气质", query: "女生写真 国风", prompt: "以单人参考照为基础，生成轻国风女生写真样片。素雅中式服装或改良旗袍，浅色背景，东方气质克制，脸像本人，不要戏服化和夸张古装。" }
     ]
   },
   {
@@ -107,9 +135,9 @@ const scenePacks = [
     recommendedShots: "18-30 张",
     status: "可用",
     samples: [
-      { id: "anniversary", title: "纪念合照", tags: "端庄、温暖、真实", query: "夕阳红 纪念照", prompt: "以两位长辈数字底片为身份锚点，生成夕阳红纪念合照样片。端庄温暖的室内或园林环境，表情自然，年龄感真实，脸像本人，不要过度年轻化。" },
-      { id: "travel", title: "旅行留念", tags: "景点、牵手、轻松", query: "夕阳红 旅行 写真", prompt: "以长辈数字底片为身份锚点，生成旅行纪念写真样片。两人自然站立或牵手，背景是可信的旅行地点，服装得体，脸部清晰，避免假景区背景。" },
-      { id: "qipao", title: "旗袍礼服", tags: "中式、仪式、优雅", query: "夕阳红 旗袍 写真", prompt: "以长辈数字底片为身份锚点，生成中式旗袍礼服纪念照样片。服装高级合身，光线柔和，人物端庄亲切，年龄感准确，脸像本人，不要过度美颜。" }
+      { id: "anniversary", title: "纪念合照", tags: "端庄、温暖、真实", query: "夕阳红 纪念照", prompt: "以两位长辈参考照为基础，生成夕阳红纪念合照样片。端庄温暖的室内或园林环境，表情自然，年龄感真实，脸像本人，不要过度年轻化。" },
+      { id: "travel", title: "旅行留念", tags: "景点、牵手、轻松", query: "夕阳红 旅行 写真", prompt: "以长辈参考照为基础，生成旅行纪念写真样片。两人自然站立或牵手，背景是可信的旅行地点，服装得体，脸部清晰，避免假景区背景。" },
+      { id: "qipao", title: "旗袍礼服", tags: "中式、仪式、优雅", query: "夕阳红 旗袍 写真", prompt: "以长辈参考照为基础，生成中式旗袍礼服纪念照样片。服装高级合身，光线柔和，人物端庄亲切，年龄感准确，脸像本人，不要过度美颜。" }
     ]
   }
 ];
@@ -230,32 +258,36 @@ const studioSamplePreviewSets = {
 
 const studioWorkflowProof = [
   {
-    title: "三视图建模",
-    note: "先确认像本人，再进入样片确认",
+    title: "样片集",
+    note: "样片定调，审美在线",
     image: "./assets/studio-showcase-3view.png"
   },
   {
-    title: "样片确认",
-    note: "每个套餐先给 3 个方向，客户先看再选",
+    title: "身份确认",
+    note: "身份稳定，脸更像本人",
     image: "./assets/studio-showcase-sample.png"
   },
   {
-    title: "批量交付",
-    note: "方向通过后再批量成片，只交付最终可用图",
+    title: "模板定调",
+    note: "风格统一，成片更稳",
     image: "./assets/studio-showcase-wedding-review.jpg"
   }
 ];
 
 const state = {
   tab: "studio",
-  studioAnchor: "flow",
+  studioAnchor: "sample",
   creditAnchor: "overview",
   templates: [],
+  studioSamples: { loaded: false, total: 0, updatedAt: "", scenes: {}, sceneGroups: {}, error: "" },
   query: "",
+  templateGroup: "all",
   category: "all",
   featuredOnly: false,
   limit: 24,
   prompt: "",
+  createMode: "generate",
+  selectedPromptOptions: [],
   settings: applyQuerySettings(loadSettings()),
   params: readStore(keys.params, defaults.params),
   references: [],
@@ -267,7 +299,8 @@ const state = {
   payment: { ...defaults.payment },
   creditOrders: [],
   auth: normalizeAuth(readStore(keys.auth, defaults.auth)),
-  authView: "register",
+  authView: "login",
+  authRegisterStep: "credentials",
   authMessage: "",
   authMessageKind: "",
   authSubmitting: false,
@@ -275,7 +308,8 @@ const state = {
   authCodeCooldown: 0,
   creditEstimate: null,
   creditEstimateError: "",
-  pendingPaymentReturn: null
+  pendingPaymentReturn: null,
+  templateSelectionMode: "create"
 };
 
 const dom = {};
@@ -287,30 +321,95 @@ let authCodeTimerId = 0;
 
 const secondaryMenus = {
   studio: [
-    { label: "拍摄流程", tab: "studio", anchor: "flow" },
-    { label: "场景套餐", tab: "studio", anchor: "packages" },
-    { label: "数字底片", tab: "studio", anchor: "identity" },
-    { label: "样片确认", tab: "studio", anchor: "sample" },
-    { label: "成片交付", tab: "studio", anchor: "delivery" }
+    { label: "样片集", tab: "studio", anchor: "sample" },
+    { label: "生图", tab: "studio", anchor: "flow" },
+    { label: "身份确认", tab: "studio", anchor: "identity" },
+    { label: "选模板", tab: "studio", anchor: "packages" },
+    { label: "生成", tab: "studio", anchor: "delivery" }
   ],
   create: [
     { label: "模板库", tab: "templates" },
-    { label: "智能生图", tab: "generate" }
+    { label: "智能生图", tab: "generate", createMode: "generate" }
   ],
   history: [
     { label: "全部作品", tab: "history", historyMode: "active" },
     { label: "已删除", tab: "history", historyMode: "deleted" }
   ],
-  register: [
-    { label: "注册", tab: "register", authView: "register" },
-    { label: "登录", tab: "register", authView: "login" }
-  ],
   credits: [
-    { label: "权益总览", tab: "credits", anchor: "overview" },
-    { label: "充值中心", tab: "credits", anchor: "packages" },
-    { label: "充值订单", tab: "credits", anchor: "orders" },
-    { label: "积分流水", tab: "credits", anchor: "ledger" }
+    { label: "我的积分", tab: "credits", anchor: "overview" },
+    { label: creditCopy.rechargeMenu, tab: "credits", anchor: "packages" }
   ]
+};
+
+const createToolModes = {
+  generate: {
+    title: "智能生图",
+    hint: "上传照片、写提示词、直接开拍；写法参考都放在右侧辅助区。",
+    placeholder: "先写你想要的结果，再补人物、场景、镜头和气质",
+    status: "智能生图已就绪"
+  }
+};
+
+const templateLibraryGroups = [
+  {
+    id: "all",
+    label: "全部",
+    note: "模板库全部内容",
+    image: "./assets/mojing-workbench-bg.png",
+    kind: "mixed"
+  },
+  {
+    id: "fun",
+    label: "趣味生图",
+    note: "海报、头像、插画、产品图等快速玩法",
+    image: "./assets/mojing-workbench-bg.png",
+    kind: "template"
+  },
+  {
+    id: "identity",
+    label: "形象确认",
+    note: "像本人基准和身份起版参考",
+    image: "./assets/studio-showcase-3view.png",
+    kind: "reference"
+  },
+  {
+    id: "set",
+    label: "套图写真",
+    note: "婚纱、情侣、闺蜜、儿童、写真等成组参考",
+    image: "./assets/studio-showcase-wedding-review.jpg",
+    kind: "reference"
+  }
+];
+
+const promptOptionPresets = {
+  background: {
+    title: "换背景",
+    short: "只换背景，主体不动",
+    requiresReference: true,
+    summary: "保留人物身份、表情、姿态和服装，只替换背景与氛围。",
+    promptAddon: "换背景要求：保留人物身份、表情、姿态和服装不变，只替换背景。新背景需真实可信，光线方向一致，边缘自然，不要改变人物五官和身材。"
+  },
+  outfit: {
+    title: "换装",
+    short: "只换服装，脸和动作保持",
+    requiresReference: true,
+    summary: "保留脸部、发型、表情和姿态，只替换服装与材质。",
+    promptAddon: "换装要求：保留人物脸部、发型、表情、姿态和背景关系，只替换服装。服装需版型合身、布料真实、光影一致，不要改变人物身份。"
+  },
+  enhance: {
+    title: "高清增强",
+    short: "提高清晰度和质感",
+    requiresReference: true,
+    summary: "提升清晰度、皮肤细节、服装纹理和整体画面质感。",
+    promptAddon: "高清增强要求：提升清晰度、皮肤细节、服装纹理和画面质感，保持原始构图、人物身份、表情和年龄感不变。不要过度磨皮，不要改变脸型，不要新增不真实细节。"
+  },
+  repair: {
+    title: "局部修复",
+    short: "只修局部，其余保持",
+    requiresReference: true,
+    summary: "适合修手部、衣服、边缘或背景小问题，其余区域保持稳定。",
+    promptAddon: "局部修复要求：只修复需要处理的局部区域，其他区域保持不变。保留人物身份、表情、构图和整体光影，不要连带改动无关区域。"
+  }
 };
 
 const templateCategoryOrder = ["人像基准", "婚纱照", "情侣照", "闺蜜照", "10岁照", "女生写真", "夕阳红"];
@@ -330,85 +429,34 @@ const localTemplateIdCovers = {
   "portrait-axis-senior-couple-3view-v01": "./assets/studio-showcase-senior-review.jpg",
   "portrait-axis-best-friends-3view-v01": "./assets/studio-showcase-friends-review.jpg"
 };
-const templateCollections = [
-  {
-    key: "all",
-    title: "全部模板",
-    note: "完整模板库，先按客户分区缩小范围，再进入智能生图。",
-    image: "./assets/studio-showcase-wedding-review.jpg",
-    kicker: "总库"
-  },
-  {
-    key: "人像基准",
-    title: "三视图建模",
-    note: "先锁定像本人，再继续婚纱、情侣、闺蜜和写真。",
-    image: "./assets/studio-showcase-3view.png",
-    kicker: "第一步"
-  },
-  {
-    key: "婚纱照",
-    title: "婚纱定制",
-    note: "封面主纱、旅拍纪实、中式礼服，先看样片再生成。",
-    image: "./assets/studio-showcase-wedding-review.jpg",
-    kicker: "成交感"
-  },
-  {
-    key: "情侣照",
-    title: "情侣纪念",
-    note: "适合纪念日、旅行记录和自然互动方向。",
-    image: "./assets/studio-showcase-couple-review.jpg",
-    kicker: "自然互动"
-  },
-  {
-    key: "闺蜜照",
-    title: "闺蜜合照",
-    note: "棚拍、街拍、生日派对都先给客户看样片。",
-    image: "./assets/studio-showcase-friends-review.jpg",
-    kicker: "双人关系"
-  },
-  {
-    key: "10岁照",
-    title: "儿童 10 岁照",
-    note: "成长纪念、生日、亲子场景先控年龄感再出片。",
-    image: "./assets/studio-showcase-child-review.jpg",
-    kicker: "成长纪念"
-  },
-  {
-    key: "女生写真",
-    title: "女生写真",
-    note: "法式胶片、杂志肖像、轻国风，更适合社交头像和形象照。",
-    image: "./assets/studio-showcase-portrait-review.jpg",
-    kicker: "个人形象"
-  },
-  {
-    key: "夕阳红",
-    title: "夕阳红纪念",
-    note: "双人合照、纪念照、旅行留念，先看端庄真实的样片。",
-    image: "./assets/studio-showcase-senior-review.jpg",
-    kicker: "家庭纪念"
-  }
-];
 
 document.addEventListener("DOMContentLoaded", () => {
   for (const id of [
-    "statusLine", "studioPanel", "studioStartBtn", "studioHeroVisualEyebrow", "studioHeroVisualTitle", "studioHeroVisualChip", "studioHeroGallery", "studioHeroProof", "studioFlow", "studioCurrentStep", "studioCurrentScene", "studioCurrentSample",
+    "statusLine", "trustStrip", "studioPanel", "studioCommand", "studioSceneRail", "studioStageList", "studioPackagesSection", "studioIdentitySection", "studioSampleSection", "studioDeliverySection",
+    "studioStartBtn", "openGenerationFlowBtn", "studioHeroVisualEyebrow", "studioHeroVisualTitle", "studioHeroVisualChip", "studioHeroGallery", "studioHeroProof", "studioFlow",
+    "studioSummaryScene", "studioSummaryIdentity", "studioSummarySample", "studioSummaryDelivery",
+    "studioWorkOrderEyebrow", "studioCurrentStep", "studioActionHint", "studioCurrentScene", "studioCurrentSample",
     "studioCurrentCredits", "studioNextActionBtn", "scenePackGrid", "openTemplateLibraryBtn", "identitySummary",
     "identityStatusChip", "identityCheckGrid", "studioReferenceInput", "confirmIdentityBtn", "sampleSummary", "samplePreviewPanel", "sampleDirectionList",
+    "studioTemplateCard", "studioTemplateSummary", "studioTemplateStatusChip", "studioTemplateName", "studioTemplateMeta",
     "deliverySceneCount", "deliverySampleCount", "deliveryReadyCount", "studioGenerateBtn", "templatesPanel", "generatePanel", "registerPanel", "registerNowBtn", "historyPanel", "templateSearch", "categoryFilter", "featuredOnly",
-    "templateCollections", "templateGrid", "templateCount", "templateHint", "loadMoreBtn", "promptInput", "qualitySelect",
-    "formatSelect", "countInput", "sizeInput", "editImageInput", "editModeState", "referenceInput", "referenceList", "generateBtn",
-    "generationTimer", "historyList", "historyCount", "clearHistoryBtn", "deletedHistoryBtn",
-    "openSizeBtn", "creditCostBar", "creditCostStatus", "creditCostHint", "creditRechargeShortcut", "secondaryNav", "creditsPanel", "creditRefreshBtn", "creditUpdatedAt", "creditBalance", "openCreditsBtn", "topCreditBalance",
-    "creditStatus", "creditPackages", "creditLedger", "creditLedgerCount", "paymentStatusHint", "paymentStatusBadge", "creditOrderCount", "creditOrderList", "modalRoot",
-    "authModeRegisterBtn", "authModeLoginBtn", "registerFlowNote", "registerUsernameField", "registerUsernameInput",
-    "registerEmailInput", "registerCodeField", "registerCodeInput", "sendCodeBtn", "registerPasswordInput",
-    "registerMessage", "registerAccountName", "registerAccountMeta", "registerLogoutBtn"
+    "templateGrid", "templateCount", "templateHint", "loadMoreBtn", "promptInput", "qualitySelect",
+    "formatSelect", "countInput", "sizeInput", "editImageInput", "editModeState", "promptOptionGrid", "promptOptionHint", "promptOptionPreview", "clearPromptOptionsBtn", "referenceInput", "referenceList", "generateBtn",
+    "generationTimer", "historyList", "historyTitle", "historyCount", "clearHistoryBtn", "deletedHistoryBtn",
+    "generateSummaryTitle", "generateSummaryHint", "generateModeBadge", "generateReferenceBadge", "generatePromptBadge", "generateBalanceBadge", "generateBackToTemplatesBtn", "generateModeTags",
+    "openSizeBtn", "creditCostBar", "creditCostStatus", "creditCostHint", "creditRechargeShortcut", "secondaryNav", "creditsPanel", "creditOverviewView", "creditRechargeView", "creditOrdersView", "creditLedgerView", "creditRefreshBtn", "creditUpdatedAt", "creditBalance", "creditOverviewBuyBtn", "openCreditsBtn", "topCreditBalance",
+    "creditStatus", "creditPackages", "creditLedger", "creditLedgerCount", "paymentStatusHint", "paymentStatusBadge", "creditOrderCount", "creditOrderList", "creditRecordsPanel", "creditOrdersSection", "creditLedgerSection", "creditOrderSummaryHint", "creditLedgerSummaryHint", "modalRoot",
+    "templateCollections",
+    "authModeRegisterBtn", "authModeLoginBtn", "registerPanelEyebrow", "registerPanelTitle", "registerModeTitle", "registerFlowNote", "registerUsernameField", "registerUsernameInput",
+    "registerEmailField", "registerEmailInput", "registerCodeField", "registerCodeInput", "sendCodeBtn", "registerPasswordField", "registerPasswordInput",
+    "registerMessage", "registerAccountCard", "registerAccountName", "registerAccountMeta", "registerStartCreateBtn", "registerLogoutBtn", "siteFooterPoints"
   ]) dom[id] = document.getElementById(id);
   dom.primaryTabs = Array.from(document.querySelectorAll(".primary-tab"));
   consumeRuntimeQueryState();
   bindEvents();
   syncControls();
   renderAll();
+  void loadStudioSamples();
   loadTemplates();
   void loadPersistentHistory();
   void loadCredits();
@@ -419,55 +467,70 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function bindEvents() {
   dom.primaryTabs.forEach((tab) => tab.addEventListener("click", () => switchPrimary(tab.dataset.tab)));
-  dom.studioStartBtn.addEventListener("click", () => dom.scenePackGrid.scrollIntoView({ behavior: "smooth", block: "start" }));
+  dom.studioStartBtn.addEventListener("click", () => openStudioSection("sample"));
+  dom.openGenerationFlowBtn.addEventListener("click", () => openStudioSection("flow"));
   dom.studioNextActionBtn.addEventListener("click", handleStudioNextAction);
-  dom.openTemplateLibraryBtn.addEventListener("click", () => switchTab("templates"));
+  dom.openTemplateLibraryBtn.addEventListener("click", openStudioTemplateLibrary);
   dom.studioReferenceInput.addEventListener("change", () => addStudioReferences(dom.studioReferenceInput));
-  dom.confirmIdentityBtn.addEventListener("click", () => saveStudio({ identityStatus: "已确认" }));
+  dom.confirmIdentityBtn.addEventListener("click", handleIdentityStageAction);
   dom.studioGenerateBtn.addEventListener("click", () => useStudioSample());
   dom.templateSearch.addEventListener("input", () => {
     state.query = dom.templateSearch.value;
     state.limit = 24;
     renderTemplates();
+    renderCreateGenerateOverview();
   });
   dom.categoryFilter.addEventListener("change", () => {
     state.category = dom.categoryFilter.value;
     state.limit = 24;
-    renderTemplateCollections();
     renderTemplates();
+    renderCreateGenerateOverview();
   });
   dom.featuredOnly.addEventListener("change", () => {
     state.featuredOnly = dom.featuredOnly.checked;
     state.limit = 24;
     renderTemplates();
+    renderCreateGenerateOverview();
   });
   dom.loadMoreBtn.addEventListener("click", () => {
     state.limit += 24;
     renderTemplates();
   });
-  dom.promptInput.addEventListener("input", () => {
-    state.prompt = dom.promptInput.value;
-  });
+  dom.promptInput.addEventListener("input", () => setPromptValue(dom.promptInput.value));
   dom.qualitySelect.addEventListener("change", () => saveParams({ quality: dom.qualitySelect.value }));
   dom.formatSelect.addEventListener("change", () => saveParams({ outputFormat: dom.formatSelect.value }));
   dom.countInput.addEventListener("input", () => saveParams({ count: clamp(Number(dom.countInput.value), 1, 4) }));
   dom.editImageInput.addEventListener("change", () => void addReferences(dom.editImageInput, { replace: true, source: "edit" }));
+  dom.clearPromptOptionsBtn?.addEventListener("click", clearPromptOptions);
   dom.referenceInput.addEventListener("change", () => void addReferences(dom.referenceInput, { source: "reference" }));
   dom.generateBtn.addEventListener("click", () => void generateImage());
   dom.clearHistoryBtn.addEventListener("click", clearHistory);
   dom.deletedHistoryBtn.addEventListener("click", toggleDeletedHistory);
+  dom.generateBackToTemplatesBtn?.addEventListener("click", () => {
+    state.templateSelectionMode = "create";
+    switchTab("templates");
+  });
   dom.openSizeBtn.addEventListener("click", openSize);
   dom.authModeRegisterBtn?.addEventListener("click", () => switchAuthView("register"));
-  dom.authModeLoginBtn?.addEventListener("click", () => switchAuthView("login"));
+  dom.authModeLoginBtn?.addEventListener("click", handleAuthModeLoginAction);
   dom.registerUsernameInput?.addEventListener("input", renderRegisterPanel);
   dom.registerEmailInput?.addEventListener("input", renderRegisterPanel);
   dom.registerCodeInput?.addEventListener("input", renderRegisterPanel);
   dom.registerPasswordInput?.addEventListener("input", renderRegisterPanel);
   dom.sendCodeBtn?.addEventListener("click", () => void sendAuthCode());
   dom.registerNowBtn?.addEventListener("click", () => void submitAuth());
+  dom.registerStartCreateBtn?.addEventListener("click", goToCreateWorkspace);
   dom.registerLogoutBtn?.addEventListener("click", logoutAuth);
-  dom.creditRechargeShortcut.addEventListener("click", () => switchTab("credits"));
+  dom.creditRechargeShortcut.addEventListener("click", () => {
+    state.creditAnchor = "packages";
+    switchTab("credits");
+  });
   dom.creditRefreshBtn.addEventListener("click", () => void refreshCreditCenter(true));
+  dom.creditOverviewBuyBtn?.addEventListener("click", () => {
+    state.creditAnchor = "packages";
+    renderTabs();
+    focusCreditsAnchor("packages");
+  });
 }
 
 async function loadTemplates() {
@@ -476,17 +539,106 @@ async function loadTemplates() {
     const response = await apiFetch("/api/templates", { headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     state.templates = normalizeTemplates(await response.json());
-    renderCategories();
     renderTemplateCollections();
+    renderCategories();
     renderTemplates();
     status(`已读取 ${state.templates.length} 个模板`);
   } catch (error) {
     state.templates = [];
-    renderCategories();
     renderTemplateCollections();
+    renderCategories();
     renderTemplates(errorMessage(error));
     status("模板读取失败");
   }
+}
+
+async function loadStudioSamples() {
+  try {
+    const response = await apiFetch("/api/studio-samples", { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    state.studioSamples = normalizeStudioSamples(await response.json());
+  } catch (error) {
+    state.studioSamples = { loaded: true, total: 0, updatedAt: "", scenes: {}, sceneGroups: {}, error: errorMessage(error) };
+  }
+  renderStudio();
+}
+
+function normalizeStudioSamples(data) {
+  const source = data && typeof data === "object" ? data : {};
+  const scenes = {};
+  const sceneGroups = {};
+  let total = 0;
+  for (const scene of scenePacks) {
+    const list = Array.isArray(source.scenes?.[scene.id]) ? source.scenes[scene.id] : [];
+    const seen = new Set();
+    scenes[scene.id] = list.map((item, index) => normalizeStudioSampleAsset(scene, item, index))
+      .filter((item) => {
+        if (!item.src || seen.has(item.src)) return false;
+        seen.add(item.src);
+        return true;
+      });
+    const groups = Array.isArray(source.sceneGroups?.[scene.id]) ? source.sceneGroups[scene.id] : [];
+    sceneGroups[scene.id] = groups
+      .map((item, index) => normalizeStudioSampleGroup(scene, item, index))
+      .filter((item) => item.items.length || item.cover);
+    total += scenes[scene.id].length;
+  }
+  return {
+    loaded: true,
+    total: Number(source.total) || total,
+    updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : "",
+    scenes,
+    sceneGroups,
+    error: ""
+  };
+}
+
+function normalizeStudioSampleAsset(scene, item, index) {
+  const source = item && typeof item === "object" ? item : {};
+  const sampleId = scene.samples.some((sample) => sample.id === source.sampleId) ? source.sampleId : scene.samples[0]?.id || "";
+  const sample = scene.samples.find((entry) => entry.id === sampleId) || scene.samples[0] || null;
+  const src = String(source.src || "");
+  return {
+    id: String(source.id || `${scene.id}-asset-${index + 1}`),
+    src,
+    alt: String(source.alt || `${scene.name} · ${sample?.title || "样片"} · 样片 ${index + 1}`),
+    label: String(source.label || `样片 ${index + 1}`),
+    title: String(source.title || `${scene.name} · ${sample?.title || "样片"}`),
+    sampleId,
+    sampleTitle: sample?.title || scene.name,
+    groupId: String(source.groupId || source.group || ""),
+    groupTitle: String(source.groupTitle || source.title || ""),
+    group: String(source.group || "")
+  };
+}
+
+function normalizeStudioSampleGroup(scene, item, index) {
+  const source = item && typeof item === "object" ? item : {};
+  const sampleId = scene.samples.some((sample) => sample.id === source.sampleId) ? source.sampleId : scene.samples[0]?.id || "";
+  const sample = scene.samples.find((entry) => entry.id === sampleId) || scene.samples[0] || null;
+  const groupId = String(source.groupId || source.group || source.id || `${scene.id}-group-${index + 1}`);
+  const title = String(source.title || sample?.title || `样片组 ${index + 1}`);
+  const items = (Array.isArray(source.items) ? source.items : [])
+    .map((entry, entryIndex) => ({
+      ...normalizeStudioSampleAsset(scene, { ...entry, sampleId, groupId, groupTitle: title }, entryIndex),
+      groupId,
+      groupTitle: title
+    }))
+    .filter((entry) => entry.src);
+  const cover = String(source.cover || items[0]?.src || "");
+  return {
+    id: String(source.id || safeClientId(`group-${scene.id}-${groupId || index + 1}`)),
+    sceneId: scene.id,
+    sampleId,
+    sampleTitle: String(source.sampleTitle || sample?.title || scene.name),
+    groupId,
+    title,
+    subtitle: String(source.subtitle || `${sample?.title || scene.name} · ${items.length || 0} 张`),
+    cover,
+    coverAlt: String(source.coverAlt || `${scene.name} · ${title}`),
+    count: Number(source.count) || items.length,
+    items
+  };
 }
 
 function normalizeTemplates(data) {
@@ -512,6 +664,26 @@ function normalizeTemplates(data) {
   }).filter((item) => item.id && item.title);
 }
 
+function isStudioTemplate(item) {
+  return item.isLocal;
+}
+
+function visibleTemplates() {
+  return state.templates.filter((item) => matchesTemplateLibraryGroup(item, state.templateGroup));
+}
+
+function matchesTemplateLibraryGroup(item, groupId = "all") {
+  if (groupId === "all") return true;
+  if (groupId === "fun") return !item.isLocal;
+  if (groupId === "identity") return item.isLocal && item.category === "人像基准";
+  if (groupId === "set") return item.isLocal && item.category !== "人像基准";
+  return true;
+}
+
+function currentTemplateLibraryGroup() {
+  return templateLibraryGroups.find((group) => group.id === state.templateGroup) || templateLibraryGroups[0];
+}
+
 function templateSearchText(item) {
   return [
     item.title,
@@ -526,18 +698,25 @@ function renderAll() {
   renderStudio();
   renderTabs();
   renderRegisterPanel();
-  renderCategories();
   renderTemplateCollections();
+  renderCategories();
   renderTemplates();
+  renderPromptOptions();
   renderReferences();
   renderHistory();
   renderCredits();
+  renderCreateGenerateOverview();
 }
 
 function renderTabs() {
   const primaryTab = tabGroup(state.tab);
+  const hasSecondaryMenu = (secondaryMenus[primaryTab] || []).length > 0;
   dom.primaryTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === primaryTab));
   renderSecondaryNav(primaryTab);
+  document.body.classList.remove("register-focus");
+  if (dom.trustStrip) dom.trustStrip.hidden = state.tab !== "studio";
+  if (dom.siteFooterPoints) dom.siteFooterPoints.hidden = state.tab !== "studio";
+  dom.secondaryNav.hidden = !hasSecondaryMenu;
   dom.studioPanel.hidden = state.tab !== "studio";
   dom.templatesPanel.hidden = state.tab !== "templates";
   dom.generatePanel.hidden = state.tab !== "generate";
@@ -550,6 +729,8 @@ function renderTabs() {
   dom.registerPanel.classList.toggle("active", state.tab === "register");
   dom.historyPanel.classList.toggle("active", state.tab === "history");
   dom.creditsPanel.classList.toggle("active", state.tab === "credits");
+  if (state.tab === "studio") renderStudioSections();
+  if (state.tab === "credits") renderCreditSections();
 }
 
 function renderSecondaryNav(primaryTab) {
@@ -558,7 +739,7 @@ function renderSecondaryNav(primaryTab) {
     const active = secondaryItemActive(item);
     const attributes = item.action
       ? `data-action="${attr(item.action)}"`
-      : `data-tab="${attr(item.tab)}"${item.anchor ? ` data-anchor="${attr(item.anchor)}"` : ""}${item.historyMode ? ` data-history-mode="${attr(item.historyMode)}"` : ""}${item.authView ? ` data-auth-view="${attr(item.authView)}"` : ""}`;
+      : `data-tab="${attr(item.tab)}"${item.anchor ? ` data-anchor="${attr(item.anchor)}"` : ""}${item.createMode ? ` data-create-mode="${attr(item.createMode)}"` : ""}${item.historyMode ? ` data-history-mode="${attr(item.historyMode)}"` : ""}${item.authView ? ` data-auth-view="${attr(item.authView)}"` : ""}`;
     return `<button class="tab ${active ? "active" : ""}" ${attributes} type="button">${esc(item.label)}</button>`;
   }).join("");
   dom.secondaryNav.querySelectorAll("[data-tab]").forEach((button) => {
@@ -566,9 +747,14 @@ function renderSecondaryNav(primaryTab) {
       const tab = button.dataset.tab;
       if (tab === "history" && button.dataset.historyMode) state.historyMode = button.dataset.historyMode;
       if (tab === "studio") state.studioAnchor = button.dataset.anchor || "flow";
-      if (tab === "credits") state.creditAnchor = button.dataset.anchor || "overview";
-      if (tab === "register" && button.dataset.authView) state.authView = button.dataset.authView === "login" ? "login" : "register";
+      if (tab === "generate" && button.dataset.createMode) state.createMode = normalizeCreateMode(button.dataset.createMode);
+      if (tab === "credits") state.creditAnchor = normalizeCreditAnchor(button.dataset.anchor || "overview");
+      if (tab === "register" && button.dataset.authView) {
+        state.authView = button.dataset.authView === "login" ? "login" : "register";
+        if (state.authView === "register") state.authRegisterStep = "credentials";
+      }
       switchTab(tab);
+      if (tab === "generate" && button.dataset.createMode) applyCreateMode(button.dataset.createMode);
       if (tab === "studio") focusStudioAnchor(state.studioAnchor);
       if (tab === "credits") focusCreditsAnchor(state.creditAnchor);
     });
@@ -580,76 +766,195 @@ function secondaryItemActive(item) {
   if (item.tab !== state.tab) return false;
   if (item.historyMode) return state.historyMode === item.historyMode;
   if (item.anchor && item.tab === "studio") return state.studioAnchor === item.anchor;
-  if (item.anchor && item.tab === "credits") return state.creditAnchor === item.anchor;
+  if (item.anchor && item.tab === "credits") return normalizeCreditAnchor(state.creditAnchor) === item.anchor;
+  if (item.createMode && item.tab === "generate") return state.createMode === item.createMode;
   if (item.authView) return state.authView === item.authView;
   return true;
 }
 
 function renderStudio() {
   const scene = selectedStudioScene();
-  const sample = selectedStudioSample(scene);
-  const previewSample = currentStudioPreviewSample(scene);
+  const groups = studioSceneGroups(scene);
+  const selectedGroup = selectedStudioSampleGroup(scene, groups);
+  const selectedPhoto = selectedStudioSamplePhoto(scene, selectedGroup);
+  const sample = selectedStudioSample(scene) || sampleForStudioGroup(scene, selectedGroup);
   const identityReady = state.studio.identityStatus === "已确认";
-  const previewed = sample ? state.studio.previewedSampleKey === studioPreviewKey(scene, sample) : false;
-  renderStudioWorkOrder(scene, sample, identityReady);
+  const template = selectedStudioTemplate();
+  const templateSelected = Boolean(state.studio.templateConfirmed && template?.id);
+  const uploaded = state.studio.referenceCount >= studioRequiredReferenceCount;
+  const readyCount = [uploaded, identityReady, templateSelected].filter(Boolean).length;
+  renderStudioWorkOrder(scene, identityReady, templateSelected, template);
+  renderStudioOverview(scene, template, uploaded, identityReady);
   renderStudioHeroVisual(scene, sample);
-  dom.studioFlow.innerHTML = studioFlow.map((step, index) => studioFlowStep(step, index, scene, sample, identityReady)).join("");
+  dom.studioFlow.innerHTML = studioFlow
+    .map((step, index) => studioFlowStep(step, index, uploaded, identityReady, templateSelected))
+    .join("");
   dom.scenePackGrid.innerHTML = scenePacks.map((item) => scenePackCard(item)).join("");
   dom.scenePackGrid.querySelectorAll("[data-studio-scene]").forEach((button) => {
-    button.addEventListener("click", () => saveStudio({ selectedSceneId: button.dataset.studioScene, selectedSampleId: "", previewedSampleKey: "" }));
+    button.addEventListener("click", () => {
+      const nextSceneId = button.dataset.studioScene;
+      const sceneChanged = nextSceneId !== state.studio.selectedSceneId;
+      const nextScene = scenePacks.find((item) => item.id === nextSceneId) || selectedStudioScene();
+      const nextGroups = studioSceneGroups(nextScene);
+      const nextGroup = nextGroups[0] || null;
+      const nextPhoto = selectedStudioSamplePhoto(nextScene, nextGroup);
+      saveStudio({
+        selectedSceneId: nextSceneId,
+        selectedSampleId: sceneChanged ? nextGroup?.sampleId || "" : state.studio.selectedSampleId,
+        selectedSampleGroupId: sceneChanged ? nextGroup?.id || "" : state.studio.selectedSampleGroupId,
+        selectedSamplePhotoId: sceneChanged ? nextPhoto?.id || "" : state.studio.selectedSamplePhotoId,
+        previewedSampleKey: sceneChanged ? "" : state.studio.previewedSampleKey,
+        ...(sceneChanged ? emptyStudioTemplateSelection() : {})
+      });
+      status(`已选 ${nextScene.name}，同屏查看样片组和组内照片`);
+    });
   });
-  dom.identitySummary.textContent = `${state.studio.referenceCount || 0} 张参考照 · ${identityHelpText(state.studio.identityStatus)}`;
+  const referenceSummary = studioReferenceSummary();
+  dom.identitySummary.textContent = `${referenceSummary} · ${identityHelpText(state.studio.identityStatus)}`;
   dom.identityStatusChip.textContent = state.studio.identityStatus;
   dom.identityStatusChip.className = `status-chip ${identityReady ? "ready" : state.studio.identityStatus === "需返修" ? "danger" : "pending"}`;
+  dom.confirmIdentityBtn.textContent = identityPrimaryActionLabel();
+  dom.confirmIdentityBtn.disabled = !uploaded;
   dom.identityCheckGrid.innerHTML = identityChecks(identityReady).map((item) => `
     <button class="identity-check ${item.active ? "active" : ""}" data-identity-status="${attr(item.status)}" type="button">
       <strong>${esc(item.status)}</strong>
       <span>${esc(item.note)}</span>
     </button>`).join("");
   dom.identityCheckGrid.querySelectorAll("[data-identity-status]").forEach((button) => {
-    button.addEventListener("click", () => saveStudio({ identityStatus: button.dataset.identityStatus }));
-  });
-  dom.sampleSummary.textContent = `${scene.name} · 先看 ${scene.samples.length} 组样片，再确认方向`;
-  dom.samplePreviewPanel.innerHTML = studioSamplePreviewPanel(scene, previewSample, sample);
-  dom.samplePreviewPanel.querySelectorAll("[data-open-studio-preview]").forEach((button) => {
-    button.addEventListener("click", () => openStudioSamplePreview(scene, previewSample, Number(button.dataset.previewIndex) || 0));
-  });
-  dom.samplePreviewPanel.querySelectorAll("[data-studio-preview-select]").forEach((button) => {
     button.addEventListener("click", () => {
-      const nextId = button.dataset.studioPreviewSelect;
-      const nextSample = scene.samples.find((item) => item.id === nextId);
-      const nextKey = nextSample ? studioPreviewKey(scene, nextSample) : "";
-      saveStudio({ selectedSampleId: nextId, previewedSampleKey: state.studio.previewedSampleKey === nextKey ? nextKey : "" });
-      status(`已切到 ${nextSample?.title || scene.name}，先看样片再生成`);
+      const nextStatus = button.dataset.identityStatus;
+      if (["待生成", "待确认", "已确认"].includes(nextStatus) && !uploaded) {
+        status("三张参考照到位，身份锁定更稳");
+        return;
+      }
+      saveStudio({ identityStatus: nextStatus });
     });
   });
-  dom.sampleDirectionList.innerHTML = scene.samples.map((item) => sampleDirectionCard(scene, item, sample, previewSample)).join("");
-  dom.sampleDirectionList.querySelectorAll("[data-studio-sample]").forEach((button) => {
+  dom.sampleSummary.innerHTML = studioSampleSummary(scene, selectedGroup, selectedPhoto);
+  dom.samplePreviewPanel.innerHTML = studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto);
+  dom.samplePreviewPanel.querySelectorAll("[data-studio-sample-group]").forEach((button) => {
     button.addEventListener("click", () => {
-      const nextId = button.dataset.studioSample;
-      const nextSample = scene.samples.find((item) => item.id === nextId);
-      const nextKey = nextSample ? studioPreviewKey(scene, nextSample) : "";
-      saveStudio({ selectedSampleId: nextId, previewedSampleKey: state.studio.previewedSampleKey === nextKey ? nextKey : "" });
-      status(`已切到 ${nextSample?.title || scene.name}，可先看样片再生成`);
+      const nextGroup = groups.find((item) => item.id === button.dataset.studioSampleGroup);
+      if (!nextGroup) return;
+      const nextPhoto = studioGroupPreviewEntries(scene, nextGroup)[0] || null;
+      saveStudio({
+        selectedSampleId: nextGroup.sampleId,
+        selectedSampleGroupId: nextGroup.id,
+        selectedSamplePhotoId: nextPhoto?.id || "",
+        previewedSampleKey: studioGroupPreviewKey(scene, nextGroup)
+      });
+      status(`${nextGroup.title} 已在同屏展开`);
     });
   });
-  dom.deliverySceneCount.textContent = scene ? "1" : "0";
-  dom.deliverySampleCount.textContent = sample ? "1" : "0";
-  dom.deliveryReadyCount.textContent = identityReady && sample && previewed ? String(scene.recommendedShots.match(/\d+/)?.[0] || 0) : "0";
-  dom.studioGenerateBtn.disabled = !(identityReady && sample && previewed);
-  dom.studioGenerateBtn.textContent = identityReady && sample
-    ? previewed ? "用样片方向生成" : "先看样片再生成"
-    : "先确认底片和样片";
+  dom.samplePreviewPanel.querySelectorAll("[data-studio-sample-photo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextPhotoId = button.dataset.studioSamplePhoto;
+      const nextPhoto = studioGroupPreviewEntries(scene, selectedGroup).find((item) => item.id === nextPhotoId);
+      if (!nextPhoto || !selectedGroup) return;
+      saveStudio({
+        selectedSampleId: selectedGroup.sampleId,
+        selectedSampleGroupId: selectedGroup.id,
+        selectedSamplePhotoId: nextPhoto.id,
+        previewedSampleKey: studioGroupPreviewKey(scene, selectedGroup)
+      });
+      status(`${selectedGroup.title} · ${nextPhoto.label} 已在同屏预览`);
+    });
+  });
+  dom.sampleDirectionList.innerHTML = studioSamplePhotoGrid(scene, selectedGroup, selectedPhoto);
+  dom.sampleDirectionList.querySelectorAll("[data-studio-sample-photo]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextPhotoId = button.dataset.studioSamplePhoto;
+      const nextPhoto = studioGroupPreviewEntries(scene, selectedGroup).find((item) => item.id === nextPhotoId);
+      if (!nextPhoto || !selectedGroup) return;
+      saveStudio({
+        selectedSampleId: selectedGroup.sampleId,
+        selectedSampleGroupId: selectedGroup.id,
+        selectedSamplePhotoId: nextPhoto.id,
+        previewedSampleKey: studioGroupPreviewKey(scene, selectedGroup)
+      });
+      status(`${selectedGroup.title} · ${nextPhoto.label} 已在同屏预览`);
+    });
+  });
+  if (dom.studioTemplateSummary) {
+    dom.studioTemplateSummary.textContent = templateSelected
+      ? "模板已定，成片气质在线。"
+      : identityReady
+        ? "身份已稳，模板库开始定调。"
+        : "参考照与身份确认到位后，模板库定调。";
+  }
+  if (dom.studioTemplateStatusChip) {
+    dom.studioTemplateStatusChip.textContent = templateSelected ? "已选择" : "待选择";
+    dom.studioTemplateStatusChip.className = `status-chip ${templateSelected ? "ready" : "pending"}`;
+  }
+  if (dom.studioTemplateName) dom.studioTemplateName.textContent = templateSelected ? template.title : "模板待选";
+  if (dom.studioTemplateMeta) {
+    dom.studioTemplateMeta.textContent = templateSelected
+      ? `${template.category || scene.name} · 风格已定`
+      : identityReady
+        ? `${studioSceneTemplateLabels[scene.id] || scene.name} 大片更好定调`
+        : "风格一定，出片更稳";
+  }
+  if (dom.openTemplateLibraryBtn) {
+    dom.openTemplateLibraryBtn.disabled = !identityReady;
+    dom.openTemplateLibraryBtn.textContent = templateSelected ? "重新定调" : identityReady ? "进入模板库" : "确认像本人";
+  }
+  dom.deliverySceneCount.textContent = String(state.studio.referenceCount || 0);
+  dom.deliverySampleCount.textContent = templateSelected ? "1" : "0";
+  dom.deliveryReadyCount.textContent = String(readyCount);
+  dom.studioGenerateBtn.disabled = !(uploaded && identityReady && templateSelected);
+  dom.studioGenerateBtn.textContent = uploaded && identityReady
+    ? templateSelected ? "开拍成片" : "模板定调"
+    : !uploaded
+      ? "上传参考照"
+      : "确认像本人";
+  renderStudioSections();
 }
 
-function renderStudioWorkOrder(scene, sample, identityReady) {
+function renderStudioWorkOrder(scene, identityReady, templateSelected, template) {
   if (!dom.studioCurrentStep) return;
-  const action = studioNextAction(scene, sample, identityReady);
+  const action = studioNextAction(scene, identityReady);
+  if (dom.studioWorkOrderEyebrow) dom.studioWorkOrderEyebrow.textContent = action.section;
   dom.studioCurrentStep.textContent = action.title;
-  dom.studioCurrentScene.textContent = `场景：${scene.name} · ${scene.recommendedShots}`;
-  dom.studioCurrentSample.textContent = `样片：${sample ? sample.title : "待选择"}`;
-  dom.studioCurrentCredits.textContent = `积分：${formatCredits(state.credits.balance)} 可用`;
+  if (dom.studioActionHint) dom.studioActionHint.textContent = action.hint;
+  dom.studioCurrentScene.textContent = `方向：${scene.name} · ${scene.recommendedShots}`;
+  dom.studioCurrentSample.textContent = `参考照：${state.studio.referenceCount || 0}/${studioRequiredReferenceCount} · 身份确认：${identityReady ? "已确认" : state.studio.identityStatus} · 模板：${templateSelected ? template?.title || "已选择" : "待选择"}`;
+  dom.studioCurrentCredits.textContent = `余额：${formatCredits(state.credits.balance)}`;
   dom.studioNextActionBtn.textContent = action.label;
+}
+
+function renderStudioOverview(scene, template, uploaded, identityReady) {
+  const templateSelected = Boolean(state.studio.templateConfirmed && template?.id);
+  if (dom.studioSummaryScene) dom.studioSummaryScene.textContent = `${state.studio.referenceCount || 0}/${studioRequiredReferenceCount} 张`;
+  if (dom.studioSummaryIdentity) dom.studioSummaryIdentity.textContent = identityReady ? "已确认" : state.studio.identityStatus;
+  if (dom.studioSummarySample) dom.studioSummarySample.textContent = templateSelected ? template.title : "待选择";
+  if (dom.studioSummaryDelivery) dom.studioSummaryDelivery.textContent = uploaded && identityReady && templateSelected ? "可开拍" : "待就绪";
+}
+
+function openStudioTemplateLibrary() {
+  const scene = selectedStudioScene();
+  const identityReady = state.studio.identityStatus === "已确认";
+  const uploaded = (state.studio.referenceCount || 0) >= studioRequiredReferenceCount;
+  if (!uploaded) {
+    openStudioSection("identity");
+    status("三张参考照到位后，模板库为你定调");
+    return;
+  }
+  if (!identityReady) {
+    openStudioSection("identity");
+    status("身份确认完成，风格更稳");
+    return;
+  }
+  state.templateSelectionMode = "studio";
+  state.templateGroup = "set";
+  state.query = "";
+  state.featuredOnly = false;
+  state.limit = 24;
+  state.category = studioSceneTemplateLabels[scene.id] || "all";
+  switchTab("templates");
+  renderTemplateCollections();
+  renderCategories();
+  renderTemplates();
+  status(`${scene.name} 模板库已打开`);
 }
 
 function renderStudioHeroVisual(scene, sample) {
@@ -658,8 +963,8 @@ function renderStudioHeroVisual(scene, sample) {
   if (dom.studioHeroVisualEyebrow) dom.studioHeroVisualEyebrow.textContent = `${scene.name} · ${scene.audience}`;
   if (dom.studioHeroVisualTitle) {
     dom.studioHeroVisualTitle.textContent = activeSample
-      ? `先看 ${activeSample.title} 样片，再决定是否批量成片`
-      : `先看 ${scene.name} 样片，再决定方向`;
+      ? `${activeSample.title} 样片集，风格一眼看准`
+      : `${scene.name} 样片集，效果一眼看准`;
   }
   if (dom.studioHeroVisualChip) dom.studioHeroVisualChip.textContent = scene.status === "优先" ? "优先套餐" : "可立即开拍";
   if (dom.studioHeroGallery) {
@@ -673,8 +978,8 @@ function renderStudioHeroVisual(scene, sample) {
 
 function studioHeroGalleryMarkup(scene, sample, previews) {
   const main = previews[0] || fallbackStudioPreviewEntry(scene, sample, "样片封面");
-  const sideA = previews[1] || fallbackStudioPreviewEntry(scene, sample, "互动方向");
-  const sideB = previews[2] || fallbackStudioPreviewEntry(scene, sample, "细节方向");
+  const sideA = previews[1] || fallbackStudioPreviewEntry(scene, sample, "互动样片");
+  const sideB = previews[2] || fallbackStudioPreviewEntry(scene, sample, "细节样片");
   return `
     <button class="studio-hero-shot main" data-open-studio-hero-preview data-preview-index="0" type="button">
       <img src="${attr(main.src)}" alt="${attr(main.alt)}" />
@@ -693,9 +998,9 @@ function studioHeroGalleryMarkup(scene, sample, previews) {
       <strong>${esc(scene.recommendedShots)}</strong>
       <p>${esc(scene.audience)}</p>
       <div class="studio-hero-gallery-tags">
-        <span>先样片后成片</span>
-        <span>3 个方向确认</span>
-        <span>${esc(sample?.title || "当前推荐")}</span>
+        <span>样片集</span>
+        <span>参考方向</span>
+        <span>${esc(sample?.title || "今日推荐")}</span>
       </div>
     </article>`;
 }
@@ -719,76 +1024,191 @@ function fallbackStudioPreviewEntry(scene, sample, label) {
   };
 }
 
-function studioNextAction(scene, sample, identityReady) {
-  const previewed = sample ? state.studio.previewedSampleKey === studioPreviewKey(scene, sample) : false;
-  if (!identityReady && state.studio.identityStatus === "需返修") {
-    return { key: "upload", title: "底片需返修，重新上传参考照", label: "重新上传" };
+function studioNextAction(scene, identityReady) {
+  const templateSelected = Boolean(state.studio.templateConfirmed && state.studio.selectedTemplateId);
+  if (state.studio.identityStatus === "需返修") {
+    return {
+      key: "upload",
+      section: "身份重修",
+      title: "重新锁定身份",
+      label: "重传参考照",
+      hint: "身份更稳，成片更高级。"
+    };
   }
-  if (!identityReady && !state.studio.referenceCount) {
-    return { key: "upload", title: "上传参考照，建立数字底片", label: "上传参考照" };
+  if ((state.studio.referenceCount || 0) < studioRequiredReferenceCount) {
+    return {
+      key: "upload",
+      section: "身份锁定",
+      title: "传三张图",
+      label: "上传参考照",
+      hint: `${studioRequiredReferenceCount} 张参考照一到位，像本人更稳。`
+    };
+  }
+  if (state.studio.identityStatus === "待生成") {
+    return {
+      key: "threeview",
+      section: "身份锁定",
+      title: "确认像本人",
+      label: "确认身份",
+      hint: "像本人，成片才有底气。"
+    };
   }
   if (!identityReady) {
-    return { key: "identity", title: "确认数字底片是否像本人", label: "确认底片" };
+    return {
+      key: "identity",
+      section: "身份定稿",
+      title: "确认像本人",
+      label: "确认像本人",
+      hint: "像本人，才是出片底气。"
+    };
   }
-  if (!sample) {
-    return { key: "sample", title: `选择 ${scene.name} 的样片方向`, label: "选样片" };
+  if (!templateSelected) {
+    return {
+      key: "template",
+      section: "风格定调",
+      title: "选模板",
+      label: "进入模板库",
+      hint: "模板一定，整组更出片。"
+    };
   }
-  if (!previewed) {
-    return { key: "preview", title: `${scene.name} · ${sample.title} 先看样片`, label: "看样片" };
-  }
-  return { key: "generate", title: `${scene.name} · ${sample.title} 可继续生成`, label: "去生成" };
+  return {
+    key: "generate",
+    section: "成片开拍",
+    title: `生成 ${scene.name}`,
+    label: "开拍成片",
+    hint: "身份、风格、模板齐备，成片感拉满。"
+  };
 }
 
 function handleStudioNextAction() {
   const scene = selectedStudioScene();
-  const sample = selectedStudioSample(scene);
-  const action = studioNextAction(scene, sample, state.studio.identityStatus === "已确认");
+  const action = studioNextAction(scene, state.studio.identityStatus === "已确认");
   if (action.key === "upload") {
+    openStudioSection("identity");
     dom.studioReferenceInput.click();
     return;
   }
+  if (action.key === "threeview") {
+    openStudioSection("identity");
+    status("身份确认后，风格更稳");
+    return;
+  }
   if (action.key === "identity") {
+    openStudioSection("identity");
+    status("把像本人这件事定下来");
+    return;
+  }
+  if (action.key === "template") {
+    openStudioSection("packages");
+    status("模板定调，成片更稳");
+    return;
+  }
+  openStudioSection("delivery");
+  status("成片生成已就绪");
+}
+
+function handleIdentityStageAction() {
+  const current = state.studio.identityStatus;
+  const uploaded = (state.studio.referenceCount || 0) >= studioRequiredReferenceCount;
+  if (!uploaded) {
+    dom.studioReferenceInput.click();
+    status(`${studioRequiredReferenceCount} 张参考照，身份更稳`);
+    return;
+  }
+  if (current === "待上传") {
+    saveStudio({ identityStatus: "待生成" });
+    status("参考照已齐，准备确认身份");
+    return;
+  }
+  if (current === "待生成") {
+    saveStudio({ identityStatus: "待确认" });
+    status("身份已起版，准备定稿");
+    return;
+  }
+  if (current === "待确认") {
     saveStudio({ identityStatus: "已确认" });
-    status(sample ? "数字底片已确认，可先看样片再生成" : "数字底片已确认，下一步选择样片方向");
+    status("身份已锁定，风格开始定调");
     return;
   }
-  if (action.key === "sample") {
-    document.getElementById("sampleCard")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    status("请选择一个样片方向");
+  if (current === "需返修") {
+    saveStudio({ identityStatus: "待上传", referenceCount: 0 });
+    dom.studioReferenceInput.click();
+    status("重新上传参考照，身份更稳");
     return;
   }
-  if (action.key === "preview") {
-    openStudioSamplePreview(scene, sample);
-    status(`正在查看 ${sample?.title || scene.name} 样片`);
-    return;
+  status("身份已定稿，模板库已就绪");
+}
+
+function renderStudioSections() {
+  const anchor = state.studioAnchor || "sample";
+  const stageMap = {
+    packages: dom.studioPackagesSection,
+    identity: dom.studioIdentitySection,
+    sample: dom.studioSampleSection,
+    delivery: dom.studioDeliverySection
+  };
+  const isFlow = anchor === "flow";
+  if (dom.studioCommand) dom.studioCommand.hidden = !isFlow;
+  if (dom.studioCommand) dom.studioCommand.dataset.view = isFlow ? "flow" : "stage";
+  if (dom.studioSceneRail) dom.studioSceneRail.hidden = true;
+  if (dom.studioStageList) dom.studioStageList.hidden = isFlow;
+  for (const [key, section] of Object.entries(stageMap)) {
+    if (!section) continue;
+    section.hidden = isFlow ? true : key !== anchor;
   }
-  useStudioSample();
+}
+
+function openStudioSection(anchor) {
+  state.studioAnchor = anchor;
+  switchTab("studio");
+  focusStudioAnchor(anchor);
 }
 
 function focusStudioAnchor(anchor) {
   const target = {
-    flow: dom.studioFlow,
-    packages: dom.scenePackGrid,
-    identity: document.getElementById("identityCard"),
-    sample: document.getElementById("sampleCard"),
-    delivery: document.getElementById("deliveryCard")
+    flow: dom.studioCommand,
+    packages: dom.studioPackagesSection,
+    identity: dom.studioIdentitySection,
+    sample: dom.studioSampleSection,
+    delivery: dom.studioDeliverySection
   }[anchor] || dom.studioFlow;
   target?.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-function focusCreditsAnchor(anchor) {
-  const target = {
-    overview: document.getElementById("creditBalance"),
-    packages: document.getElementById("creditPackages"),
-    orders: document.getElementById("creditOrderList"),
-    ledger: document.getElementById("creditLedger")
-  }[anchor] || document.getElementById("creditBalance");
-  target?.scrollIntoView({ behavior: "smooth", block: "center" });
+function normalizeCreditAnchor(anchor) {
+  return ["packages", "orders", "records"].includes(anchor) ? "packages" : "overview";
 }
 
-function studioFlowStep(step, index, scene, sample, identityReady) {
-  const previewed = sample ? state.studio.previewedSampleKey === studioPreviewKey(scene, sample) : false;
-  const activeIndex = previewed && identityReady ? 3 : identityReady ? 2 : scene ? 1 : 0;
+function focusCreditsAnchor(anchor) {
+  const normalizedAnchor = normalizeCreditAnchor(anchor);
+  const target = {
+    overview: dom.creditOverviewView,
+    packages: dom.creditRechargeView,
+    records: dom.creditRechargeView,
+    orders: dom.creditRechargeView,
+    ledger: dom.creditOverviewView
+  }[normalizedAnchor] || dom.creditOverviewView;
+  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function renderCreditSections() {
+  const anchor = normalizeCreditAnchor(state.creditAnchor);
+  state.creditAnchor = anchor;
+  const sections = {
+    overview: dom.creditOverviewView,
+    packages: dom.creditRechargeView
+  };
+  for (const [key, section] of Object.entries(sections)) {
+    if (!section) continue;
+    section.hidden = key !== anchor;
+  }
+  if (dom.creditsPanel) dom.creditsPanel.dataset.view = anchor;
+}
+
+function studioFlowStep(step, index, uploaded, identityReady, templateSelected) {
+  const checkpoints = [uploaded, identityReady, Boolean(templateSelected)];
+  let activeIndex = checkpoints.findIndex((item) => !item);
+  if (activeIndex === -1) activeIndex = 3;
   const complete = index < activeIndex;
   const active = index === activeIndex;
   return `
@@ -801,8 +1221,11 @@ function studioFlowStep(step, index, scene, sample, identityReady) {
 function scenePackCard(scene) {
   const selected = scene.id === state.studio.selectedSceneId;
   const cover = scenePackPreview(scene);
+  const groups = studioSceneGroups(scene);
+  const groupCount = groups.length;
+  const galleryCount = studioSceneGalleryEntries(scene).length;
   const tags = scene.samples.slice(0, 2).map((item) => `<span>${esc(item.title)}</span>`).join("");
-  const extra = scene.samples.length > 2 ? `<span>+${scene.samples.length - 2} 个方向</span>` : "";
+  const extra = groupCount > 2 ? `<span>+${Math.max(0, groupCount - 2)} 组样片</span>` : "";
   return `
     <article class="scene-pack-card ${selected ? "selected" : ""}">
       <div class="scene-pack-cover">
@@ -821,9 +1244,9 @@ function scenePackCard(scene) {
       <div class="scene-pack-tags">${tags}${extra}</div>
       <div class="scene-pack-meta">
         <span>${esc(scene.recommendedShots)}</span>
-        <span>${scene.samples.length} 个样片方向</span>
+        <span>${groupCount} 组 / ${galleryCount} 张</span>
       </div>
-      <button class="${selected ? "primary-btn" : "ghost-btn"} small" data-studio-scene="${attr(scene.id)}" type="button">${selected ? "当前套餐" : "选择套餐"}</button>
+      <button class="${selected ? "primary-btn" : "ghost-btn"} small" data-studio-scene="${attr(scene.id)}" type="button" aria-pressed="${selected ? "true" : "false"}">${selected ? "已选场景" : "选择场景"}</button>
     </article>`;
 }
 
@@ -831,26 +1254,85 @@ function sampleDirectionCard(scene, sample, selectedSample, previewSample) {
   const selected = sample.id === selectedSample?.id;
   const previewing = sample.id === previewSample?.id;
   const thumb = sampleDirectionPreview(scene, sample);
+  const count = studioSamplePreviewEntries(scene, sample).length;
   return `
     <article class="sample-direction-card ${selected ? "selected" : ""} ${previewing ? "previewing" : ""}">
       <img class="sample-direction-cover" src="${attr(thumb.src)}" alt="${attr(thumb.alt)}" loading="lazy" />
       <div class="sample-direction-copy">
         <strong>${esc(sample.title)}</strong>
         <span>${esc(sample.tags)}</span>
+        <p>${count > 3 ? `${count} 张可看，点开看大图` : "点一下直接看大图样片"}</p>
+        <button class="${selected ? "primary-btn" : "ghost-btn"} small" data-studio-sample="${attr(sample.id)}" type="button">看大图</button>
       </div>
-      <button class="${selected ? "primary-btn" : "ghost-btn"} small" data-studio-sample="${attr(sample.id)}" type="button">${selected ? "当前方向" : "查看方向"}</button>
     </article>`;
 }
 
 function scenePackPreview(scene) {
   const sample = scene.samples[0] || null;
-  const previews = sample ? studioSamplePreviewEntries(scene, sample) : [];
+  const previews = studioSceneGalleryEntries(scene);
   return previews[1] || previews[0] || fallbackStudioPreviewEntry(scene, sample, "场景预览");
 }
 
 function sampleDirectionPreview(scene, sample) {
   const previews = studioSamplePreviewEntries(scene, sample);
-  return previews[1] || previews[0] || fallbackStudioPreviewEntry(scene, sample, "方向预览");
+  return previews[1] || previews[0] || fallbackStudioPreviewEntry(scene, sample, "样片预览");
+}
+
+function studioSceneGroups(scene) {
+  const groups = Array.isArray(state.studioSamples.sceneGroups?.[scene.id]) ? state.studioSamples.sceneGroups[scene.id] : [];
+  if (groups.length) return groups;
+  return studioStaticSampleGroups(scene);
+}
+
+function studioStaticSampleGroups(scene) {
+  return scene.samples.map((sample, index) => {
+    const items = studioStaticSamplePreviewEntries(scene, sample).map((entry, entryIndex) => ({
+      ...entry,
+      id: entry.id || `${scene.id}-${sample.id}-static-${entryIndex + 1}`,
+      groupId: `${scene.id}-${sample.id}`,
+      groupTitle: sample.title
+    }));
+    const cover = items[0] || fallbackStudioPreviewEntry(scene, sample, "样片组");
+    return {
+      id: `${scene.id}-${sample.id}`,
+      sceneId: scene.id,
+      sampleId: sample.id,
+      sampleTitle: sample.title,
+      groupId: `${scene.id}-${sample.id}`,
+      title: sample.title,
+      subtitle: `${sample.tags} · ${items.length} 张`,
+      cover: cover.src,
+      coverAlt: cover.alt,
+      count: items.length,
+      items
+    };
+  });
+}
+
+function selectedStudioSampleGroup(scene = selectedStudioScene(), groups = studioSceneGroups(scene)) {
+  return groups.find((item) => item.id === state.studio.selectedSampleGroupId || item.groupId === state.studio.selectedSampleGroupId)
+    || groups[0]
+    || null;
+}
+
+function selectedStudioSamplePhoto(scene = selectedStudioScene(), group = selectedStudioSampleGroup(scene)) {
+  const entries = studioGroupPreviewEntries(scene, group);
+  return entries.find((item) => item.id === state.studio.selectedSamplePhotoId)
+    || entries[0]
+    || null;
+}
+
+function sampleForStudioGroup(scene, group) {
+  if (!group) return scene.samples[0] || null;
+  return scene.samples.find((item) => item.id === group.sampleId) || scene.samples[0] || null;
+}
+
+function studioGroupPreviewEntries(_scene, group) {
+  return group?.items?.length ? group.items : [];
+}
+
+function studioGroupPreviewKey(scene, group) {
+  return group ? `${scene.id}:${group.id}` : "";
 }
 
 function currentStudioPreviewSample(scene = selectedStudioScene()) {
@@ -861,46 +1343,245 @@ function studioPreviewKey(scene, sample) {
   return sample ? `${scene.id}:${sample.id}` : "";
 }
 
-function studioSamplePreviewPanel(scene, previewSample, selectedSample) {
-  if (!previewSample) return `<div class="empty-inline">当前场景暂无样片预览</div>`;
-  const previews = studioSamplePreviewEntries(scene, previewSample);
-  const lead = previews[0];
-  const selected = previewSample.id === selectedSample?.id;
+function sampleDecisionKey(scene, sample) {
+  return studioPreviewKey(scene, sample);
+}
+
+function studioSampleDecision(scene, sample) {
+  const key = sampleDecisionKey(scene, sample);
+  const source = state.studio.sampleDecisions?.[key] || {};
+  const statusValue = sampleStatusLabels.includes(source.status) ? source.status : "待查看";
+  return {
+    status: statusValue,
+    note: typeof source.note === "string" ? source.note : "",
+    updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : ""
+  };
+}
+
+function studioSampleSummary(scene, selectedGroup, selectedPhoto) {
+  const groups = studioSceneGroups(scene);
+  const count = studioSceneGalleryEntries(scene).length;
+  const selectedText = selectedGroup
+    ? `${scene.name} · ${groups.length} 组 / ${count} 张 · 当前 ${selectedGroup.title}${selectedPhoto ? ` / ${selectedPhoto.label}` : ""}`
+    : `${scene.name} · 已选场景，先看样片组，再看组内照片`;
   return `
-    <div class="sample-preview-head">
+    <span>${esc(selectedText)}</span>
+  `;
+}
+
+function sampleStatusSummary(scene) {
+  return scene.samples.reduce((summary, sample) => {
+    const statusValue = studioSampleDecision(scene, sample).status;
+    if (statusValue === "待查看") summary.pending += 1;
+    if (statusValue === "已入围") summary.shortlisted += 1;
+    if (statusValue === "待重生") summary.regen += 1;
+    if (statusValue === "已转正") summary.promoted += 1;
+    return summary;
+  }, { pending: 0, shortlisted: 0, regen: 0, promoted: 0 });
+}
+
+function sampleActionOptions(statusValue) {
+  const options = [
+    { status: "已入围", label: "入围" },
+    { status: "已淘汰", label: "淘汰" },
+    { status: "待重生", label: "需重生" },
+    { status: "已转正", label: "转正记录" }
+  ];
+  return options.filter((item) => item.status !== statusValue);
+}
+
+function updateSampleDecision(scene, sample, statusValue) {
+  if (!sampleStatusLabels.includes(statusValue)) return;
+  saveStudio({
+    sampleDecisions: nextSampleDecisions(scene, sample, statusValue),
+    selectedSampleId: sample.id
+  });
+  status(`${scene.name} · ${sample.title} 已标记为${statusValue}`);
+}
+
+function nextSampleDecisions(scene, sample, statusValue) {
+  const key = sampleDecisionKey(scene, sample);
+  return {
+    ...(state.studio.sampleDecisions || {}),
+    [key]: {
+      status: statusValue,
+      note: sampleStatusNote(statusValue),
+      updatedAt: new Date().toISOString()
+    }
+  };
+}
+
+function sampleStatusNote(statusValue) {
+  return {
+    "已查看": "样片已打开，风格已看过",
+    "已入围": "进入优选名单，放大审美点",
+    "已淘汰": "不进入正式交付，直接划走",
+    "待重生": "这一版不够稳，重来更合适",
+    "已转正": "仅记录转正意向，正式文件仍以成片交付为准"
+  }[statusValue] || "已记录样片状态";
+}
+
+function sampleDecisionSummary(decision) {
+  if (decision.note) return decision.note;
+  return decision.status === "待查看"
+    ? "样片待看，方向待定"
+    : "已看过，直接定调即可";
+}
+
+function samplePreviewHint(selected, statusValue) {
+  if (statusValue === "已转正") return "转正意向已记，正式交付仍以成片交付为准";
+  if (statusValue === "待重生") return "这一版不够稳，重生更合适";
+  if (statusValue === "已入围") return "已进优选名单，放大风格点";
+  if (statusValue === "已淘汰") return "已划走，不进正式交付";
+  return selected ? "当前参考已选定" : "风格看准，方向定稳";
+}
+
+function sampleStatusClass(statusValue) {
+  if (statusValue === "已入围" || statusValue === "已转正") return "ready";
+  if (statusValue === "已淘汰" || statusValue === "待重生") return "danger";
+  return "pending";
+}
+
+function studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto) {
+  if (!groups.length) return `<div class="empty-inline">本场景暂无样片组</div>`;
+  const photoCount = groups.reduce((sum, item) => sum + studioGroupPreviewEntries(scene, item).length, 0);
+  const activePhoto = selectedPhoto || studioGroupPreviewEntries(scene, selectedGroup)[0] || null;
+  const activeSample = sampleForStudioGroup(scene, selectedGroup);
+  const loadingCopy = state.studioSamples.loaded ? `${groups.length} 组 / ${photoCount} 张` : "正在读取全部样片";
+  return `
+    <div class="sample-preview-head sample-gallery-head sample-one-screen-head">
       <div>
-        <strong>${esc(previewSample.title)} 样片预览</strong>
-        <span>${esc(selected ? "当前方向已选，可先看样片再生成" : "先看样片，再决定是否切到这个方向")}</span>
+        <strong>${esc(scene.name)} 样片组</strong>
+        <span>${esc(`${loadingCopy} · 点组切换，点照片同屏预览`)}</span>
       </div>
-      ${selected ? `<span class="sample-preview-chip">当前方向</span>` : `<button class="ghost-btn small" data-studio-preview-select="${attr(previewSample.id)}" type="button">设为当前方向</button>`}
+      <div class="sample-preview-head-actions">
+        <span class="sample-preview-chip">${esc(selectedGroup?.title || "待选样片组")}</span>
+      </div>
     </div>
-    <button class="sample-preview-stage" data-open-studio-preview data-preview-index="0" type="button" aria-label="打开样片预览">
-      <img src="${attr(lead.src)}" alt="${attr(lead.alt)}" />
-      <span>点击查看大图样片</span>
-    </button>
-    <div class="sample-preview-thumbs">
-      ${previews.map((item, index) => `
-        <button class="sample-preview-thumb ${index === 0 ? "active" : ""}" data-open-studio-preview data-preview-index="${index}" type="button" aria-label="查看第 ${index + 1} 张样片">
-          <img src="${attr(item.src)}" alt="${attr(item.alt)}" />
-          <strong>${esc(item.label)}</strong>
-        </button>`).join("")}
+    <div class="sample-one-screen-layout">
+      <div class="sample-group-grid" data-sample-group-count="${groups.length}">
+        ${groups.map((item) => studioSampleGroupCard(item, selectedGroup)).join("")}
+      </div>
+      <aside class="sample-group-detail">
+        <div class="sample-group-stage">
+          ${activePhoto ? `<img src="${attr(activePhoto.src)}" alt="${attr(activePhoto.alt)}" />` : ""}
+          <span>${esc(activePhoto ? `${selectedGroup?.title || scene.name} · ${activePhoto.label}` : "选择左侧样片组")}</span>
+        </div>
+        <div class="sample-group-copy">
+          <strong>${esc(selectedGroup?.title || scene.name)}</strong>
+          <p>${esc(selectedGroup?.subtitle || "同一屏完成选组和看片")}</p>
+          <div>
+            <span>${esc(activeSample?.title || scene.name)}</span>
+            <span>${studioGroupPreviewEntries(scene, selectedGroup).length} 张</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <div class="sample-preview-meta">
+      <span>不跳弹窗，不换页面；当前组照片就在下方。</span>
+      <strong>一屏完成查看</strong>
     </div>
   `;
 }
 
+function studioSampleGroupCard(group, selectedGroup) {
+  const selected = group?.id === selectedGroup?.id;
+  return `
+    <button class="sample-group-card ${selected ? "selected" : ""}" data-studio-sample-group="${attr(group.id)}" type="button" aria-pressed="${selected ? "true" : "false"}">
+      <img src="${attr(group.cover)}" alt="${attr(group.coverAlt || group.title)}" loading="lazy" />
+      <span>${esc(group.sampleTitle || "样片组")}</span>
+      <strong>${esc(group.title)}</strong>
+      <em>${esc(group.subtitle || `${group.count || 0} 张`)}</em>
+    </button>`;
+}
+
+function studioSamplePhotoGrid(scene, group, selectedPhoto) {
+  const entries = studioGroupPreviewEntries(scene, group);
+  if (!entries.length) return `<div class="empty-inline">这一组还没有照片</div>`;
+  return `
+    <div class="sample-photo-grid" data-gallery-count="${entries.length}">
+      ${entries.map((item, index) => studioSamplePhotoCard(item, selectedPhoto, index)).join("")}
+    </div>`;
+}
+
+function studioSamplePhotoCard(item, selectedPhoto, index) {
+  const selected = item.id === selectedPhoto?.id;
+  return `
+    <button class="sample-photo-card ${selected ? "selected" : ""}" data-studio-gallery-item data-studio-sample-photo="${attr(item.id)}" type="button" aria-label="同屏查看第 ${index + 1} 张样片">
+      <img src="${attr(item.src)}" alt="${attr(item.alt)}" loading="lazy" />
+      <span>${esc(item.groupTitle || item.sampleTitle || "样片")}</span>
+      <strong>${esc(item.label || `第 ${index + 1} 张`)}</strong>
+    </button>`;
+}
+
+function studioSampleDisplayEntries(scene, sample) {
+  const entries = studioSamplePreviewEntries(scene, sample);
+  const [contactSheets, samplePhotos] = entries.reduce((groups, item) => {
+    const isContactSheet = String(item.src || "").includes("/contact_sheets/");
+    groups[isContactSheet ? 0 : 1].push(item);
+    return groups;
+  }, [[], []]);
+  return [...samplePhotos, ...contactSheets];
+}
+
 function studioSamplePreviewEntries(scene, sample) {
+  const fromCatalog = studioSampleAssetEntries(scene, sample);
+  if (fromCatalog.length) return fromCatalog;
+  return studioStaticSamplePreviewEntries(scene, sample);
+}
+
+function studioSceneGalleryEntries(scene, activeSample = null) {
+  const groups = studioSceneGroups(scene);
+  const merged = [];
+  for (const group of groups) {
+    for (const entry of studioGroupPreviewEntries(scene, group)) {
+      if (merged.some((item) => item.src === entry.src)) continue;
+      merged.push({ ...entry, sampleId: group.sampleId, sampleTitle: group.sampleTitle, groupId: group.groupId, groupTitle: group.title });
+    }
+  }
+  if (!activeSample) return merged;
+  return [
+    ...merged.filter((item) => item.sampleId === activeSample.id),
+    ...merged.filter((item) => item.sampleId !== activeSample.id)
+  ];
+}
+
+function studioSampleAssetEntries(scene, sample) {
+  const entries = Array.isArray(state.studioSamples.scenes?.[scene.id]) ? state.studioSamples.scenes[scene.id] : [];
+  return entries
+    .filter((item) => item.sampleId === sample.id)
+    .map((item, index) => normalizeStudioGalleryEntry(scene, item, index, sample));
+}
+
+function normalizeStudioGalleryEntry(scene, item, index, sampleOverride = null) {
+  const sample = sampleOverride || scene.samples.find((entry) => entry.id === item.sampleId) || scene.samples[0] || null;
+  return {
+    ...item,
+    id: item.id || `${scene.id}-gallery-${index + 1}`,
+    alt: item.alt || `${scene.name} · ${sample?.title || "样片"} · 样片 ${index + 1}`,
+    label: item.label || `样片 ${index + 1}`,
+    sampleId: sample?.id || item.sampleId || "",
+    sampleTitle: sample?.title || item.sampleTitle || scene.name
+  };
+}
+
+function studioStaticSamplePreviewEntries(scene, sample) {
   const fromAssets = (studioSamplePreviewSets[scene.id]?.[sample.id] || []).map((src, index) => ({
     id: `${scene.id}-${sample.id}-${index + 1}`,
     src,
     alt: `${scene.name} · ${sample.title} · 样片 ${index + 1}`,
-    label: ["封面", "互动", "细节"][index] || `样片 ${index + 1}`
+    label: ["封面", "互动", "细节"][index] || `样片 ${index + 1}`,
+    sampleId: sample.id,
+    sampleTitle: sample.title
   }));
   const fromTemplates = matchStudioPreviewTemplates(scene, sample, fromAssets.length)
     .map((item, index) => ({
       id: `tpl-${item.id}`,
       src: templateRemoteImage(item.imageUrl) || templateFallbackImage(item),
       alt: `${scene.name} · ${item.title}`,
-      label: item.title.replace(/^[^-\s]+(?:\s*-\s*)?/, "").slice(0, 12) || `方向 ${index + 1}`
+      label: item.title.replace(/^[^-\s]+(?:\s*-\s*)?/, "").slice(0, 12) || `样片 ${index + 1}`,
+      sampleId: sample.id,
+      sampleTitle: sample.title
     }));
   const merged = [];
   for (const item of [...fromAssets, ...fromTemplates]) {
@@ -913,8 +1594,10 @@ function studioSamplePreviewEntries(scene, sample) {
     merged.push({
       id: `fallback-${scene.id}-${sample.id}-${index}`,
       src: templateFallbackImage({ category: scene.name, title: `${sample.title} 样片 ${index}`, description: sample.tags }),
-      alt: `${scene.name} · ${sample.title} · 方向样片 ${index}`,
-      label: `方向 ${index}`
+      alt: `${scene.name} · ${sample.title} · 样片 ${index}`,
+      label: `样片 ${index}`,
+      sampleId: sample.id,
+      sampleTitle: sample.title
     });
   }
   return merged;
@@ -952,92 +1635,74 @@ function studioPreviewScore(item, label, terms) {
   return score;
 }
 
-function openStudioSamplePreview(scene = selectedStudioScene(), sample = currentStudioPreviewSample(scene), activeIndex = 0) {
+function openStudioSamplePreview(scene = selectedStudioScene(), sample = currentStudioPreviewSample(scene), activeIndex = 0, entriesOverride = null) {
   if (!sample) return;
-  const previews = studioSamplePreviewEntries(scene, sample);
+  const previews = Array.isArray(entriesOverride) && entriesOverride.length ? entriesOverride : studioSamplePreviewEntries(scene, sample);
   const safeIndex = clamp(Number(activeIndex) || 0, 0, previews.length - 1);
   const current = previews[safeIndex];
-  saveStudio({ previewedSampleKey: studioPreviewKey(scene, sample) });
-  openModal(`
-    <section class="modal-card image-preview-modal studio-sample-modal">
-      <div class="section-head compact">
-        <div><h2>${esc(sample.title)} 样片</h2><p>${esc(scene.name)} · ${esc(sample.tags)}</p></div>
-        <button class="icon-btn" data-close-modal type="button">×</button>
-      </div>
-      <div class="image-preview-frame studio-sample-frame"><img id="studioSampleModalImage" src="${attr(current.src)}" alt="${attr(current.alt)}" /></div>
-      <div class="studio-sample-modal-thumbs">
-        ${previews.map((item, index) => `
-          <button class="sample-preview-thumb ${index === safeIndex ? "active" : ""}" data-studio-modal-thumb="${index}" type="button">
-            <img src="${attr(item.src)}" alt="${attr(item.alt)}" />
-            <strong>${esc(item.label)}</strong>
-          </button>`).join("")}
-      </div>
-      <div class="modal-actions image-preview-actions">
-        <button class="ghost-btn" data-close-modal type="button">关闭</button>
-        <button class="primary-btn" id="studioSampleModalSelect" type="button">${sample.id === state.studio.selectedSampleId ? "当前方向已选" : "切到这个方向"}</button>
-      </div>
-    </section>`);
-  const image = document.getElementById("studioSampleModalImage");
-  dom.modalRoot.querySelectorAll("[data-studio-modal-thumb]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const next = previews[clamp(Number(button.dataset.studioModalThumb) || 0, 0, previews.length - 1)];
-      if (!image || !next) return;
-      image.src = next.src;
-      image.alt = next.alt;
-      dom.modalRoot.querySelectorAll("[data-studio-modal-thumb]").forEach((item) => item.classList.remove("active"));
-      button.classList.add("active");
-    });
+  saveStudio({
+    selectedSampleId: sample.id,
+    selectedSamplePhotoId: current?.id || "",
+    previewedSampleKey: studioPreviewKey(scene, sample)
   });
-  const selectButton = document.getElementById("studioSampleModalSelect");
-  if (sample.id === state.studio.selectedSampleId) {
-    selectButton?.setAttribute("disabled", "disabled");
-  } else {
-    selectButton?.addEventListener("click", () => {
-      saveStudio({ selectedSampleId: sample.id, previewedSampleKey: studioPreviewKey(scene, sample) });
-      closeModal();
-      status(`已切到 ${sample.title}，可以继续生成`);
-    });
-  }
+  status(`${sample.title} 已在同屏预览`);
 }
 
 function addStudioReferences(input) {
   const count = Array.from(input?.files || []).filter((file) => file?.type?.startsWith("image/")).length;
   if (!count) return;
-  saveStudio({ referenceCount: (state.studio.referenceCount || 0) + count, identityStatus: "待确认" });
-  status(`已记录 ${count} 张参考照，下一步确认数字底片`);
+  const nextCount = clamp((state.studio.referenceCount || 0) + count, 0, studioRequiredReferenceCount);
+  const nextStatus = nextCount >= studioRequiredReferenceCount ? "待生成" : "待上传";
+  saveStudio({
+    referenceCount: nextCount,
+    identityStatus: nextStatus,
+    ...(state.studio.identityStatus === "已确认" || state.studio.templateConfirmed ? emptyStudioTemplateSelection() : {})
+  });
+  status(nextCount >= studioRequiredReferenceCount
+    ? `${studioRequiredReferenceCount}/${studioRequiredReferenceCount} 张参考照已就位`
+    : `已记录 ${nextCount}/${studioRequiredReferenceCount} 张参考图，还差 ${studioRequiredReferenceCount - nextCount} 张`);
   input.value = "";
 }
 
 function useStudioSample() {
   const scene = selectedStudioScene();
-  const sample = selectedStudioSample(scene);
-  const previewed = sample ? state.studio.previewedSampleKey === studioPreviewKey(scene, sample) : false;
-  if (state.studio.identityStatus !== "已确认" || !sample) {
-    status("先确认数字底片并选择样片方向");
+  const group = selectedStudioSampleGroup(scene);
+  const sample = selectedStudioSample(scene) || sampleForStudioGroup(scene, group) || currentStudioPreviewSample(scene);
+  const template = selectedStudioTemplate();
+  const templateSelected = Boolean(state.studio.templateConfirmed && template?.id);
+  if ((state.studio.referenceCount || 0) < studioRequiredReferenceCount || state.studio.identityStatus !== "已确认") {
+    openStudioSection("identity");
+    status("三张参考照和身份确认就位，成片更稳");
     return;
   }
-  if (!previewed) {
-    openStudioSamplePreview(scene, sample);
-    status("先看样片，再进入生成");
+  if (!templateSelected) {
+    openStudioSection("packages");
+    status("模板定调，成片更稳");
     return;
   }
-  state.prompt = buildStudioPrompt(scene, sample);
-  dom.promptInput.value = state.prompt;
+  setPromptValue(buildStudioPrompt(scene, sample, template));
+  state.createMode = "generate";
+  setPromptOptions([]);
+  state.templateSelectionMode = "create";
   switchTab("generate");
   dom.promptInput.focus();
-  status(`已填入 ${scene.name} · ${sample.title} 样片方向`);
+  status(`成片开拍：${template.title}`);
 }
 
-function buildStudioPrompt(scene, sample) {
+function buildStudioPrompt(scene, sample, template) {
+  const group = selectedStudioSampleGroup(scene);
   return [
-    `场景包：${scene.name}`,
-    `样片方向：${sample.title}`,
-    `身份要求：使用已确认的数字底片作为唯一身份锚点，脸部必须像本人，年龄感、脸型、眼睛、鼻子、嘴型和气质不能明显漂移。`,
-    `交付目标：先生成小批样片，便于客户确认风格；画面要像真实摄影棚/旅拍交付图，不要像普通 AI 拼贴。`,
-    `画面提示：${sample.prompt}`,
+    `模板名称：${template?.title || "未命名模板"}`,
+    template?.category ? `模板分类：${template.category}` : "",
+    template?.prompt ? `模板基础提示：${template.prompt}` : "",
+    sample ? `可选样片参考：${scene.name} · ${sample.title}` : "",
+    group ? `样片组参考：${group.title} · ${group.subtitle}` : "",
+    sample?.prompt ? `样片参考：${sample.prompt}` : "",
+    `身份要求：使用已确认的参考照作为唯一身份依据，脸部必须像本人，年龄感、脸型、眼睛、鼻子、嘴型和气质不能明显漂移。`,
+    `拍摄前提：已上传三张图，已确认身份，已选好模板，现在开拍成片。`,
     `质量约束：真实皮肤质感，手部自然，服装合身，背景可信，构图紧凑高级。`,
     `负面约束：不要过度磨皮，不要塑料皮肤，不要影楼站桩，不要假背景，不要五官漂移，不要多人串脸。`
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
 }
 
 function selectedStudioScene() {
@@ -1046,6 +1711,28 @@ function selectedStudioScene() {
 
 function selectedStudioSample(scene = selectedStudioScene()) {
   return scene.samples.find((item) => item.id === state.studio.selectedSampleId) || null;
+}
+
+function selectedStudioTemplate() {
+  const id = typeof state.studio.selectedTemplateId === "string" ? state.studio.selectedTemplateId : "";
+  if (!id) return null;
+  const template = state.templates.find((item) => item.id === id);
+  return {
+    id,
+    title: template?.title || state.studio.selectedTemplateTitle || "已选模板",
+    category: template?.category || state.studio.selectedTemplateCategory || "",
+    prompt: template?.prompt || state.studio.selectedTemplatePrompt || ""
+  };
+}
+
+function emptyStudioTemplateSelection() {
+  return {
+    selectedTemplateId: "",
+    selectedTemplateTitle: "",
+    selectedTemplateCategory: "",
+    selectedTemplatePrompt: "",
+    templateConfirmed: false
+  };
 }
 
 function saveStudio(patch) {
@@ -1059,80 +1746,117 @@ function normalizeStudio(value) {
   const selectedSceneId = scenePacks.some((item) => item.id === source.selectedSceneId) ? source.selectedSceneId : defaults.studio.selectedSceneId;
   const scene = scenePacks.find((item) => item.id === selectedSceneId) || scenePacks[0];
   const selectedSampleId = scene.samples.some((item) => item.id === source.selectedSampleId) ? source.selectedSampleId : "";
+  const selectedSampleGroupId = typeof source.selectedSampleGroupId === "string" ? source.selectedSampleGroupId : "";
+  const selectedSamplePhotoId = typeof source.selectedSamplePhotoId === "string" ? source.selectedSamplePhotoId : "";
   const previewedSampleKey = typeof source.previewedSampleKey === "string" ? source.previewedSampleKey : "";
   const identityStatuses = ["待上传", "待生成", "待确认", "已确认", "需返修"];
+  const sampleDecisions = normalizeSampleDecisions(source.sampleDecisions);
   return {
     selectedSceneId,
     identityStatus: identityStatuses.includes(source.identityStatus) ? source.identityStatus : defaults.studio.identityStatus,
     selectedSampleId,
+    selectedSampleGroupId,
+    selectedSamplePhotoId,
     previewedSampleKey,
-    referenceCount: clamp(Number(source.referenceCount || 0), 0, 99),
-    deliveryReadyCount: clamp(Number(source.deliveryReadyCount || 0), 0, 999)
+    selectedTemplateId: typeof source.selectedTemplateId === "string" ? source.selectedTemplateId : "",
+    selectedTemplateTitle: typeof source.selectedTemplateTitle === "string" ? source.selectedTemplateTitle : "",
+    selectedTemplateCategory: typeof source.selectedTemplateCategory === "string" ? source.selectedTemplateCategory : "",
+    selectedTemplatePrompt: typeof source.selectedTemplatePrompt === "string" ? source.selectedTemplatePrompt : "",
+    templateConfirmed: Boolean(source.templateConfirmed),
+    referenceCount: clamp(Number(source.referenceCount || 0), 0, studioRequiredReferenceCount),
+    deliveryReadyCount: clamp(Number(source.deliveryReadyCount || 0), 0, 999),
+    sampleDecisions
   };
+}
+
+function normalizeSampleDecisions(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return Object.entries(source).reduce((result, [key, entry]) => {
+    if (!/^[a-z0-9]+:[a-z0-9-]+$/i.test(key)) return result;
+    const item = entry && typeof entry === "object" ? entry : {};
+    const statusValue = sampleStatusLabels.includes(item.status) ? item.status : "待查看";
+    result[key] = {
+      status: statusValue,
+      note: typeof item.note === "string" ? item.note.slice(0, 80) : "",
+      updatedAt: typeof item.updatedAt === "string" ? item.updatedAt : ""
+    };
+    return result;
+  }, {});
 }
 
 function identityHelpText(statusValue) {
   return {
-    "待上传": "先上传正脸、半身和全身参考照",
-    "待生成": "参考照已准备，待生成三视图",
-    "待确认": "三视图或底片样张需要确认",
-    "已确认": "可先看样片，再进入批量成片",
-    "需返修": "身份不像或比例异常，需要重做"
-  }[statusValue] || "待上传参考照";
+    "待上传": `${studioRequiredReferenceCount} 张参考照，越像越稳`,
+    "待生成": "参考照已齐，准备确认身份",
+    "待确认": "身份待定稿",
+    "已确认": "身份已锁，模板可定调",
+    "需返修": "重修后更像本人"
+  }[statusValue] || "参考照待就位";
+}
+
+function studioReferenceSummary() {
+  const count = Math.min(studioRequiredReferenceCount, Math.max(0, Number(state.studio.referenceCount || 0)));
+  const remain = Math.max(0, studioRequiredReferenceCount - count);
+  return remain ? `已传 ${count}/${studioRequiredReferenceCount} 张，还差 ${remain} 张` : `已传满 ${studioRequiredReferenceCount}/${studioRequiredReferenceCount} 张`;
 }
 
 function identityChecks(identityReady) {
   return [
-    { status: "待上传", note: "还没有参考照", active: state.studio.identityStatus === "待上传" },
-    { status: "待确认", note: "检查是否像本人", active: state.studio.identityStatus === "待确认" },
-    { status: "已确认", note: identityReady ? "可生成样片" : "通过后再成片", active: state.studio.identityStatus === "已确认" },
+    { status: "待上传", note: studioReferenceSummary(), active: state.studio.identityStatus === "待上传" },
+    { status: "待生成", note: "参考照已齐，准备确认身份", active: state.studio.identityStatus === "待生成" },
+    { status: "待确认", note: "像本人，等你定稿", active: state.studio.identityStatus === "待确认" },
+    { status: "已确认", note: identityReady ? "身份已锁" : "像本人后定模板", active: state.studio.identityStatus === "已确认" },
     { status: "需返修", note: "脸不像或串脸", active: state.studio.identityStatus === "需返修" }
   ];
 }
 
+function identityPrimaryActionLabel() {
+  if (state.studio.identityStatus === "待上传" && (state.studio.referenceCount || 0) >= studioRequiredReferenceCount) return "确认身份";
+  return {
+    "待上传": "上传参考照",
+    "待生成": "确认像本人",
+    "待确认": "确认像本人",
+    "已确认": "身份已锁定",
+    "需返修": "重传参考照"
+  }[state.studio.identityStatus] || "确认像本人";
+}
+
 function renderCategories() {
-  const counts = categoryCounts(state.templates);
+  const counts = categoryCounts(visibleTemplates());
   const categories = [...counts.keys()].sort((a, b) => a.localeCompare(b, "zh-CN"));
-  dom.categoryFilter.innerHTML = `<option value="all">全部分类 (${state.templates.length})</option>${categories.map((item) => `<option value="${esc(item)}">${esc(item)} (${counts.get(item) || 0})</option>`).join("")}`;
+  const total = visibleTemplates().length;
+  dom.categoryFilter.innerHTML = `<option value="all">全部分类 (${total})</option>${categories.map((item) => `<option value="${esc(item)}">${esc(item)} (${counts.get(item) || 0})</option>`).join("")}`;
   if (!categories.includes(state.category)) state.category = "all";
   dom.categoryFilter.value = state.category;
 }
 
 function renderTemplateCollections() {
   if (!dom.templateCollections) return;
-  dom.templateCollections.innerHTML = templateCollections.map((item, index) => {
-    const active = item.key === "all" ? state.category === "all" : state.category === item.key;
-    const count = item.key === "all" ? state.templates.length : templateCollectionCount(item.key);
+  dom.templateCollections.innerHTML = templateLibraryGroups.map((group) => {
+    const total = state.templates.filter((item) => matchesTemplateLibraryGroup(item, group.id)).length;
+    const unit = group.kind === "template" ? "个模板" : group.kind === "reference" ? "条参考" : "条内容";
     return `
-      <button class="template-collection-card ${index === 0 ? "featured" : ""} ${active ? "active" : ""}" data-template-collection="${attr(item.key)}" type="button">
-        <img src="${attr(item.image)}" alt="${attr(item.title)}" loading="lazy" />
+      <button class="template-collection-card ${group.id === state.templateGroup ? "active" : ""} ${group.id === "all" ? "featured" : ""}" data-template-group="${attr(group.id)}" type="button">
+        <img src="${attr(group.image)}" alt="${attr(group.label)}" loading="lazy" />
         <div class="template-collection-overlay"></div>
         <div class="template-collection-copy">
-          <span>${esc(item.kicker)}</span>
-          <strong>${esc(item.title)}</strong>
-          <p>${esc(item.note)}</p>
-          <em>${esc(count)} 个模板</em>
+          <span>${esc(group.label)}</span>
+          <strong>${total} ${unit}</strong>
+          <p>${esc(group.note)}</p>
+          <em>${group.kind === "reference" ? "本地参考分类" : group.kind === "template" ? "外部模板分类" : "全部内容"}</em>
         </div>
       </button>`;
   }).join("");
-  dom.templateCollections.querySelectorAll("[data-template-collection]").forEach((button) => {
-    button.addEventListener("click", () => applyTemplateCategory(button.dataset.templateCollection || "all"));
+  dom.templateCollections.querySelectorAll("[data-template-group]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.templateGroup = button.dataset.templateGroup || "all";
+      state.limit = 24;
+      renderTemplateCollections();
+      renderCategories();
+      renderTemplates();
+      status(`${currentTemplateLibraryGroup().label} 分类已打开`);
+    });
   });
-}
-
-function templateCollectionCount(category) {
-  return state.templates.filter((item) => item.category === category).length;
-}
-
-function applyTemplateCategory(category) {
-  state.category = category === "all" ? "all" : category;
-  state.featuredOnly = false;
-  state.limit = 24;
-  dom.categoryFilter.value = state.category;
-  dom.featuredOnly.checked = false;
-  renderTemplateCollections();
-  renderTemplates();
-  status(state.category === "all" ? "已切回全部模板" : `已切到 ${state.category} 分区模板`);
 }
 
 function categoryCounts(templates) {
@@ -1141,26 +1865,247 @@ function categoryCounts(templates) {
   return counts;
 }
 
+function renderCreateGenerateOverview() {
+  renderCreateOverview();
+  renderGenerateOverview();
+}
+
+function normalizeCreateMode(mode) {
+  return createToolModes[mode] ? mode : "generate";
+}
+
+function selectedCreateMode() {
+  return createToolModes[normalizeCreateMode(state.createMode)] || createToolModes.generate;
+}
+
+function applyCreateMode(mode) {
+  state.createMode = normalizeCreateMode(mode);
+  const currentMode = selectedCreateMode();
+  renderTabs();
+  renderCreateGenerateOverview();
+  dom.promptInput?.focus();
+  status(currentMode.status);
+}
+
+function validPromptOptionIds(ids = []) {
+  return [...new Set((Array.isArray(ids) ? ids : []).filter((id) => promptOptionPresets[id]))];
+}
+
+function selectedPromptOptions() {
+  return validPromptOptionIds(state.selectedPromptOptions).map((id) => ({ id, ...promptOptionPresets[id] }));
+}
+
+function promptOptionsNeedReference(options = selectedPromptOptions()) {
+  return options.some((item) => item.requiresReference);
+}
+
+function promptOptionTitles(options = selectedPromptOptions()) {
+  return options.map((item) => item.title);
+}
+
+function buildPromptOptionAddon(options = selectedPromptOptions()) {
+  if (!options.length) return "";
+  return [
+    "附加处理要求：",
+    ...options.map((item) => `- ${item.promptAddon}`)
+  ].join("\n");
+}
+
+function buildEffectivePrompt() {
+  const basePrompt = state.prompt.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const optionAddon = buildPromptOptionAddon();
+  return [basePrompt, optionAddon].filter(Boolean).join("\n\n").trim();
+}
+
+function setPromptOptions(ids = []) {
+  state.selectedPromptOptions = validPromptOptionIds(ids);
+  renderPromptOptions();
+  renderEditState();
+}
+
+function clearPromptOptions() {
+  if (!state.selectedPromptOptions.length) return;
+  state.selectedPromptOptions = [];
+  renderPromptOptions();
+  renderEditState();
+  status("可选功能已清空");
+}
+
+function togglePromptOption(id) {
+  const current = new Set(validPromptOptionIds(state.selectedPromptOptions));
+  if (current.has(id)) current.delete(id);
+  else current.add(id);
+  state.selectedPromptOptions = [...current];
+  renderPromptOptions();
+  renderEditState();
+  const titles = promptOptionTitles();
+  status(
+    state.selectedPromptOptions.length
+      ? `可选功能已启用：${titles.join(" / ")}`
+      : "可选功能已清空"
+  );
+}
+
+function renderPromptOptions() {
+  const activeIds = new Set(validPromptOptionIds(state.selectedPromptOptions));
+  const options = selectedPromptOptions();
+  const activeCount = activeReferences().length;
+  if (dom.promptOptionGrid) {
+    dom.promptOptionGrid.innerHTML = Object.entries(promptOptionPresets).map(([id, item]) => {
+      const active = activeIds.has(id);
+      return `
+        <button class="prompt-option-card ${active ? "active" : ""}" data-prompt-option="${attr(id)}" type="button">
+          <span class="prompt-option-label">
+            <strong>${esc(item.title)}</strong>
+            <em>${item.requiresReference ? "需原图" : "可直接生效"}</em>
+          </span>
+          <small>${esc(item.short)}</small>
+        </button>
+      `;
+    }).join("");
+    dom.promptOptionGrid.querySelectorAll("[data-prompt-option]").forEach((button) => {
+      button.addEventListener("click", () => togglePromptOption(button.dataset.promptOption));
+    });
+  }
+  if (dom.clearPromptOptionsBtn) dom.clearPromptOptionsBtn.hidden = !options.length;
+  if (dom.promptOptionHint) {
+    dom.promptOptionHint.textContent = options.length
+      ? activeCount
+        ? `${options.length} 个可选功能已就绪，成片效果更饱满`
+        : `${options.length} 个可选功能已选，原图就位更稳`
+      : "可选功能都是后补效果，不用先想这个。";
+  }
+  if (dom.promptOptionPreview) {
+    dom.promptOptionPreview.innerHTML = options.length
+      ? `<strong>附加效果：</strong>${options.map((item) => `${esc(item.title)}：${esc(item.summary)}`).join("；")}`
+      : "先上传照片、写提示词；需要时再补可选功能。";
+  }
+}
+
+function renderCreateOverview() {
+  if (dom.createTemplateMetric) dom.createTemplateMetric.textContent = `${state.templates.length} 个模板`;
+  if (dom.createCategoryMetric) dom.createCategoryMetric.textContent = `${categoryCounts(state.templates).size} 个分区`;
+  if (dom.createCreditMetric) dom.createCreditMetric.textContent = formatCredits(state.credits.balance);
+  if (dom.createFlowHint) {
+    const activeCount = activeReferences().length;
+    const hasPrompt = Boolean(state.prompt.trim());
+    dom.createFlowHint.textContent = hasPrompt
+      ? activeCount
+        ? `画面灵感和 ${activeCount} 张原图已就位，开拍感更稳。`
+        : "画面灵感已就位，直接开拍。"
+      : state.category !== "all"
+        ? `${state.category} 分区已打开，更容易出片。`
+        : "模板定风格，智能生图稳定出片。";
+  }
+}
+
+function renderGenerateOverview() {
+  const activeCount = activeReferences().length;
+  const options = selectedPromptOptions();
+  const optionTitles = promptOptionTitles(options);
+  const optionCount = options.length;
+  const promptLength = state.prompt.trim().length;
+  const needsReference = optionCount > 0 && promptOptionsNeedReference(options);
+  const estimateText = state.creditEstimate?.estimatedCost
+    ? `预计 ${formatCredits(state.creditEstimate.estimatedCost)}`
+    : state.creditEstimateError
+      ? "积分预估失败"
+      : "正在估算积分";
+  if (dom.generateModeBadge) {
+    dom.generateModeBadge.textContent = !promptLength
+      ? activeCount
+        ? "待补画面描述"
+        : "待上传照片"
+      : optionCount && !activeCount && needsReference
+        ? "待上传原图"
+        : activeCount
+          ? optionCount
+            ? "可开始编辑"
+            : "原图已就绪"
+          : optionCount
+            ? "可选功能已选"
+            : "可直接生成";
+  }
+  if (dom.generateReferenceBadge) dom.generateReferenceBadge.textContent = `${activeCount} 张`;
+  if (dom.generatePromptBadge) dom.generatePromptBadge.textContent = promptLength ? `${promptLength} 字` : "待写";
+  if (dom.generateBalanceBadge) dom.generateBalanceBadge.textContent = formatCredits(state.credits.balance);
+  if (dom.generateModeTags) {
+    const tags = [
+      activeCount ? "照片已载入" : "未传照片",
+      optionCount ? optionTitles.join(" / ") : "不选功能",
+      "自动归档"
+    ];
+    dom.generateModeTags.innerHTML = tags.map((item) => `<span>${esc(item)}</span>`).join("");
+  }
+  if (dom.promptInput) dom.promptInput.placeholder = selectedCreateMode().placeholder || "先写你想要的结果，再补人物、场景、镜头和气质";
+  if (dom.generateSummaryTitle) {
+    dom.generateSummaryTitle.textContent = !promptLength
+      ? activeCount
+        ? "照片已就绪，写提示词就能开拍"
+        : "先上传照片，再写提示词"
+      : optionCount && !activeCount && needsReference
+        ? "原图待就位"
+        : activeCount
+          ? optionCount
+            ? "照片和可选功能已就绪"
+            : "照片已就绪，可直接编辑"
+          : optionCount
+            ? "提示词和可选功能已就绪"
+            : "提示词已就绪";
+  }
+  if (dom.generateSummaryHint) {
+    dom.generateSummaryHint.textContent = !promptLength
+      ? activeCount
+        ? `${activeCount} 张照片已到位，再写一句提示词就能开拍；不会写全时，用右侧辅助区补。`
+        : "主区先做三件事：上传照片、写提示词、开拍。提示词不会写时，再用右侧辅助区补。"
+      : optionCount && !activeCount && needsReference
+        ? `${optionTitles.join(" / ")} 已选好；原图就位后效果更稳。`
+        : activeCount
+          ? optionCount
+            ? `${activeCount} 张照片已载入，${optionCount} 个可选功能已就绪，主区现在可以直接开拍，${estimateText}。`
+            : `${activeCount} 张照片已载入，编辑开拍更稳，${estimateText}。`
+          : optionCount
+            ? `${optionCount} 个可选功能已选好，提示词现在能直接开拍；原图就位更稳，${estimateText}。`
+            : `提示词已经就绪，现在可以直接开拍；需要换背景、换装、增强、修复时，再去右侧补功能，${estimateText}。`;
+  }
+}
+
 function renderTemplates(error = "") {
   const filtered = filterTemplates();
   const visible = filtered.slice(0, state.limit);
-  dom.templateCount.textContent = `${filtered.length} / ${state.templates.length} 个模板`;
-  dom.templateHint.textContent = state.category !== "all"
-    ? `${state.category} 分区 · 先挑方向，再进智能生图`
+  const currentGroup = currentTemplateLibraryGroup();
+  const groupTotal = visibleTemplates().length;
+  const unit = currentGroup.kind === "template" ? "个模板" : currentGroup.kind === "reference" ? "条参考" : "条内容";
+  dom.templateCount.textContent = `${filtered.length} / ${groupTotal} ${unit}`;
+  dom.templateHint.textContent = state.templateSelectionMode === "studio"
+    ? state.category !== "all"
+      ? `拍摄定制 · ${state.category} 大片更好定调`
+      : "拍摄定制 · 模板定调"
+    : state.category !== "all"
+      ? `${state.category} 分区 · 选中即开拍`
     : state.featuredOnly
-      ? "当前只显示精选模板"
-      : "支持按分区、关键词和精选筛选";
+      ? "精选模板，出片更稳"
+      : currentGroup.id === "fun"
+        ? "趣味生图分类 · 快速挑风格"
+        : currentGroup.id === "identity"
+          ? "形象确认分类 · 先锁定像本人"
+          : currentGroup.id === "set"
+            ? "套图写真分类 · 婚纱情侣闺蜜等成组参考"
+            : "模板库已按分类整理";
   dom.loadMoreBtn.hidden = filtered.length <= visible.length;
   if (error) {
     dom.templateGrid.innerHTML = empty(`模板读取失败：${error}`);
+    renderCreateGenerateOverview();
     return;
   }
-  if (!state.templates.length) {
+  if (!visibleTemplates().length) {
     dom.templateGrid.innerHTML = empty("暂无模板数据");
+    renderCreateGenerateOverview();
     return;
   }
   if (!visible.length) {
     dom.templateGrid.innerHTML = empty("没有匹配模板");
+    renderCreateGenerateOverview();
     return;
   }
   dom.templateGrid.innerHTML = visible.map(templateCard).join("");
@@ -1168,11 +2113,12 @@ function renderTemplates(error = "") {
     button.addEventListener("click", () => void useTemplate(button.dataset.useTemplate));
   });
   hydrateTemplateImages();
+  renderCreateGenerateOverview();
 }
 
 function filterTemplates() {
   const keyword = state.query.trim().toLowerCase();
-  return state.templates.filter((item) => {
+  return visibleTemplates().filter((item) => {
     if (state.category !== "all" && item.category !== state.category) return false;
     if (state.featuredOnly && !item.featured) return false;
     if (!keyword) return true;
@@ -1189,24 +2135,28 @@ function templateCard(item) {
   const source = localTemplateImage(item) || templateRemoteImage(item.imageUrl);
   const imageSource = source || fallback;
   const image = `<img src="${attr(imageSource)}" data-fallback="${attr(fallback)}" ${source ? `data-real-image="true"` : ""} alt="${attr(item.title)}" loading="lazy" referrerpolicy="no-referrer" />`;
+  const isStudioSelection = state.templateSelectionMode === "studio";
   const badges = [
     item.category,
-    item.isLocal ? "客户常用" : "",
+    item.isLocal ? "本地参考" : "",
     item.featured ? "精选" : "",
     item.language || ""
   ].filter(Boolean).map((label) => `<span>${esc(label)}</span>`).join("");
+  const actionLabel = isStudioSelection
+    ? (item.isLocal ? "选择这个参考" : "选择这个模板")
+    : (item.isLocal ? "使用参考" : "使用模板");
   return `
     <article class="template-card ${item.isLocal ? "local" : ""}">
       <div class="template-thumb" style="--template-fallback: url('${attr(fallback)}')">${image}</div>
       <div class="template-body">
         <div class="meta-row">${badges}</div>
         <h3>${esc(item.title)}</h3>
-        <p>${esc(item.description || "点击使用该提示词模板")}</p>
+        <p>${esc(item.description || "点一下，直接开拍")}</p>
         <div class="template-card-foot">
           <span>${esc(templateCardHint(item))}</span>
-          <em>${esc(item.isLocal ? "客户入口" : "通用模板")}</em>
+          <em>${esc(item.isLocal ? "本地参考" : "通用模板")}</em>
         </div>
-        <button class="primary-btn small" data-use-template="${attr(item.id)}" type="button">使用模板</button>
+        <button class="primary-btn small" data-use-template="${attr(item.id)}" type="button">${esc(actionLabel)}</button>
       </div>
     </article>`;
 }
@@ -1225,14 +2175,14 @@ function localTemplateImage(item) {
 
 function templateCardHint(item) {
   return {
-    "人像基准": "先做三视图，再进入后续模板",
-    "婚纱照": "适合先出封面样片和套餐预览",
+    "人像基准": "身份起版，像本人更稳",
+    "婚纱照": "封面样片和套餐预览都合适",
     "情侣照": "适合纪念日、旅行和日常互动",
     "闺蜜照": "适合双人关系和生日纪念",
     "10岁照": "适合成长纪念和亲子方向",
     "夕阳红": "适合纪念合照和旅行留念",
     "女生写真": "适合头像、生日和个人形象"
-  }[item.category] || "可直接进入智能生图继续加工";
+  }[item.category] || "选中就能开拍";
 }
 
 function hydrateTemplateImages() {
@@ -1252,6 +2202,8 @@ function hydrateTemplateImages() {
 
 function templateRemoteImage(url) {
   if (!url) return "";
+  if (url.startsWith("/")) return url;
+  if (url.startsWith("./")) return url;
   try {
     const parsed = new URL(url);
     if (parsed.hostname === "cms-assets.youmind.com") {
@@ -1386,18 +2338,35 @@ function svgText(value) {
 async function useTemplate(id) {
   const item = state.templates.find((template) => template.id === id);
   if (!item) return;
-  status(item.prompt ? `已填入模板：${item.title}` : "模板详情读取中");
+  const isStudioSelection = state.templateSelectionMode === "studio";
+  const subject = item.isLocal ? "参考" : "模板";
+  status(item.prompt ? (isStudioSelection ? `${subject}已定：${item.title}` : `${subject}已带入：${item.title}`) : `${subject}详情读取中`);
   try {
     await ensureTemplatePrompt(item);
   } catch (error) {
-    status(`模板详情读取失败：${errorMessage(error)}`);
+    status(`${subject}详情读取失败：${errorMessage(error)}`);
     return;
   }
-  state.prompt = item.prompt;
-  dom.promptInput.value = item.prompt;
+  if (isStudioSelection) {
+    saveStudio({
+      selectedTemplateId: item.id,
+      selectedTemplateTitle: item.title,
+      selectedTemplateCategory: item.category,
+      selectedTemplatePrompt: item.prompt,
+      templateConfirmed: true
+    });
+    state.templateSelectionMode = "create";
+    openStudioSection("delivery");
+    status(`${subject}已定：${item.title}，成片感就绪`);
+    return;
+  }
+  setPromptValue(item.prompt);
+  state.createMode = "generate";
+  setPromptOptions([]);
+  state.templateSelectionMode = "create";
   switchTab("generate");
   dom.promptInput.focus();
-  status(`已填入模板：${item.title}`);
+  status(`${subject}已带入：${item.title}`);
 }
 
 async function ensureTemplatePrompt(item) {
@@ -1417,10 +2386,16 @@ function switchTab(tab) {
   if (tab === "history") renderHistory();
   if (tab === "register") renderRegisterPanel();
   if (tab === "credits") void refreshCreditCenter(false);
+  if (tab === "templates") {
+    renderTemplateCollections();
+    renderCategories();
+    renderTemplates();
+  }
+  if (tab === "templates" || tab === "generate") renderCreateGenerateOverview();
 }
 
 function tabGroup(tab) {
-  if (tab === "templates" || tab === "generate") return "create";
+  if (["templates", "generate"].includes(tab)) return "create";
   return tab;
 }
 
@@ -1432,9 +2407,16 @@ function switchPrimary(primary) {
     register: "register",
     credits: "credits"
   };
-  if (primary === "studio") state.studioAnchor = "flow";
+  if (primary === "studio") state.studioAnchor = "sample";
+  if (primary === "create") {
+    state.templateSelectionMode = "create";
+    state.templateGroup = "all";
+  }
   if (primary === "history") state.historyMode = "active";
-  if (primary === "register") state.authView = "register";
+  if (primary === "register") {
+    state.authView = "login";
+    state.authRegisterStep = "credentials";
+  }
   if (primary === "credits") state.creditAnchor = "overview";
   switchTab(defaultTabs[primary] || "studio");
 }
@@ -1442,77 +2424,126 @@ function switchPrimary(primary) {
 function goToRegisterPanel() {
   switchTab("register");
   renderRegisterPanel();
-  dom.registerUsernameInput?.focus();
-  status("请在注册开通里完成站内注册");
+  dom.registerEmailInput?.focus();
+  status("请先登录，还没有账号再创建");
+}
+
+function goToCreateWorkspace(message = "已进入图片创作") {
+  state.templateSelectionMode = "create";
+  state.templateGroup = "all";
+  switchTab("templates");
+  status(message);
+}
+
+function currentRegisterStep() {
+  return state.authRegisterStep === "verify" ? "verify" : "credentials";
 }
 
 function renderRegisterPanel() {
   const isRegister = state.authView === "register";
+  const registerStep = currentRegisterStep();
+  const verifyingEmail = isRegister && registerStep === "verify";
   const draft = currentAuthDraft();
-  const user = state.auth.user;
-  dom.authModeRegisterBtn?.classList.toggle("active", isRegister);
-  dom.authModeLoginBtn?.classList.toggle("active", !isRegister);
-  if (dom.registerUsernameField) dom.registerUsernameField.hidden = !isRegister;
-  if (dom.registerCodeField) dom.registerCodeField.hidden = !isRegister;
+  const user = state.auth.user?.id ? state.auth.user : null;
+  if (dom.registerPanelEyebrow) dom.registerPanelEyebrow.textContent = isRegister ? (verifyingEmail ? "验证邮箱" : "创建账号") : "登录";
+  if (dom.registerPanelTitle) dom.registerPanelTitle.textContent = isRegister ? (verifyingEmail ? "完成邮箱验证" : "创建你的账号") : "登录后继续创作";
+  if (dom.registerModeTitle) dom.registerModeTitle.textContent = isRegister ? (verifyingEmail ? "输入验证码" : "创建账号") : "邮箱登录";
+  if (dom.authModeRegisterBtn) dom.authModeRegisterBtn.hidden = isRegister;
+  if (dom.authModeLoginBtn) dom.authModeLoginBtn.hidden = !isRegister;
+  if (dom.authModeRegisterBtn) dom.authModeRegisterBtn.textContent = "还没有账号？创建一个";
+  if (dom.authModeLoginBtn) dom.authModeLoginBtn.textContent = verifyingEmail ? "返回上一步" : "已有账号？去登录";
+  if (dom.registerUsernameField) dom.registerUsernameField.hidden = true;
+  if (dom.registerEmailField) dom.registerEmailField.hidden = verifyingEmail;
+  if (dom.registerPasswordField) dom.registerPasswordField.hidden = verifyingEmail;
+  if (dom.registerCodeField) dom.registerCodeField.hidden = !verifyingEmail;
   if (dom.registerFlowNote) {
     dom.registerFlowNote.textContent = isRegister
-      ? "先填用户名和邮箱；已配置邮箱时会发到邮箱，本机模式会直接显示注册码。"
-      : "登录只需要邮箱和密码，邮箱注册码只在注册时使用。";
+      ? verifyingEmail
+        ? `验证码已发到 ${maskEmailAccount(draft.account) || "你的邮箱"}，输入 6 位验证码完成创建。`
+        : "先填邮箱和密码，我们会把验证码发到你的邮箱。"
+      : "用邮箱和密码登录；还没有账号就创建一个。";
   }
   if (dom.registerPasswordInput) dom.registerPasswordInput.autocomplete = isRegister ? "new-password" : "current-password";
   if (dom.registerNowBtn) {
-    dom.registerNowBtn.textContent = state.authSubmitting ? (isRegister ? "注册中..." : "登录中...") : (isRegister ? "立即注册" : "立即登录");
+    dom.registerNowBtn.textContent = state.authSubmitting
+      ? (isRegister ? (verifyingEmail ? "创建中..." : "继续中...") : "登录中...")
+      : (isRegister ? (verifyingEmail ? "完成创建" : "继续") : "立即登录");
     dom.registerNowBtn.disabled = state.authSubmitting || state.authCodeSending || !authReadyToSubmit(isRegister, draft);
   }
   if (dom.sendCodeBtn) {
-    dom.sendCodeBtn.hidden = !isRegister;
-    dom.sendCodeBtn.disabled = state.authSubmitting || state.authCodeSending || state.authCodeCooldown > 0 || !draft.account;
-    dom.sendCodeBtn.textContent = state.authCodeSending ? "发送中..." : state.authCodeCooldown > 0 ? `${state.authCodeCooldown}s` : "发送注册码";
+    dom.sendCodeBtn.hidden = !verifyingEmail;
+    dom.sendCodeBtn.disabled = state.authSubmitting || state.authCodeSending || state.authCodeCooldown > 0 || !draft.account || draft.password.length < 6;
+    dom.sendCodeBtn.textContent = state.authCodeSending ? "发送中..." : state.authCodeCooldown > 0 ? `${state.authCodeCooldown}s` : "重新发送";
   }
   if (dom.registerMessage) {
     dom.registerMessage.hidden = !state.authMessage;
     dom.registerMessage.textContent = state.authMessage;
     dom.registerMessage.classList.toggle("ok", state.authMessageKind === "ok");
   }
+  if (dom.registerAccountCard) dom.registerAccountCard.hidden = !user;
   if (dom.registerAccountName) dom.registerAccountName.textContent = user ? (user.username || user.nickname || "已登录") : "未登录";
   if (dom.registerAccountMeta) {
     dom.registerAccountMeta.textContent = user
-      ? `${user.accountLabel || "邮箱账号"} · 当前客户账户已开通，可继续充值、生图和查看记录`
-      : "注册后会把当前浏览器里的工具记录并到这个客户账户，方便继续充值和生图。";
+      ? `${user.accountLabel || "邮箱账号"} · 已登录`
+      : "";
   }
+  if (dom.registerStartCreateBtn) dom.registerStartCreateBtn.hidden = !user;
   if (dom.registerLogoutBtn) dom.registerLogoutBtn.hidden = !user;
+}
+
+function handleAuthModeLoginAction() {
+  if (state.authView === "register" && currentRegisterStep() === "verify") {
+    state.authRegisterStep = "credentials";
+    clearAuthMessage();
+    renderRegisterPanel();
+    dom.registerEmailInput?.focus();
+    return;
+  }
+  switchAuthView("login");
 }
 
 function switchAuthView(view) {
   state.authView = view === "login" ? "login" : "register";
+  state.authRegisterStep = "credentials";
   clearAuthMessage();
   renderRegisterPanel();
+  dom.registerEmailInput?.focus();
 }
 
-async function sendAuthCode() {
+async function sendAuthCode({ advance = false } = {}) {
   const account = String(dom.registerEmailInput?.value || "").trim();
   state.authCodeSending = true;
   clearAuthMessage();
   renderRegisterPanel();
+  let shouldFocusCode = false;
   try {
     const data = await postJson("/api/auth/verification-code", { type: "email", account });
     if (data.code && dom.registerCodeInput) dom.registerCodeInput.value = data.code;
-    setAuthMessage(data.message || `注册码已发送到 ${data.accountLabel || "邮箱"}，5 分钟内有效`, "ok");
+    setAuthMessage(data.message || `验证码已发送到 ${data.accountLabel || "邮箱"}，5 分钟内有效`, "ok");
     startAuthCodeCooldown();
+    if (advance && state.authView === "register") {
+      state.authRegisterStep = "verify";
+      shouldFocusCode = true;
+    }
   } catch (error) {
     setAuthMessage(errorMessage(error), "error");
   } finally {
     state.authCodeSending = false;
     renderRegisterPanel();
+    if (shouldFocusCode) dom.registerCodeInput?.focus();
   }
 }
 
 async function submitAuth() {
+  const isRegister = state.authView === "register";
+  if (isRegister && currentRegisterStep() === "credentials") {
+    await sendAuthCode({ advance: true });
+    return;
+  }
   state.authSubmitting = true;
   clearAuthMessage();
   renderRegisterPanel();
   try {
-    const isRegister = state.authView === "register";
     const data = await postJson(isRegister ? "/api/auth/register" : "/api/auth/login", {
       type: "email",
       account: String(dom.registerEmailInput?.value || "").trim(),
@@ -1527,8 +2558,9 @@ async function submitAuth() {
     if (dom.registerEmailInput) dom.registerEmailInput.value = "";
     if (dom.registerCodeInput) dom.registerCodeInput.value = "";
     if (dom.registerPasswordInput) dom.registerPasswordInput.value = "";
+    state.authRegisterStep = "credentials";
     await Promise.allSettled([loadPersistentHistory(false), refreshCreditCenter(false)]);
-    status(isRegister ? `注册成功：${data.user.username || data.user.nickname}` : `登录成功：${data.user.username || data.user.nickname}`);
+    goToCreateWorkspace("已进入图片创作");
   } catch (error) {
     setAuthMessage(errorMessage(error), "error");
   } finally {
@@ -1544,6 +2576,7 @@ function logoutAuth() {
   state.deletedHistory = [];
   persistHistory();
   persistDeletedHistory();
+  state.authRegisterStep = "credentials";
   renderHistory();
   clearAuthMessage();
   renderRegisterPanel();
@@ -1561,8 +2594,19 @@ function currentAuthDraft() {
 }
 
 function authReadyToSubmit(isRegister, draft) {
-  if (isRegister) return Boolean(draft.username && draft.account && draft.code && draft.password.length >= 6);
+  if (isRegister) {
+    if (currentRegisterStep() === "verify") return Boolean(draft.account && draft.code && draft.password.length >= 6);
+    return Boolean(draft.account && draft.password.length >= 6);
+  }
   return Boolean(draft.account && draft.password.length >= 6);
+}
+
+function maskEmailAccount(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (!email || !email.includes("@")) return "";
+  const [name = "", domain = ""] = email.split("@");
+  const visible = name.length <= 2 ? name : `${name.slice(0, 2)}***`;
+  return `${visible}@${domain}`;
 }
 
 function setAuthMessage(message, kind) {
@@ -1589,12 +2633,18 @@ function startAuthCodeCooldown() {
 }
 
 function syncControls() {
-  dom.promptInput.value = state.prompt;
+  setPromptValue(state.prompt);
   dom.qualitySelect.value = state.params.quality;
   dom.formatSelect.value = state.params.outputFormat;
   dom.countInput.value = String(state.params.count);
   dom.sizeInput.value = state.params.size;
   queueCreditEstimate();
+}
+
+function setPromptValue(value) {
+  state.prompt = String(value || "");
+  if (dom.promptInput) dom.promptInput.value = state.prompt;
+  renderCreateGenerateOverview();
 }
 
 function saveParams(patch) {
@@ -1639,7 +2689,7 @@ async function normalizeReferenceImage(file) {
   const decoded = await decodeImageFile(file).catch(() => null);
   if (!decoded) {
     if (!supportedOriginal) throw new Error("该格式无法在浏览器中读取，请换成 JPG、PNG 或 WebP");
-    if (file.size > referenceImageLimits.maxBytes) throw new Error("图片过大，请先压缩到 18MB 以内");
+    if (file.size > referenceImageLimits.maxBytes) throw new Error("图片过大，压缩到 18MB 以内");
     return { name: file.name || "reference.png", dataUrl: originalDataUrl, note: humanBytes(file.size) };
   }
   const { image, width, height, cleanup } = decoded;
@@ -1733,10 +2783,19 @@ function renderReferences() {
 
 function renderEditState() {
   const activeCount = activeReferences().length;
+  const options = selectedPromptOptions();
+  const optionTitles = promptOptionTitles(options);
   if (dom.editModeState) {
-    dom.editModeState.textContent = activeCount ? `编辑模式 · 已载入 ${activeCount} 张图` : "生成模式 · 上传原图后进入编辑";
+    dom.editModeState.textContent = activeCount
+      ? optionTitles.length
+        ? `已载入 ${activeCount} 张照片 · ${optionTitles.join(" / ")} 已补进可选效果`
+        : `已载入 ${activeCount} 张照片 · 画面质感更稳，可选功能随时加`
+      : optionTitles.length
+        ? `已选 ${optionTitles.length} 个可选功能 · 原图就位更稳`
+        : "纯文字也能开拍；换背景、换装、增强、修复，加原图更像样。";
   }
   renderCreditEstimate();
+  renderCreateGenerateOverview();
 }
 
 function activeReferences() {
@@ -1768,16 +2827,24 @@ function replaceImageExtension(name, extension) {
 async function generateImage() {
   if (isCreditBlocked()) {
     status(state.creditEstimate?.shortage ? `积分不足，还差 ${formatCredits(state.creditEstimate.shortage)}` : "积分状态未就绪");
+    state.creditAnchor = "packages";
     switchTab("credits");
     return;
   }
-  const prompt = state.prompt.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-  if (!prompt) {
-    status("请输入提示词");
+  const references = activeReferences();
+  const selectedOptions = selectedPromptOptions();
+  if (selectedOptions.length && promptOptionsNeedReference(selectedOptions) && !references.length) {
+    status(`${promptOptionTitles(selectedOptions).join(" / ")} 已选，原图就位后开拍`);
+    dom.editImageInput?.focus();
+    return;
+  }
+  const basePrompt = state.prompt.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  if (!basePrompt) {
+    status("画面描述待填写");
     dom.promptInput.focus();
     return;
   }
-  const references = activeReferences();
+  const prompt = buildEffectivePrompt();
   const task = { id: `task-${Date.now().toString(36)}`, prompt, params: { ...state.params }, references: [...references], settingsSummary: settingsSummary(state.settings), status: "running", createdAt: Date.now(), images: [], error: "" };
   state.history.unshift(task);
   persistHistory();
@@ -1854,6 +2921,7 @@ function looksLikeHtmlOutput(value) {
 function renderHistory() {
   const deletedMode = state.historyMode === "deleted";
   const list = currentHistoryList();
+  if (dom.historyTitle) dom.historyTitle.textContent = deletedMode ? "已删除作品" : "我的作品";
   dom.historyCount.textContent = `${list.length} 条${deletedMode ? "已删除" : ""}`;
   dom.clearHistoryBtn.textContent = deletedMode ? "清空已删除" : "清空";
   dom.deletedHistoryBtn.textContent = deletedMode ? "返回" : "已删除";
@@ -2065,9 +3133,11 @@ async function editTask(id, imageIndex = 0) {
   }
   try {
     const reference = await imageToReference(image, task, imageIndex);
-    state.prompt = task.revisedPrompt || task.prompt;
+    setPromptValue(task.revisedPrompt || task.prompt);
     state.params = { ...task.params };
     state.references = [reference];
+    state.createMode = "generate";
+    setPromptOptions(["repair"]);
     tryWriteStore(keys.params, state.params);
     syncControls();
     renderReferences();
@@ -2133,9 +3203,11 @@ function findHistoryTask(id) {
 function reuseTask(id) {
   const task = state.history.find((item) => item.id === id);
   if (!task) return;
-  state.prompt = task.prompt;
+  setPromptValue(task.prompt);
   state.params = { ...task.params };
   state.references = task.references || [];
+  state.createMode = "generate";
+  setPromptOptions([]);
   tryWriteStore(keys.params, state.params);
   syncControls();
   renderReferences();
@@ -2235,10 +3307,10 @@ async function loadCredits(options = {}) {
     state.credits = normalizeCredits(data);
     renderCredits();
     queueCreditEstimate();
-    if (options.announce) status(`积分已刷新：${formatCredits(state.credits.balance)}`);
+    if (options.announce) status(`余额已刷新：${formatCredits(state.credits.balance)}`);
   } catch (error) {
     renderCreditError(errorMessage(error));
-    if (options.announce) status(`积分读取失败：${errorMessage(error)}`);
+    if (options.announce) status(`余额没读出来：${errorMessage(error)}`);
   }
 }
 
@@ -2250,7 +3322,7 @@ async function loadPaymentConfig() {
     state.payment = normalizePaymentConfig(data.payment || data);
     renderCredits();
   } catch (error) {
-    state.payment = { ...defaults.payment, message: `支付状态读取失败：${errorMessage(error)}` };
+    state.payment = { ...defaults.payment, message: `购买状态没读出来：${errorMessage(error)}` };
     renderCredits();
   }
 }
@@ -2264,7 +3336,7 @@ async function loadCreditOrders() {
     renderCredits();
   } catch (error) {
     state.creditOrders = [];
-    renderCreditOrders(`订单读取失败：${errorMessage(error)}`);
+    renderCreditOrders(`${creditCopy.ordersLoadError}：${errorMessage(error)}`);
   }
 }
 
@@ -2292,7 +3364,7 @@ function normalizePaymentConfig(data) {
     enabled: Boolean(data?.enabled),
     ready: Boolean(data?.ready),
     currency: String(data?.currency || "cny"),
-    message: String(data?.message || "支付准备中")
+    message: String(data?.message || "现在还不能购买积分")
   };
 }
 
@@ -2304,7 +3376,10 @@ function normalizeCreditPackage(item) {
     credits: Math.max(0, Number(item.credits) || 0),
     bonus: Math.max(0, Number(item.bonus) || 0),
     amountCny: Math.max(0, Number(item.amountCny) || 0),
-    badge: String(item.badge || "")
+    badge: String(item.badge || ""),
+    bestFor: String(item.bestFor || ""),
+    standardShots: Math.max(0, Number(item.standardShots) || 0),
+    editShots: Math.max(0, Number(item.editShots) || 0)
   };
 }
 
@@ -2313,7 +3388,7 @@ function normalizeCreditOrder(item) {
   return {
     id: String(item.id),
     packageId: String(item.packageId || ""),
-    packageName: String(item.packageName || item.packageId || "充值订单"),
+    packageName: String(item.packageName || item.packageId || "充值记录"),
     credits: Math.max(0, Number(item.credits) || 0),
     bonus: Math.max(0, Number(item.bonus) || 0),
     amountCny: Math.max(0, Number(item.amountCny) || 0),
@@ -2333,7 +3408,7 @@ function normalizeCreditEntry(item) {
   return {
     id: String(item.id),
     type: String(item.type || "recharge"),
-    title: String(item.title || "积分变动"),
+    title: String(item.title || "积分明细"),
     credits: Number(item.credits) || 0,
     amountCny: Number(item.amountCny) || 0,
     status: String(item.status || "succeeded"),
@@ -2346,14 +3421,16 @@ function renderCredits() {
   const balanceText = formatCredits(state.credits.balance);
   dom.creditBalance.textContent = balanceText;
   if (dom.topCreditBalance) dom.topCreditBalance.textContent = balanceText;
-  if (dom.studioCurrentCredits) dom.studioCurrentCredits.textContent = `积分：${balanceText} 可用`;
-  dom.creditStatus.textContent = state.credits.balance > 0 ? "标准生图 20 / 编辑 30 起，成功出图后再扣费" : "先充值后生成，失败不扣积分";
-  dom.creditUpdatedAt.textContent = state.credits.updatedAt ? `更新于 ${formatCreditTime(state.credits.updatedAt)}` : "本地账本";
+  if (dom.studioCurrentCredits) dom.studioCurrentCredits.textContent = `余额：${balanceText}`;
+  dom.creditStatus.textContent = creditBalanceStatusText(state.credits.balance);
+  dom.creditUpdatedAt.textContent = state.credits.updatedAt ? `余额已更新 ${formatCreditTime(state.credits.updatedAt)}` : "正在读取余额";
   renderPaymentConfig();
   renderCreditPackages();
   renderCreditOrders();
   renderCreditLedger();
   renderCreditEstimate();
+  renderCreateGenerateOverview();
+  renderCreditSections();
 }
 
 function renderPaymentConfig() {
@@ -2404,27 +3481,36 @@ function renderCreditEstimate() {
   if (!dom.creditCostStatus) return;
   const estimate = state.creditEstimate;
   if (state.creditEstimateError) {
-    dom.creditCostStatus.textContent = "积分预估失败";
-    if (dom.creditCostHint) dom.creditCostHint.textContent = "请刷新后重试";
+    dom.creditCostStatus.textContent = "没算出来";
+    if (dom.creditCostHint) dom.creditCostHint.textContent = "刷新后再试";
     dom.creditCostBar.classList.add("warning");
   } else if (!estimate) {
-    dom.creditCostStatus.textContent = "读取中";
-    if (dom.creditCostHint) dom.creditCostHint.textContent = "根据尺寸、质量、数量自动预估";
+    dom.creditCostStatus.textContent = "正在计算";
+    if (dom.creditCostHint) dom.creditCostHint.textContent = "先算本次要用多少积分";
     dom.creditCostBar.classList.remove("warning");
   } else {
     dom.creditCostStatus.textContent = `${formatCredits(estimate.estimatedCost)}`;
     if (dom.creditCostHint) {
       dom.creditCostHint.textContent = estimate.shortage
-        ? `余额 ${formatCredits(estimate.balance)} · 还差 ${formatCredits(estimate.shortage)}`
-        : `余额 ${formatCredits(estimate.balance)} · 单张 ${formatCredits(estimate.unitCost)} · ${estimate.referenceCount ? "编辑模式" : "生成模式"}`;
+        ? `当前积分 ${formatCredits(estimate.balance)} · 还差 ${formatCredits(estimate.shortage)}`
+        : `当前积分 ${formatCredits(estimate.balance)} · 单张 ${formatCredits(estimate.unitCost)} · ${estimate.referenceCount ? "照着照片改" : "直接拍一张"}`;
     }
     dom.creditCostBar.classList.toggle("warning", !estimate.enough);
   }
   if (!generationRunning && dom.generateBtn) {
     const activeCount = activeReferences().length;
+    const selectedOptions = selectedPromptOptions();
+    const needsReference = selectedOptions.length && promptOptionsNeedReference(selectedOptions) && !activeCount;
     dom.generateBtn.disabled = isCreditBlocked();
-    dom.generateBtn.textContent = isCreditBlocked() ? "积分不足" : activeCount ? "生成编辑图" : "生成";
+    dom.generateBtn.textContent = isCreditBlocked()
+      ? "积分不足"
+      : needsReference
+        ? "上传原图"
+        : activeCount
+          ? "开始编辑"
+          : "开拍";
   }
+  renderCreateGenerateOverview();
 }
 
 function isCreditBlocked() {
@@ -2434,7 +3520,7 @@ function isCreditBlocked() {
 
 function renderCreditPackages() {
   if (!state.credits.packages.length) {
-    dom.creditPackages.innerHTML = empty("暂无充值档位");
+    dom.creditPackages.innerHTML = empty("暂时没有可买套餐");
     return;
   }
   dom.creditPackages.innerHTML = state.credits.packages.map(creditPackageCard).join("");
@@ -2446,30 +3532,41 @@ function renderCreditPackages() {
 
 function creditPackageCard(item) {
   const total = item.credits + item.bonus;
+  const toneClass = item.id === "studio" ? "recommended" : item.id === "starter" ? "popular" : "";
+  const actionText = state.payment.ready ? "去付款" : "暂不可买";
   return `
-    <article class="credit-package-card">
+    <article class="credit-package-card ${toneClass}">
       <div class="credit-package-head">
         <div><span>${esc(item.name)}</span><strong>${esc(formatCredits(total))}</strong></div>
         ${item.badge ? `<em>${esc(item.badge)}</em>` : ""}
       </div>
-      <p>基础 ${esc(formatCredits(item.credits))}${item.bonus ? ` · 赠送 ${esc(formatCredits(item.bonus))}` : ""}</p>
+      <p>含 ${esc(formatCredits(item.credits))}${item.bonus ? ` · 多送 ${esc(formatCredits(item.bonus))}` : ""}</p>
+      <span class="credit-package-usage">${esc(item.bestFor || "付款后到账")} · 约 ${esc(item.standardShots || 0)} 张直接拍一张${item.editShots ? ` / ${esc(item.editShots)} 张照着照片改` : ""}</span>
       <div class="credit-package-action">
         <strong>¥${esc(formatMoney(item.amountCny))}</strong>
-        <button class="primary-btn small" data-recharge-package="${attr(item.id)}" type="button">${state.payment.ready ? "立即支付" : "待接通"}</button>
+        <button class="primary-btn small" data-recharge-package="${attr(item.id)}" type="button">${actionText}</button>
       </div>
     </article>`;
 }
 
 function renderCreditOrders(error = "") {
   if (!dom.creditOrderList || !dom.creditOrderCount) return;
-  const orders = state.creditOrders.slice(0, 8);
+  const orders = state.creditOrders.slice(0, 20);
+  const pendingCount = state.creditOrders.filter((item) => ["pending", "failed"].includes(item.status)).length;
   dom.creditOrderCount.textContent = `${state.creditOrders.length} 条`;
+  if (dom.creditOrderSummaryHint) {
+    dom.creditOrderSummaryHint.textContent = pendingCount
+      ? `${pendingCount} 笔待处理`
+      : state.creditOrders.length
+        ? creditCopy.recentOrders
+        : creditCopy.emptyOrders;
+  }
   if (error) {
     dom.creditOrderList.innerHTML = empty(error);
     return;
   }
   if (!orders.length) {
-    dom.creditOrderList.innerHTML = empty("暂无充值订单");
+    dom.creditOrderList.innerHTML = empty(creditCopy.emptyOrders);
     return;
   }
   dom.creditOrderList.innerHTML = orders.map((item) => {
@@ -2477,10 +3574,10 @@ function renderCreditOrders(error = "") {
     const note = item.status === "failed" && item.failureReason
       ? item.failureReason
       : item.status === "pending"
-        ? "支付完成后自动入账"
+        ? "还没完成付款"
         : item.status === "paid"
           ? `到账 ${formatCredits(total)}`
-          : "等待状态更新";
+          : "处理中，稍后刷新";
     return `
       <article class="credit-order-item">
         <div class="credit-order-main">
@@ -2494,39 +3591,47 @@ function renderCreditOrders(error = "") {
 }
 
 function renderCreditLedger() {
-  const ledger = state.credits.ledger.slice(0, 8);
+  const ledger = state.credits.ledger.slice(0, 20);
   dom.creditLedgerCount.textContent = `${state.credits.ledger.length} 条`;
+  if (dom.creditLedgerSummaryHint) {
+    dom.creditLedgerSummaryHint.textContent = state.credits.ledger.length ? creditCopy.recentLedger : creditCopy.emptyLedger;
+  }
   if (!ledger.length) {
-    dom.creditLedger.innerHTML = empty("暂无积分记录");
+    dom.creditLedger.innerHTML = empty(creditCopy.emptyLedger);
     return;
   }
-  dom.creditLedger.innerHTML = ledger.map((item) => `
-    <article class="credit-ledger-item">
-      <div>
-        <strong>${esc(item.title)}</strong>
-        <span>${esc(formatCreditTime(item.createdAt))} · ¥${esc(formatMoney(item.amountCny))}</span>
-      </div>
-      <em class="${item.credits >= 0 ? "positive" : "negative"}">${item.credits >= 0 ? "+" : ""}${esc(formatCredits(item.credits))}</em>
-    </article>`).join("");
+  dom.creditLedger.innerHTML = ledger.map((item) => {
+    const amountText = item.amountCny > 0 ? ` · ¥${formatMoney(item.amountCny)}` : "";
+    return `
+      <article class="credit-ledger-item">
+        <div>
+          <strong>${esc(item.title)}</strong>
+          <span>${esc(formatCreditTime(item.createdAt))}${esc(amountText)}</span>
+        </div>
+        <em class="${item.credits >= 0 ? "positive" : "negative"}">${item.credits >= 0 ? "+" : ""}${esc(formatCredits(item.credits))}</em>
+      </article>`;
+  }).join("");
 }
 
 function renderCreditError(message) {
   if (dom.creditStatus) dom.creditStatus.textContent = message;
-  if (dom.topCreditBalance) dom.topCreditBalance.textContent = "读取失败";
-  if (dom.creditCostHint) dom.creditCostHint.textContent = "请先刷新积分后再提交";
-  if (dom.creditPackages) dom.creditPackages.innerHTML = empty("充值档位读取失败");
-  if (dom.creditOrderList) dom.creditOrderList.innerHTML = empty("充值订单读取失败");
-  if (dom.creditLedger) dom.creditLedger.innerHTML = empty("积分记录读取失败");
+  if (dom.topCreditBalance) dom.topCreditBalance.textContent = "没读出来";
+  if (dom.creditCostHint) dom.creditCostHint.textContent = "刷新后再试";
+  if (dom.creditPackages) dom.creditPackages.innerHTML = empty("套餐暂时没加载出来");
+  if (dom.creditOrderList) dom.creditOrderList.innerHTML = empty(creditCopy.ordersUnavailable);
+  if (dom.creditLedger) dom.creditLedger.innerHTML = empty(creditCopy.ledgerUnavailable);
+  if (dom.creditOrderSummaryHint) dom.creditOrderSummaryHint.textContent = creditCopy.ordersLoadError;
+  if (dom.creditLedgerSummaryHint) dom.creditLedgerSummaryHint.textContent = creditCopy.ledgerLoadError;
 }
 
 async function rechargeCredits(packageId) {
   const selected = state.credits.packages.find((item) => item.id === packageId);
   if (!selected) return;
   if (!state.payment.ready) {
-    status(state.payment.message || "支付未开通");
+    status(state.payment.message || "现在还不能购买积分");
     return;
   }
-  status(`准备支付：${selected.name}`);
+  status(`正在去付款：${selected.name}`);
   try {
     setRechargeButtonsDisabled(true);
     const response = await apiFetch("/api/payments/checkout-session", {
@@ -2545,14 +3650,14 @@ async function rechargeCredits(packageId) {
       state.payment = normalizePaymentConfig(data.payment);
       renderPaymentConfig();
     }
-    status(`跳转支付：${selected.name}`);
+    status(`已进入付款：${selected.name}`);
     if (data.checkoutUrl) {
       window.location.assign(String(data.checkoutUrl));
       return;
     }
-    throw new Error("支付链接生成失败");
+    throw new Error("付款页没打开");
   } catch (error) {
-    status(`支付发起失败：${errorMessage(error)}`);
+    status(`付款页没打开：${errorMessage(error)}`);
   } finally {
     setRechargeButtonsDisabled(false);
   }
@@ -2813,19 +3918,25 @@ function consumeRuntimeQueryState() {
   const requestedTab = normalizeQueryTab(params.get("tab"));
   if (requestedTab) state.tab = requestedTab;
   const paymentKind = normalizePaymentReturnKind(params.get("payment"));
-  if (paymentKind) {
+  const tradeNo = String(params.get("trade_no") || "");
+  const outTradeNo = String(params.get("out_trade_no") || "");
+  const resolvedPaymentKind = paymentKind || (outTradeNo || tradeNo ? "success" : "");
+  if (resolvedPaymentKind) {
     state.pendingPaymentReturn = {
-      kind: paymentKind,
-      orderId: String(params.get("order") || ""),
-      sessionId: String(params.get("session_id") || "")
+      kind: resolvedPaymentKind,
+      orderId: String(params.get("order") || outTradeNo || ""),
+      sessionId: String(params.get("session_id") || ""),
+      tradeNo
     };
     state.tab = "credits";
   }
-  if (!requestedTab && !paymentKind) return;
+  if (!requestedTab && !resolvedPaymentKind) return;
   params.delete("tab");
   params.delete("payment");
   params.delete("order");
   params.delete("session_id");
+  params.delete("trade_no");
+  params.delete("out_trade_no");
   window.history.replaceState(null, "", `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash}`);
 }
 
@@ -2833,20 +3944,37 @@ async function handlePendingPaymentReturn() {
   const pending = state.pendingPaymentReturn;
   if (!pending) return;
   state.pendingPaymentReturn = null;
-  if (pending.kind === "success") status("支付已完成，正在同步积分到账");
-  if (pending.kind === "cancel") status("已取消支付，可重新选择充值档位");
+  state.creditAnchor = "packages";
+  renderTabs();
+  if (pending.kind === "success") status("付款已完成，正在确认到账");
+  if (pending.kind === "cancel") status("已取消，可重新选择套餐");
+  if (pending.kind === "success" && (pending.sessionId || pending.tradeNo || pending.orderId)) {
+    try {
+      await postJson("/api/payments/confirm-session", {
+        orderId: pending.orderId,
+        sessionId: pending.sessionId,
+        tradeNo: pending.tradeNo
+      });
+    } catch (error) {
+      status(`付款已返回，但 ${paymentProviderLabel(state.payment)}校验失败：${errorMessage(error)}`);
+    }
+  }
   await refreshCreditCenter(false);
   if (pending.kind !== "success") return;
-  const matched = state.creditOrders.find((item) => item.id === pending.orderId || item.providerSessionId === pending.sessionId);
+  const matched = state.creditOrders.find((item) =>
+    item.id === pending.orderId
+    || item.providerSessionId === pending.sessionId
+    || item.providerPaymentId === pending.tradeNo
+  );
   if (matched?.status === "paid") {
-    status(`支付成功：${matched.packageName} 已到账，当前 ${formatCredits(state.credits.balance)}`);
+    status(`积分已到账：${matched.packageName}，当前 ${formatCredits(state.credits.balance)}`);
     return;
   }
   if (matched?.status === "pending") {
-    status("支付已返回，正在等待 Stripe 回写到账");
+    status(`付款已返回，正在等待 ${paymentProviderLabel(state.payment)}确认到账`);
     return;
   }
-  status("支付已返回，请刷新订单状态确认是否到账");
+  status(creditCopy.paymentReturnHint);
 }
 
 function normalizeQueryTab(value) {
@@ -3089,15 +4217,21 @@ function formatCredits(value) {
   return `${Math.round(Number(value) || 0)} 积分`;
 }
 
+function creditBalanceStatusText(balance) {
+  const value = Math.max(0, Number(balance) || 0);
+  if (value >= 20) return `还能拍约 ${Math.floor(value / 20)} 张`;
+  if (value > 0) return "还差一张，先买积分";
+  return "还没有余额";
+}
+
 function formatMoney(value) {
   const number = Number(value) || 0;
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
 function paymentStatusText(payment) {
-  if (payment?.mode === "fake") return "联调";
-  if (payment?.ready) return "已接通";
-  return "待配置";
+  if (payment?.ready) return "可付款";
+  return "暂不可买";
 }
 
 function paymentStatusClass(payment) {
@@ -3107,15 +4241,18 @@ function paymentStatusClass(payment) {
 }
 
 function paymentHintText(payment) {
-  if (payment?.mode === "fake") return "测试支付模式，仅用于本地联调整体流程";
-  if (payment?.ready) return "Stripe Checkout 安全支付页，支付完成后自动入账";
-  return payment?.message || "支付准备中";
+  if (payment?.ready) return "付款完成后到账";
+  return "现在还不能购买积分";
+}
+
+function paymentProviderLabel(payment) {
+  return payment?.provider === "alipay" ? "支付宝" : "Stripe";
 }
 
 function orderStatusText(status) {
   return {
-    draft: "待创建",
-    pending: "待支付",
+    draft: "待付款",
+    pending: "待付款",
     paid: "已到账",
     failed: "失败",
     cancelled: "已取消",
@@ -3138,4 +4275,8 @@ function esc(value) {
 
 function attr(value) {
   return esc(value);
+}
+
+function safeClientId(value) {
+  return String(value || "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 96) || `id-${Date.now().toString(36)}`;
 }
