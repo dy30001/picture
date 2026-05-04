@@ -125,7 +125,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776658772018_lukyfw_HGSUfldbIAEiMWZ.jpg" width="700" alt="VR 头显爆炸视图海报 - Image 1">
+<img src="/template-previews/tpl-1.webp" width="700" alt="VR 头显爆炸视图海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -194,7 +194,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776662673014_nf0taw_HGRMNDybsAAGG88.jpg" width="700" alt="手绘城市美食地图 - Image 1">
+<img src="/template-previews/tpl-2.webp" width="700" alt="手绘城市美食地图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -229,13 +229,13 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699414289_t6mebs_HGQQxukbUAA_qc0.jpg" width="700" alt="混合风格的桃太郎讲解 Slides - Image 1">
+<img src="/template-previews/tpl-3.webp" width="700" alt="混合风格的桃太郎讲解 Slides - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699414149_63j8pd_HGQQy1_aQAAHSqP.jpg" width="700" alt="混合风格的桃太郎讲解 Slides - Image 2">
+<img src="/template-previews/tpl-3-image-2.webp" width="700" alt="混合风格的桃太郎讲解 Slides - Image 2">
 </div>
 
 #### 📌 详情
@@ -316,7 +316,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699445498_ga2ry5_HGO7H0DWkAApdKK.jpg" width="700" alt="电商直播 UI 样机 - Image 1">
+<img src="/template-previews/tpl-4.webp" width="700" alt="电商直播 UI 样机 - Image 1">
 </div>
 
 #### 📌 详情
@@ -351,7 +351,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756799880_c8u8w7_HGUKjjaasAAvVRa.jpg" width="700" alt="动漫武术对决 - Image 1">
+<img src="/template-previews/tpl-5.webp" width="700" alt="动漫武术对决 - Image 1">
 </div>
 
 #### 📌 详情
@@ -426,7 +426,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776661968404_8a5flm_HGQc_KOaMAA2vt0.jpg" width="700" alt="3D 石阶演化信息图 - Image 1">
+<img src="/template-previews/tpl-6.webp" width="700" alt="3D 石阶演化信息图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -464,7 +464,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883059359_gs8st0_HGggJqAakAACacS.jpg" width="600" alt="个人资料 / 头像 - 俯视视角下的夸张姿势镜面自拍 - Image 1">
+<img src="/template-previews/tpl-7.webp" width="600" alt="个人资料 / 头像 - 俯视视角下的夸张姿势镜面自拍 - Image 1">
 </div>
 
 #### 📌 详情
@@ -498,7 +498,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883175128_315f91_HGgQ_wVagAAlVCQ.jpg" width="600" alt="个人资料 / 头像 - 棕色调室内坐姿肖像 - Image 1">
+<img src="/template-previews/tpl-8.webp" width="600" alt="个人资料 / 头像 - 棕色调室内坐姿肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -532,7 +532,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883130126_mqzubl_HGfUniwagAA00Cs.jpg" width="600" alt="个人资料 / 头像 - 写实风格校服神社肖像 - Image 1">
+<img src="/template-previews/tpl-9.webp" width="600" alt="个人资料 / 头像 - 写实风格校服神社肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -566,7 +566,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883199795_5d57h2_HGe0FIpaIAAU-CO.jpg" width="600" alt="个人资料 / 头像 - 忧郁风格遮挡室内自拍肖像 - Image 1">
+<img src="/template-previews/tpl-10.webp" width="600" alt="个人资料 / 头像 - 忧郁风格遮挡室内自拍肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -599,7 +599,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883097033_ly0rvn_HGeaa6Sa8AAuokd.jpg" width="600" alt="个人资料 / 头像 - 逼真的麦当劳自拍肖像 - Image 1">
+<img src="/template-previews/tpl-11.webp" width="600" alt="个人资料 / 头像 - 逼真的麦当劳自拍肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -633,7 +633,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883062651_jcngq2_HGd6Wl3aIAA8p2K.jpg" width="600" alt="个人资料 / 头像 - Albedo Cosplay Instagram 快照 - Image 1">
+<img src="/template-previews/tpl-12.webp" width="600" alt="个人资料 / 头像 - Albedo Cosplay Instagram 快照 - Image 1">
 </div>
 
 #### 📌 详情
@@ -667,7 +667,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883142749_ioqmur_HGd6QaOa4AAwOOi.jpg" width="600" alt="个人资料 / 头像 - 日落时分校园天台的猫耳少女动漫插画 - Image 1">
+<img src="/template-previews/tpl-13.webp" width="600" alt="个人资料 / 头像 - 日落时分校园天台的猫耳少女动漫插画 - Image 1">
 </div>
 
 #### 📌 详情
@@ -701,7 +701,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883171366_yuw1xa_HGdrgu-W4AA-KGq.jpg" width="600" alt="个人资料 / 头像 - 奇幻女子拥抱白公羊 - Image 1">
+<img src="/template-previews/tpl-14.webp" width="600" alt="个人资料 / 头像 - 奇幻女子拥抱白公羊 - Image 1">
 </div>
 
 #### 📌 详情
@@ -735,7 +735,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883166743_xorm6h_HGdqYtPbgAEXEjW.jpg" width="600" alt="个人资料 / 头像 - 粉色可爱偶像口红肖像 - Image 1">
+<img src="/template-previews/tpl-15.webp" width="600" alt="个人资料 / 头像 - 粉色可爱偶像口红肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -768,7 +768,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883188180_o6j3h9_HGdj-7yWsAAi5Zj.png" width="600" alt="个人资料 / 头像 - 极简鹈鹕骑自行车 - Image 1">
+<img src="/template-previews/tpl-16.webp" width="600" alt="个人资料 / 头像 - 极简鹈鹕骑自行车 - Image 1">
 </div>
 
 #### 📌 详情
@@ -801,7 +801,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883192227_47aujy_HGddzviXQAAIE28.jpg" width="600" alt="个人资料 / 头像 - 猫咪变身人类肖像 - Image 1">
+<img src="/template-previews/tpl-17.webp" width="600" alt="个人资料 / 头像 - 猫咪变身人类肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -835,7 +835,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883161484_6r3xlw_HGdTO_1bkAAtzWs.jpg" width="600" alt="个人资料 / 头像 - 手持草莓冰淇淋的摄影棚肖像 - Image 1">
+<img src="/template-previews/tpl-18.webp" width="600" alt="个人资料 / 头像 - 手持草莓冰淇淋的摄影棚肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -868,13 +868,13 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883087494_gme15e_HGdKX1_bMAApLt-.jpg" width="600" alt="个人资料 / 头像 - 审查点云肖像 - Image 1">
+<img src="/template-previews/tpl-19.webp" width="600" alt="个人资料 / 头像 - 审查点云肖像 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883087529_r1ivcd_HGdKYY9aMAAELgh.jpg" width="600" alt="个人资料 / 头像 - 审查点云肖像 - Image 2">
+<img src="/template-previews/tpl-19-image-2.webp" width="600" alt="个人资料 / 头像 - 审查点云肖像 - Image 2">
 </div>
 
 #### 📌 详情
@@ -908,13 +908,13 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883050662_t5u3gv_HGdDTMPXEAEYRdB.jpg" width="600" alt="个人资料 / 头像 - 骑狮的希腊神祇 - Image 1">
+<img src="/template-previews/tpl-20.webp" width="600" alt="个人资料 / 头像 - 骑狮的希腊神祇 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883050703_wc1jy4_HGdDWCcXUAAoQAT.jpg" width="600" alt="个人资料 / 头像 - 骑狮的希腊神祇 - Image 2">
+<img src="/template-previews/tpl-20-image-2.webp" width="600" alt="个人资料 / 头像 - 骑狮的希腊神祇 - Image 2">
 </div>
 
 #### 📌 详情
@@ -948,19 +948,19 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883113953_9ftbye_HGdCi68awAAvIX4.jpg" width="600" alt="个人资料 / 头像 - 困惑的金发动漫少女肖像 - Image 1">
+<img src="/template-previews/tpl-21.webp" width="600" alt="个人资料 / 头像 - 困惑的金发动漫少女肖像 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883113895_coi544_HGdC-GqbQAArPMf.jpg" width="600" alt="个人资料 / 头像 - 困惑的金发动漫少女肖像 - Image 2">
+<img src="/template-previews/tpl-21-image-2.webp" width="600" alt="个人资料 / 头像 - 困惑的金发动漫少女肖像 - Image 2">
 </div>
 
 ##### Image 3
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883113829_fl4pcc_HGdDWg_bEAAL-41.jpg" width="600" alt="个人资料 / 头像 - 困惑的金发动漫少女肖像 - Image 3">
+<img src="/template-previews/tpl-21-image-3.webp" width="600" alt="个人资料 / 头像 - 困惑的金发动漫少女肖像 - Image 3">
 </div>
 
 #### 📌 详情
@@ -994,7 +994,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883113864_w40gbf_HGdDboubUAAdZhY.jpg" width="600" alt="个人资料 / 头像 - 柔和蓝色动漫少女肖像 - Image 1">
+<img src="/template-previews/tpl-22.webp" width="600" alt="个人资料 / 头像 - 柔和蓝色动漫少女肖像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1027,7 +1027,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883092153_cm1rks_HGdDJC8WcAAOm_A.jpg" width="600" alt="个人资料 / 头像 - 奢华室内镜面自拍人像 - Image 1">
+<img src="/template-previews/tpl-23.webp" width="600" alt="个人资料 / 头像 - 奢华室内镜面自拍人像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1060,7 +1060,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883091680_gc1kqf_HGdDIHqXEAEbhzg.jpg" width="600" alt="个人资料 / 头像 - 写实风格白色连衣裙镜面自拍 - Image 1">
+<img src="/template-previews/tpl-24.webp" width="600" alt="个人资料 / 头像 - 写实风格白色连衣裙镜面自拍 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1094,7 +1094,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883094779_1iys4p_HGc_qAbXkAAJFk0.jpg" width="600" alt="个人资料 / 头像 - 圣托里尼奢华礼服人像 - Image 1">
+<img src="/template-previews/tpl-25.webp" width="600" alt="个人资料 / 头像 - 圣托里尼奢华礼服人像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1148,7 +1148,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883040570_763zc0_HGc0HfYaMAAEgPM.jpg" width="600" alt="个人资料 / 头像 - 日系富士胶片风格人像 - Image 1">
+<img src="/template-previews/tpl-26.webp" width="600" alt="个人资料 / 头像 - 日系富士胶片风格人像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1277,7 +1277,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776668128332_d2wtbo_HGQDh30bMAARz9E.jpg" width="600" alt="社交媒体帖子 - 4 格日式数字广告横幅网格 - Image 1">
+<img src="/template-previews/tpl-27.webp" width="600" alt="社交媒体帖子 - 4 格日式数字广告横幅网格 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1310,7 +1310,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883119955_nw7ax5_HGgqTCBbcAAw6TD.jpg" width="600" alt="社交媒体帖子 - 可爱黑猫日文贴纸合集 - Image 1">
+<img src="/template-previews/tpl-28.webp" width="600" alt="社交媒体帖子 - 可爱黑猫日文贴纸合集 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1344,7 +1344,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883175967_zxdlwy_HGgQ_2-bQAA2dRG.jpg" width="600" alt="社交媒体帖子 - 棕色系精品店自然人像 - Image 1">
+<img src="/template-previews/tpl-29.webp" width="600" alt="社交媒体帖子 - 棕色系精品店自然人像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1378,7 +1378,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883175832_ccqn07_HGgQ_ycasAAyNgF.jpg" width="600" alt="社交媒体帖子 - 超市货架鸡蛋盒人像 - Image 1">
+<img src="/template-previews/tpl-30.webp" width="600" alt="社交媒体帖子 - 超市货架鸡蛋盒人像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1411,7 +1411,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883127085_qxq354_HGf7lybbYAARHra.jpg" width="600" alt="社交媒体帖子 - 落日余晖下的华美秋之女皇 - Image 1">
+<img src="/template-previews/tpl-31.webp" width="600" alt="社交媒体帖子 - 落日余晖下的华美秋之女皇 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1445,7 +1445,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883146885_253rf3_HGfla3yWUAAEm8-.jpg" width="600" alt="社交媒体帖子 - 机器人画家拼贴广告 - Image 1">
+<img src="/template-previews/tpl-32.webp" width="600" alt="社交媒体帖子 - 机器人画家拼贴广告 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1479,7 +1479,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883179000_s7s3bp_HGfDh7qakAA3Ovk.jpg" width="600" alt="社交媒体帖子 - 动漫波普艺术抗议海报 - Image 1">
+<img src="/template-previews/tpl-33.webp" width="600" alt="社交媒体帖子 - 动漫波普艺术抗议海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1512,7 +1512,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883097529_4o6z0e_HGeaeHkbkAASDhW.jpg" width="600" alt="社交媒体帖子 - 写实的 Sam's Club 购物快照 - Image 1">
+<img src="/template-previews/tpl-34.webp" width="600" alt="社交媒体帖子 - 写实的 Sam's Club 购物快照 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1545,7 +1545,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883128094_pkk4fv_HGdj-7yWsAAi5Zj.png" width="600" alt="社交媒体帖子 - 骑自行车的几何小鸟 - Image 1">
+<img src="/template-previews/tpl-35.webp" width="600" alt="社交媒体帖子 - 骑自行车的几何小鸟 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1579,7 +1579,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883042677_zzj0li_HGd6ee-W4AArJ1p.jpg" width="600" alt="社交媒体帖子 - 认知偏差 Instagram 信息图 - Image 1">
+<img src="/template-previews/tpl-36.webp" width="600" alt="社交媒体帖子 - 认知偏差 Instagram 信息图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1613,7 +1613,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883195599_qbhgl7_HGd3B2VXcAAqWkr.jpg" width="600" alt="社交媒体帖子 - 21 世纪初的计算机实验室与 ChatGPT - Image 1">
+<img src="/template-previews/tpl-37.webp" width="600" alt="社交媒体帖子 - 21 世纪初的计算机实验室与 ChatGPT - Image 1">
 </div>
 
 #### 📌 详情
@@ -1647,7 +1647,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883195410_nqnhm7_HGd3B2UXkAAwWtN.jpg" width="600" alt="社交媒体帖子 - 超现实露台肖像：乌鸦与小狗 - Image 1">
+<img src="/template-previews/tpl-38.webp" width="600" alt="社交媒体帖子 - 超现实露台肖像：乌鸦与小狗 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1681,7 +1681,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883195166_1z6cyp_HGd3B2XXMAECGKt.jpg" width="600" alt="社交媒体帖子 - 忧郁海岸公路旅行人像 - Image 1">
+<img src="/template-previews/tpl-39.webp" width="600" alt="社交媒体帖子 - 忧郁海岸公路旅行人像 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1715,7 +1715,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883126086_66k47f_HGd00loaMAA_GwI.jpg" width="600" alt="社交媒体帖子 - 身着黑色礼服跳舞的女性 - Image 1">
+<img src="/template-previews/tpl-40.webp" width="600" alt="社交媒体帖子 - 身着黑色礼服跳舞的女性 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1749,7 +1749,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883072287_so5j6z_HGgoRGdWsAA_w4Q.jpg" width="600" alt="信息图 / 教育视觉图 - 巴黎美食排行榜海报提示词 - Image 1">
+<img src="/template-previews/tpl-41.webp" width="600" alt="信息图 / 教育视觉图 - 巴黎美食排行榜海报提示词 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1783,7 +1783,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883103242_b88t4p_HGfhStsaYAAI6F8.jpg" width="600" alt="信息图 / 教育视觉图 - 中国书法风格对比表 - Image 1">
+<img src="/template-previews/tpl-42.webp" width="600" alt="信息图 / 教育视觉图 - 中国书法风格对比表 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1817,7 +1817,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883199462_26yyhl_HGfTnkjbgAE1g_j.jpg" width="600" alt="信息图 / 教育视觉图 - 国家球霍尔木兹海峡对峙 - Image 1">
+<img src="/template-previews/tpl-43.webp" width="600" alt="信息图 / 教育视觉图 - 国家球霍尔木兹海峡对峙 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1851,25 +1851,25 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883058250_sa4get_HGeoFF5bUAAwyS2.jpg" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 1">
+<img src="/template-previews/tpl-44.webp" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883058247_4mvtru_HGeoVXdaUAA-UVr.jpg" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 2">
+<img src="/template-previews/tpl-44-image-2.webp" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 2">
 </div>
 
 ##### Image 3
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883058259_hhqrlk_HGeoXmlaEAAV214.jpg" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 3">
+<img src="/template-previews/tpl-44-image-3.webp" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 3">
 </div>
 
 ##### Image 4
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883058909_lcg9cp_HGeoZfPbMAAs7pg.jpg" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 4">
+<img src="/template-previews/tpl-44-image-4.webp" width="600" alt="信息图 / 教育视觉图 - 物理考试题目布局 - Image 4">
 </div>
 
 #### 📌 详情
@@ -1903,7 +1903,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883145882_hn8j2o_HGecwombcAAd00i.jpg" width="600" alt="信息图 / 教育视觉图 - 复古风韩式紫菜包饭食谱海报 - Image 1">
+<img src="/template-previews/tpl-45.webp" width="600" alt="信息图 / 教育视觉图 - 复古风韩式紫菜包饭食谱海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1937,7 +1937,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883149983_ity2s5_HGeYyAfWMAEx8Lx.jpg" width="600" alt="信息图 / 教育视觉图 - 复古法式可丽饼食谱海报 - Image 1">
+<img src="/template-previews/tpl-46.webp" width="600" alt="信息图 / 教育视觉图 - 复古法式可丽饼食谱海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -1970,13 +1970,13 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883093418_6c754c_HGd6YVfWgAExHOe.jpg" width="600" alt="信息图 / 教育视觉图 - 适合青少年的黑洞物理学信息图 - Image 1">
+<img src="/template-previews/tpl-47.webp" width="600" alt="信息图 / 教育视觉图 - 适合青少年的黑洞物理学信息图 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883093378_6dvru8_HGd6ayBWAAAU9ub.jpg" width="600" alt="信息图 / 教育视觉图 - 适合青少年的黑洞物理学信息图 - Image 2">
+<img src="/template-previews/tpl-47-image-2.webp" width="600" alt="信息图 / 教育视觉图 - 适合青少年的黑洞物理学信息图 - Image 2">
 </div>
 
 #### 📌 详情
@@ -2010,7 +2010,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883083002_cxfvwl_HGd1xPPbwAE2wjs.jpg" width="600" alt="信息图 / 教育视觉图 - 学术经济学图表模拟 - Image 1">
+<img src="/template-previews/tpl-48.webp" width="600" alt="信息图 / 教育视觉图 - 学术经济学图表模拟 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2044,25 +2044,25 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883082410_g5g7ez_HGdsoWjWoAA830w.jpg" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 1">
+<img src="/template-previews/tpl-49.webp" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883082394_m5dlcs_HGdtafLWUAAavk3.jpg" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 2">
+<img src="/template-previews/tpl-49-image-2.webp" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 2">
 </div>
 
 ##### Image 3
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883082398_krt722_HGduFT2XsAAfwVt.jpg" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 3">
+<img src="/template-previews/tpl-49-image-3.webp" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 3">
 </div>
 
 ##### Image 4
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883083130_4igkmu_HGdvzS0WgAAwQJP.jpg" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 4">
+<img src="/template-previews/tpl-49-image-4.webp" width="600" alt="信息图 / 教育视觉图 - 抽象艺术科学图表 - Image 4">
 </div>
 
 #### 📌 详情
@@ -2183,7 +2183,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883138735_tq3u5c_HGdv-t-a0AA7FRR.jpg" width="600" alt="信息图 / 教育视觉图 - 日文 AI 模型处方单 - Image 1">
+<img src="/template-previews/tpl-50.webp" width="600" alt="信息图 / 教育视觉图 - 日文 AI 模型处方单 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2217,7 +2217,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883138455_vcajur_HGdv-t-a4AAzo0v.jpg" width="600" alt="信息图 / 教育视觉图 - 日式 AI 诊所医疗账单 - Image 1">
+<img src="/template-previews/tpl-51.webp" width="600" alt="信息图 / 教育视觉图 - 日式 AI 诊所医疗账单 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2251,7 +2251,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883144140_rudjhf_HGdlp_XbwAATIdG.jpg" width="600" alt="信息图 / 教育视觉图 - 新手钱币收藏漫画页面 - Image 1">
+<img src="/template-previews/tpl-52.webp" width="600" alt="信息图 / 教育视觉图 - 新手钱币收藏漫画页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2284,7 +2284,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883177007_sj2vzk_HGdgMWqXsAEr874.jpg" width="600" alt="信息图 / 教育视觉图 - 乘法多米诺骨牌课堂活动 - Image 1">
+<img src="/template-previews/tpl-53.webp" width="600" alt="信息图 / 教育视觉图 - 乘法多米诺骨牌课堂活动 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2318,7 +2318,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883176158_bxapba_HGdgKdhWsAAvt65.jpg" width="600" alt="信息图 / 教育视觉图 - 可打印乘法多米诺骨牌练习表 - Image 1">
+<img src="/template-previews/tpl-54.webp" width="600" alt="信息图 / 教育视觉图 - 可打印乘法多米诺骨牌练习表 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2356,7 +2356,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883088640_kphw9e_HGdbh0CXUAA4ofA.jpg" width="600" alt="信息图 / 教育视觉图 - 历史发明时间轴网格 - Image 1">
+<img src="/template-previews/tpl-55.webp" width="600" alt="信息图 / 教育视觉图 - 历史发明时间轴网格 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2390,7 +2390,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883125699_9w895d_HGd6iyxaIAAktC4.jpg" width="600" alt="YouTube 缩略图 - Q 版鲨鱼冒险电影海报 - Image 1">
+<img src="/template-previews/tpl-56.webp" width="600" alt="YouTube 缩略图 - Q 版鲨鱼冒险电影海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2424,7 +2424,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883144633_sl98ip_HGdug29bQAEQnRw.jpg" width="600" alt="YouTube 缩略图 - 日式四格治愈系广告拼图 - Image 1">
+<img src="/template-previews/tpl-57.webp" width="600" alt="YouTube 缩略图 - 日式四格治愈系广告拼图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2458,7 +2458,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883203587_8ub876_HGdtxE9aYAAMuma.jpg" width="600" alt="YouTube 缩略图 - 科技教程缩略图及 UI 模型 - Image 1">
+<img src="/template-previews/tpl-58.webp" width="600" alt="YouTube 缩略图 - 科技教程缩略图及 UI 模型 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2492,7 +2492,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883101773_kz8lia_HGcMYsSbkAA55iJ.jpg" width="600" alt="YouTube 缩略图 - Celestial VTuber 直播界面 - Image 1">
+<img src="/template-previews/tpl-59.webp" width="600" alt="YouTube 缩略图 - Celestial VTuber 直播界面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2526,7 +2526,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883062419_ny4agw_HGb_HS5bsAAakyA.jpg" width="600" alt="YouTube 缩略图 - YouTube 游戏直播绝望场景 - Image 1">
+<img src="/template-previews/tpl-60.webp" width="600" alt="YouTube 缩略图 - YouTube 游戏直播绝望场景 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2560,13 +2560,13 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883135691_hbf77w_HGbrR-ja0AAegZ1.png" width="600" alt="YouTube 缩略图 - 动漫爱情电影海报 - Image 1">
+<img src="/template-previews/tpl-61.webp" width="600" alt="YouTube 缩略图 - 动漫爱情电影海报 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883135702_cfhhop_HGbrVfPaYAAD3gx.jpg" width="600" alt="YouTube 缩略图 - 动漫爱情电影海报 - Image 2">
+<img src="/template-previews/tpl-61-image-2.webp" width="600" alt="YouTube 缩略图 - 动漫爱情电影海报 - Image 2">
 </div>
 
 #### 📌 详情
@@ -2600,7 +2600,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883120297_l08g9o_HGbbEZRbIAAKgqw.jpg" width="600" alt="YouTube 缩略图 - 炫酷日系 AI 缩略图 - Image 1">
+<img src="/template-previews/tpl-62.webp" width="600" alt="YouTube 缩略图 - 炫酷日系 AI 缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2634,7 +2634,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883123089_a624u7_HGAkwnra8AAju1P.jpg" width="600" alt="YouTube 缩略图 - 爆款动漫风发布会缩略图 - Image 1">
+<img src="/template-previews/tpl-63.webp" width="600" alt="YouTube 缩略图 - 爆款动漫风发布会缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2668,7 +2668,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883122410_3u861t_HGAkU1sbMAAR07x.jpg" width="600" alt="YouTube 缩略图 - 吸睛的 X 平台变现 YouTube 缩略图 - Image 1">
+<img src="/template-previews/tpl-64.webp" width="600" alt="YouTube 缩略图 - 吸睛的 X 平台变现 YouTube 缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2702,7 +2702,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883122141_mfcjop_HGAkB1YaQAAp8wD.jpg" width="600" alt="YouTube 缩略图 - 日本 X 变现缩略图 - Image 1">
+<img src="/template-previews/tpl-65.webp" width="600" alt="YouTube 缩略图 - 日本 X 变现缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2736,7 +2736,7 @@ by {argument name="author" default="Steve Jobs"}
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883121882_ip958i_HGAjjTEaoAAuDD0.jpg" width="600" alt="YouTube 缩略图 - 爆款日语 X 变现缩略图 - Image 1">
+<img src="/template-previews/tpl-66.webp" width="600" alt="YouTube 缩略图 - 爆款日语 X 变现缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -2770,7 +2770,7 @@ A highly detailed, realistic first-person video game screenshot of a next-genera
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756784553_gg0ud8_HGXlhh6akAADBnS.jpg" width="600" alt="YouTube 缩略图 - Next-Gen Voxel Game Screenshot - Image 1">
+<img src="/template-previews/tpl-67.webp" width="600" alt="YouTube 缩略图 - Next-Gen Voxel Game Screenshot - Image 1">
 </div>
 
 #### 📌 详情
@@ -2804,7 +2804,7 @@ An anime-style YouTube stream thumbnail featuring a cheerful female VTuber. She 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756831336_0k5bc1_HGW5wnlbYAABVsa.jpg" width="600" alt="YouTube 缩略图 - VTuber Stream Thumbnail - Image 1">
+<img src="/template-previews/tpl-68.webp" width="600" alt="YouTube 缩略图 - VTuber Stream Thumbnail - Image 1">
 </div>
 
 #### 📌 详情
@@ -2880,7 +2880,7 @@ Generates a cute, pink-themed VTuber stream thumbnail with customizable text rib
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756838159_taut7g_HGV6SxSbAAEuvNF.jpg" width="600" alt="YouTube 缩略图 - VTuber Chat Stream Thumbnail - Image 1">
+<img src="/template-previews/tpl-69.webp" width="600" alt="YouTube 缩略图 - VTuber Chat Stream Thumbnail - Image 1">
 </div>
 
 #### 📌 详情
@@ -2961,7 +2961,7 @@ Generates a cute, pastel-themed stream overlay or thumbnail featuring an anime g
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756836369_z2uhxg_HGV6R8CbEAAxsKB.jpg" width="600" alt="YouTube 缩略图 - Pastel Pink VTuber Stream Thumbnail - Image 1">
+<img src="/template-previews/tpl-70.webp" width="600" alt="YouTube 缩略图 - Pastel Pink VTuber Stream Thumbnail - Image 1">
 </div>
 
 #### 📌 详情
@@ -3021,7 +3021,7 @@ Generates a pastel-themed anime VTuber stream thumbnail with customizable text b
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756831940_si87qi_HGV6Q_rbkAA_1c4.jpg" width="600" alt="YouTube 缩略图 - Anime VTuber Livestream Thumbnail - Image 1">
+<img src="/template-previews/tpl-71.webp" width="600" alt="YouTube 缩略图 - Anime VTuber Livestream Thumbnail - Image 1">
 </div>
 
 #### 📌 详情
@@ -3089,7 +3089,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756829722_eza1di_HGV6P7La8AAk06d.jpg" width="600" alt="YouTube 缩略图 - VTuber Chat Stream Thumbnail - Image 1">
+<img src="/template-previews/tpl-72.webp" width="600" alt="YouTube 缩略图 - VTuber Chat Stream Thumbnail - Image 1">
 </div>
 
 #### 📌 详情
@@ -3123,7 +3123,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699411043_ito7ae_HGK_HK2bIAAGHrR.jpg" width="600" alt="YouTube 缩略图 - 日语网络研讨会缩略图生成器 - Image 1">
+<img src="/template-previews/tpl-73.webp" width="600" alt="YouTube 缩略图 - 日语网络研讨会缩略图生成器 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3198,7 +3198,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776697129252_angrld_HGJCzL5a0AAYPr6.jpg" width="600" alt="YouTube 缩略图 - VTuber 初配信缩略图 - Image 1">
+<img src="/template-previews/tpl-74.webp" width="600" alt="YouTube 缩略图 - VTuber 初配信缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3275,7 +3275,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776697106260_dl2b9r_HGGzzjmasAAub4r.jpg" width="600" alt="YouTube 缩略图 - 金色与黑色风格信息产品缩略图 - Image 1">
+<img src="/template-previews/tpl-75.webp" width="600" alt="YouTube 缩略图 - 金色与黑色风格信息产品缩略图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3309,7 +3309,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883120482_9fygfa_HGgqTCCaIAA4jpt.jpg" width="600" alt="漫画 / 故事板 - 温馨四格夫妻漫画 - Image 1">
+<img src="/template-previews/tpl-76.webp" width="600" alt="漫画 / 故事板 - 温馨四格夫妻漫画 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3413,7 +3413,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883112561_p4smsc_HGgOKcHb0AAe6uY.jpg" width="600" alt="漫画 / 故事板 - 日语 AI 漫画演示页面 - Image 1">
+<img src="/template-previews/tpl-77.webp" width="600" alt="漫画 / 故事板 - 日语 AI 漫画演示页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3446,7 +3446,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883089448_29d4ej_HGf2vKmbQAAECCZ.jpg" width="600" alt="漫画 / 故事板 - 优雅动漫女剑士 4 格设定图 - Image 1">
+<img src="/template-previews/tpl-78.webp" width="600" alt="漫画 / 故事板 - 优雅动漫女剑士 4 格设定图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3480,7 +3480,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883198880_l9s0k9_HGfMY0Aa0AA_bmW.jpg" width="600" alt="漫画 / 故事板 - Countryball 霍尔木兹海峡对峙 - Image 1">
+<img src="/template-previews/tpl-79.webp" width="600" alt="漫画 / 故事板 - Countryball 霍尔木兹海峡对峙 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3514,7 +3514,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883179057_tuj66s_HGfDlEhacAA5t4g.jpg" width="600" alt="漫画 / 故事板 - 蒙眼术士胜利姿势 - Image 1">
+<img src="/template-previews/tpl-80.webp" width="600" alt="漫画 / 故事板 - 蒙眼术士胜利姿势 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3548,7 +3548,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883204081_v9n5zm_HGew6LTaIAA-lrF.jpg" width="600" alt="漫画 / 故事板 - 月面澡堂喜剧漫画页面 - Image 1">
+<img src="/template-previews/tpl-81.webp" width="600" alt="漫画 / 故事板 - 月面澡堂喜剧漫画页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3582,7 +3582,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883049658_pw6yph_HGetCnrbIAAq6T0.jpg" width="600" alt="漫画 / 故事板 - 角色设计参考表 - Image 1">
+<img src="/template-previews/tpl-82.webp" width="600" alt="漫画 / 故事板 - 角色设计参考表 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3616,7 +3616,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883044035_vhpqs5_HGemAz4XsAAks7h.jpg" width="600" alt="漫画 / 故事板 - 独立漫画书页面 - Image 1">
+<img src="/template-previews/tpl-83.webp" width="600" alt="漫画 / 故事板 - 独立漫画书页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3652,7 +3652,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883044310_q2uvbd_HGehCXkXYAAWo-E.jpg" width="600" alt="漫画 / 故事板 - 彩色少年漫画页面 - Image 1">
+<img src="/template-previews/tpl-84.webp" width="600" alt="漫画 / 故事板 - 彩色少年漫画页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3685,7 +3685,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883111356_ttmvlw_HGd1P-6aYAApq5n.jpg" width="600" alt="漫画 / 故事板 - 四格浪漫喜剧漫画页面 - Image 1">
+<img src="/template-previews/tpl-85.webp" width="600" alt="漫画 / 故事板 - 四格浪漫喜剧漫画页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3719,13 +3719,13 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883071037_qet7yn_HGbpLzMaIAAO36j.jpg" width="600" alt="漫画 / 故事板 - Velvedia 角色参考图提示词 - Image 1">
+<img src="/template-previews/tpl-86.webp" width="600" alt="漫画 / 故事板 - Velvedia 角色参考图提示词 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883071058_lr0y9r_HGbpLzIb0AABqh6.jpg" width="600" alt="漫画 / 故事板 - Velvedia 角色参考图提示词 - Image 2">
+<img src="/template-previews/tpl-86-image-2.webp" width="600" alt="漫画 / 故事板 - Velvedia 角色参考图提示词 - Image 2">
 </div>
 
 #### 📌 详情
@@ -3759,7 +3759,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883179981_g850jg_HGdwE1VWAAA1r98.jpg" width="600" alt="漫画 / 故事板 - 8 格 GPT-Image-2 漫画宣传页 - Image 1">
+<img src="/template-previews/tpl-87.webp" width="600" alt="漫画 / 故事板 - 8 格 GPT-Image-2 漫画宣传页 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3792,7 +3792,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883115323_o2orv4_HGdpb8sbUAAJUyi.jpg" width="600" alt="漫画 / 故事板 - 办公室漫画冲突（已打码） - Image 1">
+<img src="/template-previews/tpl-88.webp" width="600" alt="漫画 / 故事板 - 办公室漫画冲突（已打码） - Image 1">
 </div>
 
 #### 📌 详情
@@ -3826,7 +3826,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883063066_q130vs_HGdoVfRawAAsKrx.jpg" width="600" alt="漫画 / 故事板 - 量子猫漫画 - Image 1">
+<img src="/template-previews/tpl-89.webp" width="600" alt="漫画 / 故事板 - 量子猫漫画 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3860,19 +3860,19 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883136905_4rqc30_HGdmyHmaoAAXxRl.jpg" width="600" alt="漫画 / 故事板 - 可爱的羊角少女办公室漫画页 - Image 1">
+<img src="/template-previews/tpl-90.webp" width="600" alt="漫画 / 故事板 - 可爱的羊角少女办公室漫画页 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883136819_5mc4vw_HGdmpikbQAAN9Mm.jpg" width="600" alt="漫画 / 故事板 - 可爱的羊角少女办公室漫画页 - Image 2">
+<img src="/template-previews/tpl-90-image-2.webp" width="600" alt="漫画 / 故事板 - 可爱的羊角少女办公室漫画页 - Image 2">
 </div>
 
 ##### Image 3
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883136861_aw47rh_HGdmp7yaYAApM4X.jpg" width="600" alt="漫画 / 故事板 - 可爱的羊角少女办公室漫画页 - Image 3">
+<img src="/template-previews/tpl-90-image-3.webp" width="600" alt="漫画 / 故事板 - 可爱的羊角少女办公室漫画页 - Image 3">
 </div>
 
 #### 📌 详情
@@ -3905,7 +3905,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883124513_a9wrk7_HGdiYAOasAA6GsS.jpg" width="600" alt="漫画 / 故事板 - 可爱的四格猫咪吃醋漫画 - Image 1">
+<img src="/template-previews/tpl-91.webp" width="600" alt="漫画 / 故事板 - 可爱的四格猫咪吃醋漫画 - Image 1">
 </div>
 
 #### 📌 详情
@@ -3939,7 +3939,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883166549_4mfjqj_HGdXHBTbkAAawpk.jpg" width="600" alt="漫画 / 故事板 - Moon Mark 冒险漫画页面 - Image 1">
+<img src="/template-previews/tpl-92.webp" width="600" alt="漫画 / 故事板 - Moon Mark 冒险漫画页面 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4021,7 +4021,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776668143480_6f023y_HGURZgJbkAE_Kwh.jpg" width="600" alt="产品营销 - 动漫角色品牌形象与周边项目 - Image 1">
+<img src="/template-previews/tpl-93.webp" width="600" alt="产品营销 - 动漫角色品牌形象与周边项目 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4138,7 +4138,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776697094626_4w646d_HGE06OebMAAQxNG.jpg" width="600" alt="产品营销 - 深色模式病毒式营销案例研究落地页 - Image 1">
+<img src="/template-previews/tpl-94.webp" width="600" alt="产品营销 - 深色模式病毒式营销案例研究落地页 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4257,7 +4257,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776695123224_6cabrf_HGCZTbKawAAaS5X.jpg" width="600" alt="产品营销 - 18 面板吉祥物品牌识别文档 - Image 1">
+<img src="/template-previews/tpl-95.webp" width="600" alt="产品营销 - 18 面板吉祥物品牌识别文档 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4290,19 +4290,19 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883096402_i965t8_HGf3Kb8boAANLXs.jpg" width="600" alt="产品营销 - 动漫武士游戏广告海报 - Image 1">
+<img src="/template-previews/tpl-96.webp" width="600" alt="产品营销 - 动漫武士游戏广告海报 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883096343_b3qsg1_HGf3N-_bQAAqP-U.jpg" width="600" alt="产品营销 - 动漫武士游戏广告海报 - Image 2">
+<img src="/template-previews/tpl-96-image-2.webp" width="600" alt="产品营销 - 动漫武士游戏广告海报 - Image 2">
 </div>
 
 ##### Image 3
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883096435_0wuklg_HGf3PKCaoAAQLfD.jpg" width="600" alt="产品营销 - 动漫武士游戏广告海报 - Image 3">
+<img src="/template-previews/tpl-96-image-3.webp" width="600" alt="产品营销 - 动漫武士游戏广告海报 - Image 3">
 </div>
 
 #### 📌 详情
@@ -4336,7 +4336,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883149653_qexbbv_HGeiabQbMAAUoN7.jpg" width="600" alt="产品营销 - Monochrome Infra 品牌工具包项目 - Image 1">
+<img src="/template-previews/tpl-97.webp" width="600" alt="产品营销 - Monochrome Infra 品牌工具包项目 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4374,7 +4374,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883146520_vyxn5x_HGesueSboAEJlDY.jpg" width="600" alt="产品营销 - 韩式甜米露恶搞广告海报 - Image 1">
+<img src="/template-previews/tpl-98.webp" width="600" alt="产品营销 - 韩式甜米露恶搞广告海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4408,7 +4408,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883145723_kt8nlk_HGesulRagAAOFrG.jpg" width="600" alt="产品营销 - 韩式运动饮料名人广告海报 - Image 1">
+<img src="/template-previews/tpl-99.webp" width="600" alt="产品营销 - 韩式运动饮料名人广告海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4442,7 +4442,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883142089_ksmu1u_HGb9g_obgAAgLLy.jpg" width="600" alt="产品营销 - 日式丛林主题公园恶搞海报 - Image 1">
+<img src="/template-previews/tpl-100.webp" width="600" alt="产品营销 - 日式丛林主题公园恶搞海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4475,7 +4475,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883118827_4jp1ve_HGd47pIW4AE10T3.jpg" width="600" alt="产品营销 - 将展示架移至露台上 - Image 1">
+<img src="/template-previews/tpl-101.webp" width="600" alt="产品营销 - 将展示架移至露台上 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4509,7 +4509,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883094415_xxbsfc_HGd5r4Fa8AAdxik.jpg" width="600" alt="产品营销 - 三款精美移动端落地页 - Image 1">
+<img src="/template-previews/tpl-102.webp" width="600" alt="产品营销 - 三款精美移动端落地页 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4543,7 +4543,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883071751_gx2g3g_HGcBy7KasAEeXLi.jpg" width="600" alt="产品营销 - 多行业日本广告拼贴画 - Image 1">
+<img src="/template-previews/tpl-103.webp" width="600" alt="产品营销 - 多行业日本广告拼贴画 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4577,7 +4577,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883195982_2olyf1_HGd3B2WWwAAzVBf.jpg" width="600" alt="产品营销 - 奢华时尚书籍内页 - Image 1">
+<img src="/template-previews/tpl-104.webp" width="600" alt="产品营销 - 奢华时尚书籍内页 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4611,7 +4611,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883065968_vd4kw9_HGdvybVbcAAqpKT.jpg" width="600" alt="产品营销 - 现代冰咖啡广告设计 - Image 1">
+<img src="/template-previews/tpl-105.webp" width="600" alt="产品营销 - 现代冰咖啡广告设计 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4658,7 +4658,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883139387_x87e9o_HGdv-t-b0AA9ASg.jpg" width="600" alt="产品营销 - ChatGPT 幽默处方药套装 - Image 1">
+<img src="/template-previews/tpl-106.webp" width="600" alt="产品营销 - ChatGPT 幽默处方药套装 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4691,7 +4691,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883201406_yt8yiy_HGc-zq7aAAACOQy.jpg" width="600" alt="电商主图 - 从蓝图生成摄影级产品渲染图 - Image 1">
+<img src="/template-previews/tpl-107.webp" width="600" alt="电商主图 - 从蓝图生成摄影级产品渲染图 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4725,7 +4725,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883187268_drjk2w_HGcTvn1boAASN-1.jpg" width="600" alt="电商主图 - 高端蓝莓产品海报 - Image 1">
+<img src="/template-previews/tpl-108.webp" width="600" alt="电商主图 - 高端蓝莓产品海报 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4759,13 +4759,13 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883105977_5pgeg0_HGbU2ZDbYAAEWX4.jpg" width="600" alt="电商主图 - 极简时尚风格项目穿搭 - Image 1">
+<img src="/template-previews/tpl-109.webp" width="600" alt="电商主图 - 极简时尚风格项目穿搭 - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883105983_d1kr7t_HGbU2ZAbAAANO8q.jpg" width="600" alt="电商主图 - 极简时尚风格项目穿搭 - Image 2">
+<img src="/template-previews/tpl-109-image-2.webp" width="600" alt="电商主图 - 极简时尚风格项目穿搭 - Image 2">
 </div>
 
 #### 📌 详情
@@ -4799,7 +4799,7 @@ Generates a vibrant, text-heavy anime-style thumbnail for a VTuber chat stream, 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776883104038_ocrytr_HGa_RiSa4AAdVM5.jpg" width="600" alt="电商主图 - 机械键盘产品页面模型 - Image 1">
+<img src="/template-previews/tpl-110.webp" width="600" alt="电商主图 - 机械键盘产品页面模型 - Image 1">
 </div>
 
 #### 📌 详情
@@ -4879,7 +4879,7 @@ Generates a clean, clinical web design mockup for a skincare brand featuring a h
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756858951_6ijm10_HGV6HyHaUAA68FT.jpg" width="600" alt="电商主图 - Skincare E-commerce Landing Page Mockup - Image 1">
+<img src="/template-previews/tpl-111.webp" width="600" alt="电商主图 - Skincare E-commerce Landing Page Mockup - Image 1">
 </div>
 
 #### 📌 详情
@@ -4964,7 +4964,7 @@ Generates a sleek, dark-themed e-commerce landing page mockup for a men's skinca
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756858185_6z7569_HGV6FtKbwAAK6L0.jpg" width="600" alt="电商主图 - Men's Skincare Website Landing Page Mockup - Image 1">
+<img src="/template-previews/tpl-112.webp" width="600" alt="电商主图 - Men's Skincare Website Landing Page Mockup - Image 1">
 </div>
 
 #### 📌 详情
@@ -5038,7 +5038,7 @@ Generates a structured e-commerce hero banner for skincare products, featuring a
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756857625_xqz2ws_HGV6FtLboAAAw-a.jpg" width="600" alt="电商主图 - Skincare E-commerce Landing Page - Image 1">
+<img src="/template-previews/tpl-113.webp" width="600" alt="电商主图 - Skincare E-commerce Landing Page - Image 1">
 </div>
 
 #### 📌 详情
@@ -5126,7 +5126,7 @@ Generates a clean, feminine e-commerce landing page hero section for a beauty pr
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756856340_hxgjgr_HGV6DSDasAAyJNp.jpg" width="600" alt="电商主图 - Beauty Product Landing Page Mockup - Image 1">
+<img src="/template-previews/tpl-114.webp" width="600" alt="电商主图 - Beauty Product Landing Page Mockup - Image 1">
 </div>
 
 #### 📌 详情
@@ -5209,7 +5209,7 @@ Generates a multi-panel fashion catalog showcasing different products featuring 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756838105_09bui0_HGWtW5LaEAE1ao5.jpg" width="600" alt="电商主图 - Fashion Collection Catalog Layout - Image 1">
+<img src="/template-previews/tpl-115.webp" width="600" alt="电商主图 - Fashion Collection Catalog Layout - Image 1">
 </div>
 
 #### 📌 详情
@@ -5243,7 +5243,7 @@ A vibrant promotional poster for a bottled green tea beverage, featuring dynamic
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756805592_i18ymf_HGXbncza4AAGx8T.jpg" width="600" alt="电商主图 - Green Tea Bottle Advertisement Poster - Image 1">
+<img src="/template-previews/tpl-116.webp" width="600" alt="电商主图 - Green Tea Bottle Advertisement Poster - Image 1">
 </div>
 
 #### 📌 详情
@@ -5277,7 +5277,7 @@ A photorealistic amateur photograph of a custom building block set resting on a 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756783011_qg8mrm_HGWGG7TWAAELi83.jpg" width="600" alt="电商主图 - Custom Building Block Set Photography - Image 1">
+<img src="/template-previews/tpl-117.webp" width="600" alt="电商主图 - Custom Building Block Set Photography - Image 1">
 </div>
 
 #### 📌 详情
@@ -5311,7 +5311,7 @@ A luxurious cosmetic product advertisement featuring a single elegant glass jar 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756828857_3tbi8h_HGU7yv1bgAARcmr.jpg" width="600" alt="电商主图 - Luxury Cosmetic Web Advertisement - Image 1">
+<img src="/template-previews/tpl-118.webp" width="600" alt="电商主图 - Luxury Cosmetic Web Advertisement - Image 1">
 </div>
 
 #### 📌 详情
@@ -5345,25 +5345,25 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756772675_jeajpn_HGUGld9bAAAUe_s.jpg" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 1">
+<img src="/template-previews/tpl-119.webp" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 1">
 </div>
 
 ##### Image 2
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756772449_903tnx_HGUGmoLasAAKY9V.jpg" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 2">
+<img src="/template-previews/tpl-119-image-2.webp" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 2">
 </div>
 
 ##### Image 3
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756772471_rp1k5s_HGUGnuCacAA9ROi.jpg" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 3">
+<img src="/template-previews/tpl-119-image-3.webp" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 3">
 </div>
 
 ##### Image 4
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776756773769_y74wyh_HGUGoqGaEAAmaAp.jpg" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 4">
+<img src="/template-previews/tpl-119-image-4.webp" width="600" alt="电商主图 - E-commerce Product Page Generator - Image 4">
 </div>
 
 #### 📌 详情
@@ -5462,7 +5462,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776668161813_cyei4t_HGRO3rxaEAAMrny.jpg" width="600" alt="电商主图 - 直播带货界面模型 - Image 1">
+<img src="/template-previews/tpl-120.webp" width="600" alt="电商主图 - 直播带货界面模型 - Image 1">
 </div>
 
 #### 📌 详情
@@ -5496,7 +5496,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699438032_wdl3cx_HGMEwCsaoAAQ75x.jpg" width="600" alt="电商主图 - 夏季海滩饮品商业摄影 - Image 1">
+<img src="/template-previews/tpl-121.webp" width="600" alt="电商主图 - 夏季海滩饮品商业摄影 - Image 1">
 </div>
 
 #### 📌 详情
@@ -5583,7 +5583,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776697120210_cklnnc_HGLsJUZbMAACfhY.jpg" width="600" alt="电商主图 - 4 格广告网格概念 - Image 1">
+<img src="/template-previews/tpl-122.webp" width="600" alt="电商主图 - 4 格广告网格概念 - Image 1">
 </div>
 
 #### 📌 详情
@@ -5674,7 +5674,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699419558_ef89oe_HGLH29jbcAAHELr.jpg" width="600" alt="电商主图 - 电商直播 UI 样机 - Image 1">
+<img src="/template-previews/tpl-123.webp" width="600" alt="电商主图 - 电商直播 UI 样机 - Image 1">
 </div>
 
 #### 📌 详情
@@ -5708,7 +5708,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699418305_yo64pw_HGLE6HSaEAEgf3p.jpg" width="600" alt="电商主图 - 药膳鸡汤标签设计转换 - Image 1">
+<img src="/template-previews/tpl-124.webp" width="600" alt="电商主图 - 药膳鸡汤标签设计转换 - Image 1">
 </div>
 
 #### 📌 详情
@@ -5742,7 +5742,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776699449748_uoimri_HGK8gRZXgAAWXH2.jpg" width="600" alt="电商主图 - 机库中的跑车与客机 - Image 1">
+<img src="/template-previews/tpl-125.webp" width="600" alt="电商主图 - 机库中的跑车与客机 - Image 1">
 </div>
 
 #### 📌 详情
@@ -5776,7 +5776,7 @@ A {argument name="platform" default="Taobao"} product detail page for {argument 
 ##### Image 1
 
 <div align="center">
-<img src="https://cms-assets.youmind.com/media/1776697074973_2uc2i5_HGJMooRbwAAzXOo.jpg" width="600" alt="电商主图 - 逼真的 VTuber 周边商品样机 - Image 1">
+<img src="/template-previews/tpl-126.webp" width="600" alt="电商主图 - 逼真的 VTuber 周边商品样机 - Image 1">
 </div>
 
 #### 📌 详情

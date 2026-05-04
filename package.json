@@ -29,23 +29,30 @@
     "start": "node server/index.mjs --host 127.0.0.1 --port 9999",
     "open": "node scripts/open-workbench.mjs",
     "assets:brand": "node scripts/generate-brand-assets.mjs",
+    "assets:compress": "node scripts/compress-frontend-images.mjs",
+    "db:init": "node scripts/init-local-postgres.mjs",
+    "db:migrate:file-to-postgres": "node scripts/migrate-file-storage-to-postgres.mjs",
     "templates:freeze-previews": "node scripts/freeze-template-previews.mjs",
+    "templates:compress-previews": "node scripts/compress-template-previews.mjs",
+    "docs:localize-images": "node scripts/localize-readme-images.mjs",
     "build": "node scripts/build-node-app.mjs",
     "preview": "node server/index.mjs --host 127.0.0.1 --port 9999",
     "lint:strict": "node scripts/lint-strict.mjs",
-    "test": "node --import tsx --test tests/playground.test.ts tests/node-server.test.mjs",
+    "test": "node --import tsx --test tests/playground.test.ts tests/node-server.test.mjs tests/postgres-storage.test.mjs",
     "typecheck": "tsc --noEmit",
     "verify:visual": "node scripts/visual-check.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
     "@types/node": "^25.6.0",
+    "pg-mem": "^3.0.14",
     "tsx": "^4.20.6",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "express": "^5.2.1",
     "nodemailer": "^8.0.7",
+    "pg": "^8.20.0",
     "stripe": "^18.5.0"
   }
 }

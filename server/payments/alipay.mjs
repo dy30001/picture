@@ -26,7 +26,7 @@ export function createAlipayPaymentProvider({ env = process.env, fetchImpl = fet
         currency: "cny",
         publicKeyConfigured: false,
         confirmationMode: "disabled",
-        message: "支付功能准备中"
+        message: "付款暂未开放，先看套餐"
       };
     }
     if (!appPrivateKey) {
@@ -38,7 +38,7 @@ export function createAlipayPaymentProvider({ env = process.env, fetchImpl = fet
         currency: "cny",
         publicKeyConfigured: Boolean(alipayPublicKey),
         confirmationMode: "disabled",
-        message: "支付功能准备中"
+        message: "付款暂未开放，先看套餐"
       };
     }
     if (!baseUrl && !overrideReturnUrl) {
@@ -50,7 +50,7 @@ export function createAlipayPaymentProvider({ env = process.env, fetchImpl = fet
         currency: "cny",
         publicKeyConfigured: Boolean(alipayPublicKey),
         confirmationMode: alipayPublicKey ? "notify+return" : "return-query",
-        message: "支付功能准备中，请稍后再试"
+        message: "付款暂未开放，稍后再试"
       };
     }
     return {

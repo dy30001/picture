@@ -1,5 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 export function createTemplateStore({ publicDir }) {
   const readmePath = join(publicDir, "README_zh.md");
@@ -40,10 +40,10 @@ export function createTemplateStore({ publicDir }) {
 
 async function buildSnapshot(readmePath, extraPath, signature) {
   const markdown = await readFile(readmePath, "utf8");
-  const templates = dedupeTemplates([
-    ...parsePromptTemplates(markdown),
-    ...await loadExtraPromptTemplates(extraPath)
-  ]);
+  const templates = await localizeTemplatePreviews(dedupeTemplates([
+    ...await loadExtraPromptTemplates(extraPath),
+    ...parsePromptTemplates(markdown)
+  ]), dirname(readmePath));
   return {
     signature,
     templates,
@@ -66,12 +66,12 @@ async function templateSignature(...paths) {
 }
 
 function summarizeTemplate(template) {
-  const promptPreview = compactText(template.prompt, 180);
+  const promptPreview = compactText(template.prompt, 80);
   return {
     id: template.id,
     title: template.title,
     category: template.category,
-    description: compactText(template.description, 180),
+    description: compactText(template.description, 60),
     imageUrl: template.imageUrl,
     featured: template.featured,
     language: template.language,
@@ -86,7 +86,7 @@ function compactText(value, maxLength) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
 }
 
-function parsePromptTemplates(markdown) {
+export function parsePromptTemplates(markdown) {
   const allPromptsAt = markdown.indexOf("## 📋 所有提示词");
   const matches = [...markdown.matchAll(/^### No\. (\d+): (.+)$/gm)];
   return matches.flatMap((match, index) => {
@@ -110,6 +110,32 @@ function parsePromptTemplates(markdown) {
       raycast: /Raycast/i.test(section)
     }];
   });
+}
+
+async function localizeTemplatePreviews(templates, publicDir) {
+  return await Promise.all(templates.map(async (template) => {
+    const imageUrl = String(template.imageUrl || "");
+    if (!/^https?:/i.test(imageUrl)) return template;
+    const localPath = await findExistingPreviewPath(join(publicDir, "template-previews"), template.id);
+    if (!localPath) return template;
+    return {
+      ...template,
+      imageUrl: `/template-previews/${localPath}`,
+      previewSourceUrl: imageUrl
+    };
+  }));
+}
+
+async function findExistingPreviewPath(templatePreviewDir, id) {
+  const base = safePreviewId(id);
+  for (const extension of [".webp", ".jpg", ".png", ".gif", ".avif", ".img"]) {
+    const candidate = `${base}${extension}`;
+    try {
+      await stat(join(templatePreviewDir, candidate));
+      return candidate;
+    } catch {}
+  }
+  return "";
 }
 
 async function loadExtraPromptTemplates(extraPath) {
@@ -157,6 +183,13 @@ function normalizeTemplateKey(value) {
     .replace(/\{\{[^}]+\}\}/g, "")
     .replace(/[^\p{L}\p{N}]+/gu, "")
     .slice(0, 220);
+}
+
+function safePreviewId(value) {
+  return String(value || "template-preview")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "template-preview";
 }
 
 const priorityCategories = ["婚纱照", "人像基准", "情侣照", "闺蜜照", "女生写真", "10岁照", "10 岁照", "夕阳红"];

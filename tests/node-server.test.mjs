@@ -15,6 +15,7 @@ import { createStripePaymentProvider, PaymentProviderError } from "../server/pay
 const serverEntry = new URL("../server/index.mjs", import.meta.url);
 const serverEntryPath = fileURLToPath(serverEntry);
 const generationErrorLog = new URL("../data/logs/generation-errors.ndjson", import.meta.url);
+const fileStorageEnv = { APP_STORAGE_BACKEND: "file", STORAGE_BACKEND: "file" };
 
 test("Node server serves the playground without a fixed port", { skip: !existsSync(serverEntryPath) }, async () => {
   const port = await getOpenPort();
@@ -28,9 +29,11 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...fileStorageEnv,
         STRIPE_FAKE_MODE: "1",
         APP_BASE_URL: `http://127.0.0.1:${port}`,
         INKLENS_AUTH_TEST_MODE: "1",
+        INKLENS_STUDIO_ADMIN_KEY: "test-admin-key",
         INKLENS_AUTH_DIR: authDir
       }
     }
@@ -51,6 +54,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
   cleanupOrderClient(clientA);
   cleanupOrderClient(clientB);
   cleanupOrderClient(explicitClient);
+  cleanupStudioOrders();
 
   try {
     const baseUrl = `http://127.0.0.1:${port}`;
@@ -62,10 +66,12 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(html, /data-tab="history"/);
     assert.match(html, /data-tab="register"/);
     assert.match(html, /data-tab="credits"/);
+    assert.doesNotMatch(html, /data-tab="admin"/);
     assert.doesNotMatch(html, /data-tab="account"/);
     assert.doesNotMatch(html, /data-tab="templates"/);
     assert.doesNotMatch(html, /data-tab="generate"/);
     assert.match(html, /id="studioPanel"/);
+    assert.doesNotMatch(html, /id="adminPanel"/);
     assert.match(html, /img\.inklens\.art/);
     assert.match(html, /墨境个人 AI 摄影棚/);
     assert.match(html, /拍摄定制/);
@@ -73,13 +79,19 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(html, /我的作品/);
     assert.match(html, /登录/);
     assert.match(html, /我的积分/);
-    assert.match(html, /精选优先/);
+    assert.doesNotMatch(html, /后台管理/);
+    assert.match(html, /只看精选/);
     assert.match(html, /id="templateCollections"/);
     assert.match(html, /热门风格，直接开拍/);
     assert.match(html, /id="templateGrid"/);
-    assert.match(html, /<nav class="primary-nav"[\s\S]*拍摄定制[\s\S]*图片创作[\s\S]*我的作品[\s\S]*登录[\s\S]*我的积分[\s\S]*<\/nav>/);
+    assert.match(html, /<nav class="primary-nav"[\s\S]*首页[\s\S]*拍摄定制[\s\S]*图片创作[\s\S]*我的作品[\s\S]*登录[\s\S]*我的积分[\s\S]*<\/nav>/);
     assert.doesNotMatch(html, /账户权益/);
-    assert.match(html, /只按成功出图扣/);
+    assert.match(html, /生活愿景成片/);
+    assert.match(html, /补上重要时刻/);
+    assert.match(html, /正式作品交付/);
+    assert.match(html, /够拍什么/);
+    assert.match(html, /id="creditDirectUse"/);
+    assert.match(html, /id="creditEditUse"/);
     assert.match(html, /只写要求拍一张：20 积分/);
     assert.match(html, /上传照片照着改：30 积分/);
     assert.match(html, /要更大图：2K \+20，4K \+60/);
@@ -89,11 +101,20 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.doesNotMatch(html, /先看余额/);
     assert.doesNotMatch(html, /套餐直达/);
     assert.doesNotMatch(html, /怎么扣/);
-    assert.match(html, /样片定调/);
-    assert.match(html, /像本人/);
-    assert.match(html, /出图不乱扣/);
+    assert.match(html, /让向往的生活，先在照片里发生/);
+    assert.match(html, /把想要的生活，拍成看得见的作品/);
+    assert.match(html, /选择组合，上传照片/);
+    assert.match(html, /订单状态清楚显示/);
+    assert.match(html, /这里只放正式交付结果/);
+    assert.doesNotMatch(html, /后台生产成果页/);
+    assert.doesNotMatch(html, /管理员登录[\s\S]*接收订单[\s\S]*审核资料[\s\S]*制作成片[\s\S]*上传成果[\s\S]*通知客户[\s\S]*完成交付/);
     assert.doesNotMatch(html, /墨境正式服务/);
     assert.doesNotMatch(html, /参考照不公开展示/);
+    assert.doesNotMatch(html, /三张参考照/);
+    assert.doesNotMatch(html, /确认像本人/);
+    assert.doesNotMatch(html, /身份确认/);
+    assert.doesNotMatch(html, /后台上传/);
+    assert.doesNotMatch(html, /制作过程稿/);
     assert.match(html, /id="paymentStatusBadge"/);
     assert.match(html, /id="creditOrderList"/);
     assert.match(html, /id="secondaryNav"/);
@@ -112,9 +133,11 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.doesNotMatch(html, /去连接设置/);
     assert.doesNotMatch(html, /测试连接/);
     assert.match(html, /<h2 id="historyTitle">我的作品<\/h2>/);
-    assert.match(html, /样片集/);
-    assert.match(html, /三张参考照/);
-    assert.match(html, /选模板/);
+    assert.match(html, /看效果/);
+    assert.match(html, /提交资料/);
+    assert.match(html, /制作状态/);
+    assert.match(html, /查看成片/);
+    assert.doesNotMatch(html, /后台管理/);
     assert.match(html, /id="studioCurrentStep"/);
     const appScript = await fetchText(`${baseUrl}/app.js`);
     assert.match(appScript, /婚纱照/);
@@ -122,8 +145,16 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(appScript, /secondaryMenus/);
     assert.match(appScript, /renderCreateGenerateOverview/);
     assert.match(appScript, /goToCreateWorkspace/);
-    assert.match(appScript, /趣味生图/);
-    assert.match(appScript, /套图写真/);
+    assert.match(appScript, /智能生图/);
+    assert.match(appScript, /templateCollections/);
+    assert.match(appScript, /templateCategoryShelfCovers/);
+    assert.match(appScript, /data-template-preview-lazy/);
+    assert.match(appScript, /focusTemplateDetails/);
+    assert.match(appScript, /全部分类/);
+    assert.match(appScript, /人像基准/);
+    assert.match(appScript, /婚纱照/);
+    assert.match(appScript, /产品\/电商/);
+    assert.match(appScript, /地图\/旅行": "\/template-previews\/sorry-5777\.webp/);
     assert.match(appScript, /换背景/);
     assert.match(appScript, /换装/);
     assert.match(appScript, /高清增强/);
@@ -139,11 +170,23 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(appScript, /authModeLoginBtn/);
     assert.doesNotMatch(appScript, /连接设置/);
     assert.doesNotMatch(appScript, /测试连接/);
+    assert.doesNotMatch(appScript, /趣味生图/);
+    assert.doesNotMatch(appScript, /套图写真/);
+    assert.doesNotMatch(appScript, /本地参考/);
+    assert.doesNotMatch(appScript, /外部模板/);
+    assert.doesNotMatch(appScript, /通用模板/);
     assert.match(appScript, /X-Client-Key/);
     assert.match(appScript, /\/api\/payments\/checkout-session/);
+    assert.match(appScript, /登录后可买积分/);
     assert.match(appScript, /20\d{6}-[a-z0-9-]+/i);
     assert.match(appScript, /sampleStatusLabels/);
     assert.match(appScript, /sampleDecisions/);
+    assert.match(appScript, /studioOrderCombos/);
+    assert.match(appScript, /\/api\/studio-orders/);
+    assert.match(appScript, /\/api\/admin\/studio-orders/);
+    assert.doesNotMatch(appScript, /admin:\s*adminFlow/);
+    assert.doesNotMatch(appScript, /确认像本人/);
+    assert.doesNotMatch(appScript, /三张参考照/);
     assert.match(appScript, /已入围/);
     assert.match(appScript, /待重生/);
     assert.match(appScript, /已转正/);
@@ -162,6 +205,9 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.ok(parisGroup, "wedding groups should include Paris travel samples");
     assert.equal(parisGroup.items.length, 9, "each destination group should keep its nine related photos together");
     assert.equal(parisGroup.count, 9);
+    assert.match(parisGroup.cover, /^\/studio-preview-thumbs\//, "group covers should use lightweight preview images");
+    assert.match(parisGroup.items[0].src, /^\/studio-preview-thumbs\//, "sample items should use lightweight preview images by default");
+    assert.match(parisGroup.items[0].fullSrc, /^\/studio-previews\//, "sample items should keep original images for zoom view");
 
     const initialCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipA } });
     assert.equal(initialCredits.ok, true);
@@ -181,53 +227,35 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(paymentConfig.payment.ready, true);
     assert.equal(paymentConfig.payment.mode, "fake");
 
-    const pendingOrder = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
+    const unauthCheckout = await fetch(`${baseUrl}/api/payments/checkout-session`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
       body: JSON.stringify({ packageId: "starter" })
     });
-    assert.equal(pendingOrder.ok, true);
-    assert.equal(pendingOrder.clientKey, explicitClient);
-    assert.equal(pendingOrder.order.status, "pending");
-    assert.equal(pendingOrder.order.packageId, "starter");
-    assert.match(pendingOrder.checkoutUrl, /payment=success/);
-    assert.match(pendingOrder.sessionId, /^cs_fake_/);
+    assert.equal(unauthCheckout.status, 401);
+    const unauthCheckoutJson = await unauthCheckout.json();
+    assert.equal(unauthCheckoutJson.ok, false);
+    assert.match(unauthCheckoutJson.message, /登录后可买积分/);
 
-    const explicitOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": explicitClient } });
-    assert.equal(explicitOrders.clientKey, explicitClient);
-    assert.equal(explicitOrders.orders[0].id, pendingOrder.order.id);
-
-    const webhookResponse = await fetch(`${baseUrl}/api/payments/stripe/webhook`, {
+    const unauthRecharge = await fetch(`${baseUrl}/api/credits/recharge`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Stripe-Signature": "fake" },
-      body: JSON.stringify({
-        type: "checkout.session.completed",
-        data: {
-          object: {
-            id: pendingOrder.sessionId,
-            client_reference_id: pendingOrder.order.id,
-            payment_status: "paid",
-            payment_intent: "pi_fake_checkout_paid",
-            metadata: {
-              clientKey: explicitClient,
-              orderId: pendingOrder.order.id,
-              packageId: "starter"
-            }
-          }
-        }
-      })
+      headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      body: JSON.stringify({ packageId: "starter" })
     });
-    assert.equal(webhookResponse.ok, true, `webhook returned ${webhookResponse.status}`);
-    const webhookJson = await webhookResponse.json();
-    assert.equal(webhookJson.ok, true);
-    assert.equal(webhookJson.received, true);
+    assert.equal(unauthRecharge.status, 401);
+    const unauthRechargeJson = await unauthRecharge.json();
+    assert.equal(unauthRechargeJson.ok, false);
+    assert.match(unauthRechargeJson.message, /登录后可买积分/);
 
-    const explicitCreditsAfterWebhook = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": explicitClient } });
-    assert.equal(explicitCreditsAfterWebhook.balance, 410);
-
-    const paidOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": explicitClient } });
-    assert.equal(paidOrders.orders[0].status, "paid");
-    assert.match(paidOrders.orders[0].ledgerId, /^recharge-/);
+    const unauthOrder = await fetch(`${baseUrl}/api/credits/orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      body: JSON.stringify({ packageId: "starter" })
+    });
+    assert.equal(unauthOrder.status, 401);
+    const unauthOrderJson = await unauthOrder.json();
+    assert.equal(unauthOrderJson.ok, false);
+    assert.match(unauthOrderJson.message, /登录后可买积分/);
 
     const accountHistoryTaskId = `account-history-${port}`;
     const explicitHistorySync = await fetchJson(`${baseUrl}/api/history/sync`, {
@@ -276,11 +304,123 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 
     const accountCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
     assert.equal(accountCredits.clientKey, accountClient);
-    assert.equal(accountCredits.balance, 410);
+    assert.equal(accountCredits.balance, 80);
 
-    const migratedOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": accountClient } });
-    assert.equal(migratedOrders.orders[0].status, "paid");
-    assert.equal(migratedOrders.orders[0].id, pendingOrder.order.id);
+    const pixelImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+    const unauthStudioOrder = await fetch(`${baseUrl}/api/studio-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      body: JSON.stringify({ comboId: "couple", photos: [] })
+    });
+    assert.equal(unauthStudioOrder.status, 401);
+
+    const createdStudioOrder = await fetchJson(`${baseUrl}/api/studio-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      body: JSON.stringify({
+        comboId: "couple",
+        comboLabel: "情侣 2 人",
+        sceneId: "couple",
+        sceneLabel: "情侣照",
+        peopleCount: 2,
+        people: [
+          { id: "person-1", label: "人物 1", photoCount: 1 },
+          { id: "person-2", label: "人物 2", photoCount: 1 }
+        ],
+        styleIds: ["travel"],
+        styleLabels: ["旅行同行"],
+        customerLabel: registered.user.username,
+        note: "测试定制订单",
+        photos: [
+          { personIndex: 0, personLabel: "人物 1", name: "p1.png", dataUrl: pixelImage },
+          { personIndex: 1, personLabel: "人物 2", name: "p2.png", dataUrl: pixelImage }
+        ]
+      })
+    });
+    assert.equal(createdStudioOrder.ok, true);
+    assert.equal(createdStudioOrder.clientKey, accountClient);
+    assert.equal(createdStudioOrder.order.status, "submitted");
+    assert.equal(createdStudioOrder.order.customerStatusLabel, "已提交");
+    assert.equal(createdStudioOrder.order.photoCount, 2);
+    assert.match(createdStudioOrder.order.photos[0].src, /^\/studio-order-assets\//);
+
+    const customerStudioOrders = await fetchJson(`${baseUrl}/api/studio-orders`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(customerStudioOrders.ok, true);
+    assert.equal(customerStudioOrders.orders[0].id, createdStudioOrder.order.id);
+
+    const unauthorizedAdminOrders = await fetch(`${baseUrl}/api/admin/studio-orders`);
+    assert.equal(unauthorizedAdminOrders.status, 401);
+
+    const adminStudioOrders = await fetchJson(`${baseUrl}/api/admin/studio-orders`, { headers: { "X-Admin-Key": "test-admin-key" } });
+    assert.equal(adminStudioOrders.ok, true);
+    assert.equal(adminStudioOrders.orders.some((order) => order.id === createdStudioOrder.order.id), true);
+
+    const uploadedStudioResult = await fetchJson(`${baseUrl}/api/admin/studio-orders/${encodeURIComponent(createdStudioOrder.order.id)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Key": "test-admin-key" },
+      body: JSON.stringify({
+        status: "completed",
+        resultNote: "正式成果已上传",
+        results: [{ title: "正式成片", name: "result.png", dataUrl: pixelImage }]
+      })
+    });
+    assert.equal(uploadedStudioResult.ok, true);
+    assert.equal(uploadedStudioResult.order.status, "completed");
+    assert.equal(uploadedStudioResult.order.customerStatusLabel, "已完成");
+    assert.equal(uploadedStudioResult.order.resultCount, 1);
+    assert.match(uploadedStudioResult.order.results[0].src, /^\/studio-order-assets\//);
+
+    const completedStudioOrders = await fetchJson(`${baseUrl}/api/studio-orders`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(completedStudioOrders.orders[0].status, "completed");
+    assert.equal(completedStudioOrders.orders[0].resultCount, 1);
+
+    const pendingOrder = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      body: JSON.stringify({ packageId: "starter" })
+    });
+    assert.equal(pendingOrder.ok, true);
+    assert.equal(pendingOrder.clientKey, accountClient);
+    assert.equal(pendingOrder.order.status, "pending");
+    assert.equal(pendingOrder.order.packageId, "starter");
+    assert.match(pendingOrder.checkoutUrl, /payment=success/);
+    assert.match(pendingOrder.sessionId, /^cs_fake_/);
+
+    const accountOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(accountOrders.clientKey, accountClient);
+    assert.equal(accountOrders.orders[0].id, pendingOrder.order.id);
+
+    const webhookResponse = await fetch(`${baseUrl}/api/payments/stripe/webhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Stripe-Signature": "fake" },
+      body: JSON.stringify({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: pendingOrder.sessionId,
+            client_reference_id: pendingOrder.order.id,
+            payment_status: "paid",
+            payment_intent: "pi_fake_checkout_paid",
+            metadata: {
+              clientKey: accountClient,
+              orderId: pendingOrder.order.id,
+              packageId: "starter"
+            }
+          }
+        }
+      })
+    });
+    assert.equal(webhookResponse.ok, true, `webhook returned ${webhookResponse.status}`);
+    const webhookJson = await webhookResponse.json();
+    assert.equal(webhookJson.ok, true);
+    assert.equal(webhookJson.received, true);
+
+    const accountCreditsAfterWebhook = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(accountCreditsAfterWebhook.balance, 410);
+
+    const paidOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(paidOrders.orders[0].status, "paid");
+    assert.match(paidOrders.orders[0].ledgerId, /^recharge-/);
 
     const migratedHistory = await fetchJson(`${baseUrl}/api/history`, { headers: { "X-Client-Key": accountClient } });
     assert.equal(migratedHistory.clientKey, accountClient);
@@ -312,21 +452,21 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 
     const recharge = await fetchJson(`${baseUrl}/api/credits/recharge`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
       body: JSON.stringify({ packageId: "starter" })
     });
     assert.equal(recharge.ok, true);
-    assert.equal(recharge.clientKey, clientA);
+    assert.equal(recharge.clientKey, accountClient);
     assert.equal(recharge.entry.credits, 330);
-    assert.equal(recharge.balance, 410);
+    assert.equal(recharge.balance, 740);
 
-    const creditsA = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipA } });
-    assert.equal(creditsA.balance, 410);
-    assert.equal(creditsA.ledger[0].packageId, "starter");
+    const accountCreditsAfterRecharge = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(accountCreditsAfterRecharge.balance, 740);
+    assert.equal(accountCreditsAfterRecharge.ledger[0].packageId, "starter");
 
     const baseEstimate = await fetchJson(`${baseUrl}/api/credits/estimate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
       body: JSON.stringify({
         params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
         references: []
@@ -338,7 +478,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 
     const high4kEditEstimate = await fetchJson(`${baseUrl}/api/credits/estimate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
       body: JSON.stringify({
         params: { size: "3840x2160", quality: "high", outputFormat: "png", count: 2 },
         references: [{ id: "a", name: "a.png", dataUrl: "data:image/png;base64,aa" }, { id: "b", name: "b.png", dataUrl: "data:image/png;base64,bb" }]
@@ -365,7 +505,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     if (!successAddress || typeof successAddress === "string") throw new Error("Could not start fake success upstream");
     const chargedGenerate = await fetchJson(`${baseUrl}/api/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
       body: JSON.stringify({
         taskId: `credit-success-${port}`,
         prompt: "credit success charge",
@@ -382,10 +522,10 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     });
     assert.equal(chargedGenerate.ok, true);
     assert.equal(chargedGenerate.creditCost, 20);
-    assert.equal(chargedGenerate.creditBalance, 390);
+    assert.equal(chargedGenerate.creditBalance, 720);
     assert.match(chargedGenerate.creditLedgerId, /^spend-/);
-    const chargedCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipA } });
-    assert.equal(chargedCredits.balance, 390);
+    const chargedCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(chargedCredits.balance, 720);
     assert.equal(chargedCredits.ledger[0].type, "spend");
     assert.equal(chargedCredits.ledger[0].credits, -20);
 
@@ -412,6 +552,8 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(templates.ok, true);
     assert.ok(templates.total > 100);
     assert.ok(templates.templates[0]?.promptPreview);
+    assert.equal(templates.templates.filter((item) => /^https?:/i.test(String(item.imageUrl || ""))).length, 0);
+    assert.equal(templates.templates.filter((item) => String(item.imageUrl || "").startsWith("/template-previews/")).length, templates.templates.length);
     assert.equal("prompt" in templates.templates[0], false);
     assert.ok(templates.categories.includes("婚纱照"), "catalog categories should include the wedding photo bucket");
 
@@ -423,21 +565,25 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     const portraitTemplate = await fetchJson(`${baseUrl}/api/templates/portrait-axis-female-3view-v01`);
     assert.equal(portraitTemplate.ok, true);
     assert.equal(portraitTemplate.template.category, "人像基准");
+    assert.match(portraitTemplate.template.imageUrl, /^\/template-previews\/portrait-axis-female-3view-v01\.webp$/);
     assert.match(portraitTemplate.template.prompt, /身份确认图/);
 
     const bestFriendsTemplate = await fetchJson(`${baseUrl}/api/templates/portrait-best-friends-studio-v01`);
     assert.equal(bestFriendsTemplate.ok, true);
     assert.equal(bestFriendsTemplate.template.category, "闺蜜照");
+    assert.match(bestFriendsTemplate.template.imageUrl, /^\/template-previews\/portrait-best-friends-studio-v01\.webp$/);
     assert.match(bestFriendsTemplate.template.prompt, /亲密朋友/);
 
     const weddingTemplate = await fetchJson(`${baseUrl}/api/templates/portrait-wedding-couture-cover-v01`);
     assert.equal(weddingTemplate.ok, true);
     assert.equal(weddingTemplate.template.category, "婚纱照");
+    assert.match(weddingTemplate.template.imageUrl, /^\/template-previews\/portrait-wedding-couture-cover-v01\.webp$/);
     assert.match(weddingTemplate.template.prompt, /婚纱/);
 
     const fullCatalog = await fetchJson(`${baseUrl}/api/templates?full=1`);
     assert.equal(fullCatalog.ok, true);
     assert.equal(fullCatalog.total, templates.total);
+    assert.equal(fullCatalog.templates.filter((item) => /^https?:/i.test(String(item.imageUrl || ""))).length, 0);
     assert.ok(fullCatalog.templates[0]?.prompt);
 
     const sync = await fetchJson(`${baseUrl}/api/history/sync`, {
@@ -475,6 +621,8 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 
     const readme = await fetchText(`${baseUrl}/README_zh.md`);
     assert.match(readme, /提示词|Prompt|模板/);
+    assert.doesNotMatch(readme, /<img\b[^>]*\bsrc="https?:\/\//);
+    assert.match(readme, /<img\b[^>]*\bsrc="\/template-previews\//);
   } finally {
     if (successUpstream) successUpstream.close();
     child.kill("SIGTERM");
@@ -492,6 +640,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     cleanupOrderClient(clientB);
     cleanupOrderClient(explicitClient);
     if (accountClient) cleanupOrderClient(accountClient);
+    cleanupStudioOrders();
     rmSync(authDir, { recursive: true, force: true });
   }
 
@@ -522,19 +671,13 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
   const child = spawn(
     process.execPath,
     [serverEntryPath, "--host", "127.0.0.1", "--port", String(port)],
-    { stdio: ["ignore", "pipe", "pipe"] }
+    { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...fileStorageEnv } }
   );
   const output = collectOutput(child);
 
   try {
     const baseUrl = `http://127.0.0.1:${port}`;
     await waitForHttp(baseUrl, child, output);
-    const recharge = await fetchJson(`${baseUrl}/api/credits/recharge`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Forwarded-For": htmlIp },
-      body: JSON.stringify({ packageId: "trial" })
-    });
-    assert.equal(recharge.ok, true);
     const response = await fetch(`${baseUrl}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Forwarded-For": htmlIp },
@@ -567,7 +710,7 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
     assert.match(log.error.upstreamBodySnippet, /proxy login/);
     assert.equal(JSON.stringify(log).includes("test-key-should-not-be-logged"), false);
     const creditsAfterFailure = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": htmlIp } });
-    assert.equal(creditsAfterFailure.balance, 180, "failed generation must not spend credits");
+    assert.equal(creditsAfterFailure.balance, 80, "failed generation must not spend credits");
     assert.equal(creditsAfterFailure.ledger.some((item) => item.type === "spend"), false);
   } finally {
     upstream.close();
@@ -592,6 +735,7 @@ test("Node server only exposes onscreen auth codes on local hosts", { skip: !exi
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...fileStorageEnv,
         STRIPE_FAKE_MODE: "1",
         APP_BASE_URL: `http://127.0.0.1:${port}`,
         INKLENS_AUTH_DIR: authDir,
@@ -700,6 +844,7 @@ test("Node server marks Stripe checkout ready without webhook secret when base U
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...fileStorageEnv,
         STRIPE_SECRET_KEY: "sk_test_ready_without_webhook",
         APP_BASE_URL: `http://127.0.0.1:${port}`
       }
@@ -798,7 +943,9 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
   await once(gateway, "listening");
 
   const port = await getOpenPort();
+  const authDir = mkdtempSync(join(tmpdir(), "inklens-auth-alipay-"));
   const explicitClient = historyClientKey(`alipay-client-${port}`);
+  let accountClient = "";
   cleanupCreditClient(explicitClient);
   cleanupOrderClient(explicitClient);
   const child = spawn(
@@ -808,11 +955,14 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
+        ...fileStorageEnv,
         PAYMENT_PROVIDER: "alipay",
         ALIPAY_APP_ID: "2021006152659162",
         ALIPAY_APP_PRIVATE_KEY: exportPrivateKeyBase64(appKeys.privateKey),
         ALIPAY_GATEWAY_URL: `http://127.0.0.1:${gatewayPort}/gateway.do`,
-        APP_BASE_URL: `http://127.0.0.1:${port}`
+        APP_BASE_URL: `http://127.0.0.1:${port}`,
+        INKLENS_AUTH_TEST_MODE: "1",
+        INKLENS_AUTH_DIR: authDir
       }
     }
   );
@@ -831,9 +981,36 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
     assert.equal(paymentConfig.payment.confirmationMode, "return-query");
     assert.match(paymentConfig.payment.message, /回跳页查询确认到账/);
 
-    const created = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
+    const unauthCheckout = await fetch(`${baseUrl}/api/payments/checkout-session`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      body: JSON.stringify({ packageId: "starter" })
+    });
+    assert.equal(unauthCheckout.status, 401);
+
+    const verification = await fetchJson(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `alipay-${port}@example.com` })
+    });
+    assert.equal(verification.ok, true);
+    const registered = await fetchJson(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `alipay-${port}@example.com`,
+        code: verification.code,
+        password: "secret123",
+        clientKey: explicitClient
+      })
+    });
+    assert.equal(registered.ok, true);
+    accountClient = registered.clientKey;
+
+    const created = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
       body: JSON.stringify({ packageId: "starter" })
     });
     assert.equal(created.ok, true);
@@ -846,7 +1023,7 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
 
     const confirmResult = await fetchJson(`${baseUrl}/api/payments/confirm-session`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": explicitClient },
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
       body: JSON.stringify({ orderId: created.order.id, tradeNo: gatewayTradeNo })
     });
     assert.equal(confirmResult.ok, true);
@@ -856,13 +1033,13 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
     assert.equal(confirmResult.balance, 410);
 
     const orders = await fetchJson(`${baseUrl}/api/credits/orders`, {
-      headers: { "X-Client-Key": explicitClient }
+      headers: { "X-Client-Key": accountClient }
     });
     assert.equal(orders.orders[0].status, "paid");
     assert.equal(orders.orders[0].providerPaymentId, gatewayTradeNo);
 
     const credits = await fetchJson(`${baseUrl}/api/credits`, {
-      headers: { "X-Client-Key": explicitClient }
+      headers: { "X-Client-Key": accountClient }
     });
     assert.equal(credits.balance, 410);
 
@@ -880,6 +1057,11 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
     await once(gateway, "close");
     cleanupCreditClient(explicitClient);
     cleanupOrderClient(explicitClient);
+    if (accountClient) {
+      cleanupCreditClient(accountClient);
+      cleanupOrderClient(accountClient);
+    }
+    rmSync(authDir, { recursive: true, force: true });
   }
 
   assert.notEqual(child.exitCode, 1, output());
@@ -929,8 +1111,9 @@ async function fetchText(url) {
 
 async function fetchJson(url, init) {
   const response = await fetch(url, init);
-  assert.equal(response.ok, true, `${url} returned ${response.status}`);
-  return await response.json();
+  const body = await response.text();
+  assert.equal(response.ok, true, `${url} returned ${response.status}: ${body}`);
+  return JSON.parse(body || "{}");
 }
 
 async function readRequestBody(request) {
@@ -995,4 +1178,9 @@ function cleanupCreditClient(clientKey) {
 
 function cleanupOrderClient(clientKey) {
   rmSync(new URL(`../data/credit-orders/${clientKey}.json`, import.meta.url), { force: true });
+}
+
+function cleanupStudioOrders() {
+  rmSync(new URL("../data/studio-orders.json", import.meta.url), { force: true });
+  rmSync(new URL("../data/studio-order-assets", import.meta.url), { recursive: true, force: true });
 }

@@ -4,12 +4,18 @@ import { access, appendFile, mkdir, readFile, readdir, rm, writeFile } from "nod
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { gzipSync } from "node:zlib";
 import { createCreditOrderStore } from "./credits/orders.mjs";
+import { createPostgresCreditOrderStore } from "./credits/postgres-orders.mjs";
+import { createPostgresCreditStore } from "./credits/postgres-store.mjs";
 import { createCreditService, CreditServiceError } from "./credits/service.mjs";
 import { createCreditStore, isWelcomeOnlyCreditStore } from "./credits/store.mjs";
+import { hashPassword, verifyPassword } from "./auth/crypto.mjs";
+import { createPostgresAuthStore } from "./auth/postgres-store.mjs";
 import { createAlipayPaymentProvider } from "./payments/alipay.mjs";
 import { createStripePaymentProvider } from "./payments/stripe.mjs";
+import { createPostgresPersistence } from "./persistence/postgres.mjs";
+import { createPostgresHistoryStore } from "./history/postgres-store.mjs";
 import { createTemplateStore } from "./template-store.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -23,12 +29,26 @@ const authUsersFile = join(authDataDir, "users.json");
 const logDir = join(dataDir, "logs");
 const generationErrorLogFile = join(logDir, "generation-errors.ndjson");
 const studioPreviewDir = join(root, "final_4k");
+const studioPreviewThumbDir = resolve(process.env.INKLENS_STUDIO_PREVIEW_THUMB_DIR || process.env.STUDIO_PREVIEW_THUMB_DIR || join(dataDir, "studio-preview-thumbs"));
 const studioReviewDir = join(root, "review");
 const authCodeTtlMs = 5 * 60 * 1000;
 const authCodeCooldownMs = 60 * 1000;
+const authLoginFailureWindowMs = 15 * 60 * 1000;
+const authLoginFailureLimit = 5;
+const studioAdminKey = String(process.env.INKLENS_STUDIO_ADMIN_KEY || process.env.STUDIO_ADMIN_KEY || "mojing-admin-local").trim();
+const studioOrderStoreFile = join(dataDir, "studio-orders.json");
+const studioOrderAssetDir = join(dataDir, "studio-order-assets");
+const postgres = createPostgresPersistence({ env: process.env });
+if (postgres.enabled) await postgres.ensureReady();
 const templateStore = createTemplateStore({ publicDir });
-const creditStore = createCreditStore({ dataDir, safeClientKey });
-const creditOrderStore = createCreditOrderStore({ dataDir, safeClientKey });
+const creditStore = postgres.enabled
+  ? createPostgresCreditStore({ db: postgres, safeClientKey })
+  : createCreditStore({ dataDir, safeClientKey });
+const creditOrderStore = postgres.enabled
+  ? createPostgresCreditOrderStore({ db: postgres, safeClientKey })
+  : createCreditOrderStore({ dataDir, safeClientKey });
+const historyStore = postgres.enabled ? createPostgresHistoryStore({ db: postgres, safeClientKey }) : null;
+const authStore = postgres.enabled ? createPostgresAuthStore({ db: postgres }) : null;
 const creditService = createCreditService({ store: creditStore, orderStore: creditOrderStore, safeId });
 const stripePaymentProvider = createStripePaymentProvider({ env: process.env });
 const alipayPaymentProvider = createAlipayPaymentProvider({ env: process.env });
@@ -108,19 +128,72 @@ app.post("/api/payments/alipay/notify", express.urlencoded({ extended: false }),
   }
 });
 app.use(express.json({ limit: "80mb" }));
+const immutableImageStatic = { maxAge: "30d", immutable: true };
 app.use("/generated-history", express.static(historyImageDir));
-app.use("/studio-previews", express.static(studioPreviewDir));
-app.use("/studio-review", express.static(studioReviewDir));
+app.use("/studio-preview-thumbs", express.static(studioPreviewThumbDir, immutableImageStatic));
+app.use("/studio-previews", express.static(studioPreviewDir, immutableImageStatic));
+app.use("/studio-review", express.static(studioReviewDir, immutableImageStatic));
+app.use("/studio-order-assets", express.static(studioOrderAssetDir));
 
 app.get("/api/health", (_request, response) => {
   response.json({ ok: true, service: "gpt-image-node", time: new Date().toISOString() });
 });
 
-app.get("/api/studio-samples", async (_request, response) => {
+app.get("/api/studio-samples", async (request, response) => {
   try {
-    response.json({ ok: true, ...await studioSampleCatalog() });
+    sendJson(request, response, { ok: true, ...await studioSampleCatalog() }, { cacheSeconds: 60 });
   } catch (error) {
     response.status(500).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.get("/api/studio-orders", async (request, response) => {
+  try {
+    const clientKey = clientKeyFromRequest(request);
+    if (!await requireAccountClientKey(response, clientKey)) return;
+    const orders = await listStudioOrders({ clientKey, limit: 20 });
+    response.json({ ok: true, clientKey, orders, total: orders.length, updatedAt: orders[0]?.updatedAt || "" });
+  } catch (error) {
+    response.status(errorStatus(error, 503)).json({ ok: false, message: errorMessage(error), orders: [] });
+  }
+});
+
+app.post("/api/studio-orders", async (request, response) => {
+  try {
+    const clientKey = clientKeyFromRequest(request);
+    if (!await requireAccountClientKey(response, clientKey)) return;
+    const order = await createStudioOrder(request.body, clientKey);
+    response.status(201).json({ ok: true, clientKey, order });
+  } catch (error) {
+    response.status(errorStatus(error, 400)).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.get("/api/admin/studio-orders", async (request, response) => {
+  try {
+    if (!requireStudioAdmin(response, request)) return;
+    const status = String(request.query?.status || "").trim();
+    const orders = await listStudioOrders({
+      limit: 100,
+      status: status || ""
+    });
+    response.json({ ok: true, orders, total: orders.length, updatedAt: orders[0]?.updatedAt || "" });
+  } catch (error) {
+    response.status(errorStatus(error, 503)).json({ ok: false, message: errorMessage(error), orders: [] });
+  }
+});
+
+app.post("/api/admin/studio-orders/:id", async (request, response) => {
+  try {
+    if (!requireStudioAdmin(response, request)) return;
+    const order = await updateStudioOrder(request.params.id, request.body);
+    if (!order) {
+      response.status(404).json({ ok: false, message: "订单不存在" });
+      return;
+    }
+    response.json({ ok: true, order });
+  } catch (error) {
+    response.status(errorStatus(error, 400)).json({ ok: false, message: errorMessage(error) });
   }
 });
 
@@ -132,16 +205,16 @@ app.post("/api/auth/verification-code", async (request, response) => {
   try {
     const type = normalizeAccountType(request.body?.type);
     const account = normalizeAccount(request.body?.account, type);
-    const key = authKey(type, account);
-    const existing = verificationCodes.get(key);
+    const existing = await readStoredVerificationCode(type, account);
     if (existing?.sentAt && Date.now() - existing.sentAt < authCodeCooldownMs) {
-      response.status(429).json({ ok: false, message: "验证码刚发送过，请稍后再试" });
+      response.status(429).json({ ok: false, message: "验证码刚发送过，稍后可重试" });
       return;
     }
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const delivery = authCodeDelivery(request);
     if (delivery === "email") await sendVerificationEmail(account, code);
-    verificationCodes.set(key, { code, expiresAt: Date.now() + authCodeTtlMs, sentAt: Date.now() });
+    const sentAt = Date.now();
+    await writeStoredVerificationCode(type, account, { code, delivery, sentAt, expiresAt: sentAt + authCodeTtlMs });
     const result = {
       ok: true,
       type,
@@ -153,7 +226,8 @@ app.post("/api/auth/verification-code", async (request, response) => {
     if (delivery !== "email") result.code = code;
     response.json(result);
   } catch (error) {
-    response.status(400).json({ ok: false, message: errorMessage(error) });
+    const duplicate = error?.code === "23505";
+    response.status(duplicate ? 409 : 400).json({ ok: false, message: duplicate ? "账号已注册" : errorMessage(error) });
   }
 });
 
@@ -168,7 +242,7 @@ app.post("/api/auth/register", async (request, response) => {
       response.status(409).json({ ok: false, message: "账号已注册" });
       return;
     }
-    verifyCode(type, account, request.body?.code);
+    await verifyCode(type, account, request.body?.code);
     const user = {
       id: makeUserId(),
       type,
@@ -180,9 +254,13 @@ app.post("/api/auth/register", async (request, response) => {
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString()
     };
-    users.push(user);
-    await writeUsers(users);
-    verificationCodes.delete(authKey(type, account));
+    if (authStore) {
+      await authStore.createUser(user);
+    } else {
+      users.push(user);
+      await writeUsers(users);
+    }
+    await deleteStoredVerificationCode(type, account);
     const clientKey = accountClientKey(user.id);
     await migrateClientData(normalizeExplicitClientKey(request.body?.clientKey), clientKey);
     response.status(201).json({ ok: true, user: publicUser(user), clientKey });
@@ -196,14 +274,40 @@ app.post("/api/auth/login", async (request, response) => {
     const type = normalizeAccountType(request.body?.type);
     const account = normalizeAccount(request.body?.account, type);
     const password = normalizePassword(request.body?.password);
+    const clientIp = clientIpFromRequest(request);
+    if (authStore) {
+      const failures = await authStore.countRecentLoginFailures({
+        type,
+        account,
+        clientIp,
+        since: Date.now() - authLoginFailureWindowMs
+      });
+      if (Math.max(failures.accountFailures, failures.ipFailures) >= authLoginFailureLimit) {
+        response.status(429).json({ ok: false, message: "登录失败次数过多，15 分钟后可重试" });
+        return;
+      }
+    }
     const users = await readUsers();
     const user = users.find((item) => item.type === type && item.account === account);
     if (!user || !verifyPassword(password, user.passwordHash)) {
+      if (authStore) {
+        await authStore.recordLoginFailure({
+          type,
+          account,
+          clientIp,
+          createdAt: new Date().toISOString()
+        });
+      }
       response.status(401).json({ ok: false, message: "账号或密码不正确" });
       return;
     }
     user.lastLoginAt = new Date().toISOString();
-    await writeUsers(users);
+    if (authStore) {
+      await authStore.updateLastLogin(user.id, user.lastLoginAt);
+      await authStore.clearLoginFailures({ type, account, clientIp });
+    } else {
+      await writeUsers(users);
+    }
     const clientKey = accountClientKey(user.id);
     await migrateClientData(normalizeExplicitClientKey(request.body?.clientKey), clientKey);
     response.json({ ok: true, user: publicUser(user), clientKey });
@@ -216,7 +320,9 @@ app.get("/api/templates", async (request, response) => {
   try {
     const full = request.query?.full === "1" || request.query?.full === "true";
     const catalog = await templateStore.catalog({ full });
-    response.json({ ok: true, ...catalog });
+    sendJson(request, response, { ok: true, ...catalog }, {
+      cacheSeconds: full ? 60 : 300
+    });
   } catch (error) {
     response.status(500).json({ ok: false, message: errorMessage(error) });
   }
@@ -278,6 +384,7 @@ app.post("/api/credits/estimate", async (request, response) => {
 app.post("/api/credits/recharge", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireAccountClientKey(response, clientKey)) return;
     const packageId = String(request.body?.packageId || "");
     response.json({ ok: true, clientKey, ...await creditService.recharge(packageId, clientKey) });
   } catch (error) {
@@ -297,6 +404,7 @@ app.get("/api/credits/orders", async (request, response) => {
 app.post("/api/credits/orders", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireAccountClientKey(response, clientKey)) return;
     const packageId = String(request.body?.packageId || "");
     response.json({ ok: true, clientKey, ...await creditService.createRechargeOrder(packageId, clientKey, { status: "pending" }) });
   } catch (error) {
@@ -311,6 +419,7 @@ app.get("/api/payments/config", (request, response) => {
 app.post("/api/payments/checkout-session", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireAccountClientKey(response, clientKey)) return;
     const packageId = String(request.body?.packageId || "");
     const origin = requestOrigin(request);
     const { provider, payment } = selectedPayment(origin);
@@ -369,6 +478,7 @@ app.post("/api/payments/confirm-session", async (request, response) => {
     const origin = requestOrigin(request);
     const { provider, payment } = selectedPayment(origin);
     const requestClientKey = clientKeyFromRequest(request);
+    if (!await requireAccountClientKey(response, requestClientKey)) return;
     const sessionId = safeId(request.body?.sessionId || request.body?.session_id || "");
     const orderId = safeId(request.body?.orderId || request.body?.order || "");
     const tradeNo = safeId(request.body?.tradeNo || request.body?.trade_no || "");
@@ -413,7 +523,7 @@ app.post("/api/generate", async (request, response) => {
   const taskId = safeId(request.body?.taskId || request.body?.id || `task-${Date.now().toString(36)}`);
   const createdAt = safeDate(request.body?.createdAt, new Date());
   if (!settings.apiKey.trim()) {
-    response.status(400).json({ ok: false, message: "请先配置 API" });
+    response.status(400).json({ ok: false, message: "API 配置不可用" });
     return;
   }
   if (!prompt) {
@@ -582,6 +692,28 @@ function parseArgs(args) {
     if (args[index] === "--port" && args[index + 1]) next.port = Number(args[index + 1]) || 9999;
   }
   return next;
+}
+
+function sendJson(request, response, payload, { cacheSeconds = 0 } = {}) {
+  const json = JSON.stringify(payload);
+  const jsonLength = Buffer.byteLength(json);
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.setHeader("Cache-Control", cacheSeconds > 0
+    ? `public, max-age=${cacheSeconds}, stale-while-revalidate=3600`
+    : "no-store");
+  response.setHeader("Vary", "Accept-Encoding");
+
+  const acceptEncoding = String(request.headers["accept-encoding"] || "");
+  if (jsonLength > 1024 && /\bgzip\b/i.test(acceptEncoding)) {
+    const compressed = gzipSync(json);
+    response.setHeader("Content-Encoding", "gzip");
+    response.setHeader("Content-Length", String(compressed.length));
+    response.end(compressed);
+    return;
+  }
+
+  response.setHeader("Content-Length", String(jsonLength));
+  response.end(json);
 }
 
 function sanitizeSettings(value) {
@@ -962,6 +1094,7 @@ const historyReadyPromises = new Map();
 let historyWriteQueue = Promise.resolve();
 
 function ensureHistoryStore(clientKey = "local") {
+  if (historyStore) return Promise.resolve();
   const key = safeClientKey(clientKey);
   if (!historyReadyPromises.has(key)) historyReadyPromises.set(key, initializeHistoryStore(key));
   return historyReadyPromises.get(key);
@@ -981,6 +1114,7 @@ async function initializeHistoryStore(clientKey = "local") {
 }
 
 async function readHistoryStore(clientKey = "local") {
+  if (historyStore) return await historyStore.readHistoryStore(clientKey);
   await ensureHistoryStore(clientKey);
   try {
     const text = await readFile(historyStoreFileForClient(clientKey), "utf8");
@@ -993,11 +1127,16 @@ async function readHistoryStore(clientKey = "local") {
 }
 
 async function writeHistoryStore(history, clientKey = "local") {
+  if (historyStore) {
+    await historyStore.writeHistoryStore(history, clientKey);
+    return;
+  }
   await ensureHistoryStore(clientKey);
   await writeFile(historyStoreFileForClient(clientKey), `${JSON.stringify(history.map(normalizeHistoryRecord), null, 2)}\n`);
 }
 
 function mutateHistoryStore(mutator, clientKey = "local") {
+  if (historyStore) return historyStore.mutateHistoryStore(mutator, clientKey);
   const run = historyWriteQueue.then(async () => {
     const history = await readHistoryStore(clientKey);
     const result = await mutator(history);
@@ -1048,6 +1187,306 @@ function requestReferences(references) {
       name: String(reference.name || "reference.png"),
       dataUrl: String(reference.dataUrl)
     }));
+}
+
+let studioOrderReadyPromise = null;
+let studioOrderWriteQueue = Promise.resolve();
+
+const studioOrderStatusLabels = {
+  submitted: "已提交",
+  needs_more: "资料需补充",
+  producing: "制作中",
+  completed: "已完成"
+};
+
+function requireStudioAdmin(response, request) {
+  const provided = String(
+    request.headers?.["x-admin-key"]
+    || request.query?.adminKey
+    || request.body?.adminKey
+    || ""
+  ).trim();
+  if (studioAdminKey && provided === studioAdminKey) return true;
+  response.status(401).json({ ok: false, message: "管理员登录后可操作" });
+  return false;
+}
+
+async function listStudioOrders({ clientKey = "", status = "", limit = 50 } = {}) {
+  const orders = await readStudioOrders();
+  const normalizedStatus = status ? normalizeStudioOrderStatus(status) : "";
+  return orders
+    .filter((order) => clientKey ? order.clientKey === clientKey : true)
+    .filter((order) => normalizedStatus ? order.status === normalizedStatus : true)
+    .sort((left, right) => String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt), "en"))
+    .slice(0, clampNumber(Number(limit) || 50, 1, 200));
+}
+
+async function createStudioOrder(payload, clientKey) {
+  const source = payload && typeof payload === "object" ? payload : {};
+  const orderId = safeId(`studio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+  const now = new Date().toISOString();
+  const people = normalizeStudioPeople(source.people, source.peopleCount);
+  const rawPhotos = normalizeIncomingStudioAssets(source.photos);
+  const photos = await persistStudioOrderAssets({
+    clientKey,
+    orderId,
+    folder: "references",
+    prefix: "ref",
+    items: rawPhotos
+  });
+  if (!photos.length) {
+    const error = new Error("请至少上传 1 张照片");
+    error.status = 400;
+    throw error;
+  }
+  const order = normalizeStudioOrderRecord({
+    id: orderId,
+    clientKey,
+    customerLabel: compactStudioText(source.customerLabel, 80),
+    comboId: safeId(source.comboId || "custom"),
+    comboLabel: compactStudioText(source.comboLabel || "定制组合", 40),
+    sceneId: safeId(source.sceneId || ""),
+    sceneLabel: compactStudioText(source.sceneLabel || "拍摄定制", 40),
+    peopleCount: people.length,
+    people,
+    styleIds: normalizeStudioTextArray(source.styleIds, 12, 40),
+    styleLabels: normalizeStudioTextArray(source.styleLabels, 12, 40),
+    note: compactStudioText(source.note, 500),
+    status: "submitted",
+    adminNote: "",
+    resultNote: "",
+    photos,
+    results: [],
+    submittedAt: now,
+    createdAt: now,
+    updatedAt: now
+  });
+  await mutateStudioOrders((orders) => {
+    orders.unshift(order);
+    return order;
+  });
+  return order;
+}
+
+async function updateStudioOrder(id, payload) {
+  const orderId = safeId(id);
+  const source = payload && typeof payload === "object" ? payload : {};
+  return await mutateStudioOrders(async (orders) => {
+    const index = orders.findIndex((item) => item.id === orderId);
+    if (index < 0) return null;
+    const order = { ...orders[index] };
+    const hasStatus = Object.hasOwn(source, "status");
+    const status = hasStatus ? normalizeStudioOrderStatus(source.status) : order.status;
+    const now = new Date().toISOString();
+    const incomingResults = normalizeIncomingStudioAssets(source.results);
+    if (incomingResults.length) {
+      const savedResults = await persistStudioOrderAssets({
+        clientKey: order.clientKey,
+        orderId: order.id,
+        folder: "results",
+        prefix: "result",
+        items: incomingResults
+      });
+      order.results = [...(Array.isArray(order.results) ? order.results : []), ...savedResults];
+      order.resultNote = compactStudioText(source.resultNote || order.resultNote, 500);
+      order.status = "completed";
+    } else {
+      order.status = status;
+    }
+    if (Object.hasOwn(source, "adminNote")) order.adminNote = compactStudioText(source.adminNote, 500);
+    if (Object.hasOwn(source, "resultNote") && !incomingResults.length) order.resultNote = compactStudioText(source.resultNote, 500);
+    order.updatedAt = now;
+    order.notifications = [
+      ...(Array.isArray(order.notifications) ? order.notifications : []),
+      {
+        id: safeId(`notice-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`),
+        status: order.status,
+        title: studioOrderStatusLabels[order.status] || "订单已更新",
+        note: incomingResults.length ? "后台已上传成果" : compactStudioText(source.adminNote || source.resultNote || "", 160),
+        createdAt: now
+      }
+    ].slice(-20);
+    const normalized = normalizeStudioOrderRecord(order);
+    orders[index] = normalized;
+    return normalized;
+  });
+}
+
+async function persistStudioOrderAssets({ clientKey, orderId, folder, prefix, items }) {
+  const orderKey = safeId(orderId);
+  const folderKey = safeId(folder || "assets");
+  const clientKeySafe = safeClientKey(clientKey);
+  const dir = join(studioOrderAssetDir, clientKeySafe, orderKey, folderKey);
+  await mkdir(dir, { recursive: true });
+  const now = new Date().toISOString();
+  const saved = [];
+  const entries = Array.isArray(items) ? items.slice(0, 80) : [];
+  for (let index = 0; index < entries.length; index += 1) {
+    const item = entries[index] && typeof entries[index] === "object" ? entries[index] : {};
+    const directSrc = String(item.src || item.url || "").trim();
+    if (directSrc && !String(item.dataUrl || "").startsWith("data:image/")) {
+      saved.push(normalizeStudioAssetRecord({ ...item, id: item.id || `${prefix}-${index + 1}`, src: directSrc, uploadedAt: now }));
+      continue;
+    }
+    const parsed = parseDataImage(String(item.dataUrl || ""), "jpg");
+    if (!parsed) continue;
+    const fileStem = safeId(`${prefix}-${index + 1}-${String(item.name || "image").replace(/\.[a-z0-9]+$/i, "")}`);
+    const filename = `${fileStem}.${parsed.extension}`;
+    await writeFile(join(dir, filename), parsed.buffer);
+    saved.push(normalizeStudioAssetRecord({
+      ...item,
+      id: item.id || `${prefix}-${index + 1}`,
+      src: studioOrderAssetUrl(clientKeySafe, orderKey, folderKey, filename),
+      uploadedAt: now
+    }));
+  }
+  return saved;
+}
+
+function studioOrderAssetUrl(clientKey, orderId, folder, filename) {
+  return `/studio-order-assets/${[clientKey, orderId, folder, filename].map((part) => encodeURIComponent(part)).join("/")}`;
+}
+
+function normalizeIncomingStudioAssets(value) {
+  return (Array.isArray(value) ? value : [])
+    .filter((item) => item && typeof item === "object")
+    .slice(0, 80);
+}
+
+function normalizeStudioAssetRecord(item) {
+  return {
+    id: safeId(item?.id || `asset-${Date.now().toString(36)}`),
+    src: String(item?.src || item?.url || ""),
+    name: compactStudioText(item?.name || "photo.jpg", 120),
+    title: compactStudioText(item?.title || item?.name || "成片", 80),
+    note: compactStudioText(item?.note, 240),
+    personIndex: Math.max(0, Number(item?.personIndex) || 0),
+    personLabel: compactStudioText(item?.personLabel || "", 40),
+    uploadedAt: String(item?.uploadedAt || "")
+  };
+}
+
+function normalizeStudioOrderRecord(item) {
+  const status = normalizeStudioOrderStatus(item?.status);
+  const people = normalizeStudioPeople(item?.people, item?.peopleCount);
+  const photos = (Array.isArray(item?.photos) ? item.photos : []).map(normalizeStudioAssetRecord).filter((entry) => entry.src);
+  const results = (Array.isArray(item?.results) ? item.results : []).map(normalizeStudioAssetRecord).filter((entry) => entry.src);
+  const photoCounts = photos.reduce((counts, photo) => {
+    counts[photo.personIndex] = (counts[photo.personIndex] || 0) + 1;
+    return counts;
+  }, {});
+  const peopleWithPhotoCounts = people.map((person, index) => ({ ...person, photoCount: photoCounts[index] || person.photoCount || 0 }));
+  const createdAt = String(item?.createdAt || item?.submittedAt || new Date().toISOString());
+  const updatedAt = String(item?.updatedAt || createdAt);
+  return {
+    id: safeId(item?.id),
+    clientKey: safeClientKey(item?.clientKey),
+    customerLabel: compactStudioText(item?.customerLabel, 80),
+    comboId: safeId(item?.comboId || "custom"),
+    comboLabel: compactStudioText(item?.comboLabel || "定制组合", 40),
+    sceneId: safeId(item?.sceneId || ""),
+    sceneLabel: compactStudioText(item?.sceneLabel || "拍摄定制", 40),
+    peopleCount: peopleWithPhotoCounts.length,
+    people: peopleWithPhotoCounts,
+    styleIds: normalizeStudioTextArray(item?.styleIds, 12, 40),
+    styleLabels: normalizeStudioTextArray(item?.styleLabels, 12, 40),
+    note: compactStudioText(item?.note, 500),
+    status,
+    customerStatus: status,
+    customerStatusLabel: studioOrderStatusLabels[status] || "已提交",
+    adminStatusLabel: studioOrderStatusLabels[status] || "已提交",
+    adminNote: compactStudioText(item?.adminNote, 500),
+    resultNote: compactStudioText(item?.resultNote, 500),
+    photoCount: photos.length,
+    resultCount: results.length,
+    photos,
+    results,
+    notifications: (Array.isArray(item?.notifications) ? item.notifications : []).slice(-20),
+    submittedAt: String(item?.submittedAt || createdAt),
+    createdAt,
+    updatedAt
+  };
+}
+
+function normalizeStudioOrderStatus(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
+  return ["submitted", "needs_more", "producing", "completed"].includes(normalized) ? normalized : "submitted";
+}
+
+function normalizeStudioPeople(value, fallbackCount = 1) {
+  const source = Array.isArray(value) ? value : [];
+  const count = clampNumber(Number(fallbackCount) || source.length || 1, 1, 12);
+  const people = [];
+  for (let index = 0; index < count; index += 1) {
+    const item = source[index] && typeof source[index] === "object" ? source[index] : {};
+    people.push({
+      id: safeId(item.id || `person-${index + 1}`),
+      label: compactStudioText(item.label || `人物 ${index + 1}`, 40),
+      note: compactStudioText(item.note, 120),
+      photoCount: Math.max(0, Number(item.photoCount) || 0)
+    });
+  }
+  return people;
+}
+
+function normalizeStudioTextArray(value, limit = 12, maxLength = 80) {
+  return [...new Set((Array.isArray(value) ? value : [])
+    .map((item) => compactStudioText(item, maxLength))
+    .filter(Boolean))]
+    .slice(0, limit);
+}
+
+function compactStudioText(value, max = 200) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+async function ensureStudioOrderStore() {
+  if (!studioOrderReadyPromise) {
+    studioOrderReadyPromise = (async () => {
+      await mkdir(dataDir, { recursive: true });
+      await mkdir(dirname(studioOrderStoreFile), { recursive: true });
+      await mkdir(studioOrderAssetDir, { recursive: true });
+      try {
+        await access(studioOrderStoreFile);
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
+        await writeFile(studioOrderStoreFile, "[]\n", "utf-8");
+      }
+    })();
+  }
+  return studioOrderReadyPromise;
+}
+
+async function readStudioOrders() {
+  await ensureStudioOrderStore();
+  try {
+    const text = await readFile(studioOrderStoreFile, "utf-8");
+    const parsed = JSON.parse(text || "[]");
+    return (Array.isArray(parsed) ? parsed : []).map(normalizeStudioOrderRecord);
+  } catch (error) {
+    if (error?.code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+async function writeStudioOrders(orders) {
+  await ensureStudioOrderStore();
+  const normalized = (Array.isArray(orders) ? orders : []).map(normalizeStudioOrderRecord);
+  await writeFile(studioOrderStoreFile, `${JSON.stringify(normalized, null, 2)}\n`, "utf-8");
+}
+
+function mutateStudioOrders(mutator) {
+  const run = studioOrderWriteQueue.then(async () => {
+    const orders = await readStudioOrders();
+    const result = await mutator(orders);
+    await writeStudioOrders(orders.map(normalizeStudioOrderRecord));
+    return result;
+  });
+  studioOrderWriteQueue = run.catch(() => {});
+  return run;
 }
 
 function historyStoreFileForClient(clientKey = "local") {
@@ -1169,7 +1608,21 @@ function clientKeyFromRequest(request) {
   return safeClientKey(clientIpFromRequest(request));
 }
 
+async function isAccountClientKey(clientKey) {
+  const normalized = normalizeExplicitClientKey(clientKey);
+  if (!normalized) return false;
+  const users = await readUsers();
+  return users.some((user) => accountClientKey(user.id) === normalized);
+}
+
+async function requireAccountClientKey(response, clientKey) {
+  if (await isAccountClientKey(clientKey)) return true;
+  response.status(401).json({ ok: false, message: "登录后可买积分" });
+  return false;
+}
+
 async function readUsers() {
+  if (authStore) return await authStore.listUsers();
   try {
     const raw = await readFile(authUsersFile, "utf-8");
     const parsed = JSON.parse(raw);
@@ -1181,6 +1634,7 @@ async function readUsers() {
 }
 
 async function writeUsers(users) {
+  if (authStore) return;
   await mkdir(authDataDir, { recursive: true });
   await writeFile(authUsersFile, `${JSON.stringify({ users }, null, 2)}\n`, "utf-8");
 }
@@ -1228,8 +1682,14 @@ function normalizePassword(value) {
   return password;
 }
 
-function verifyCode(type, account, value) {
+async function verifyCode(type, account, value) {
   const code = String(value || "").trim();
+  if (authStore) {
+    const result = await authStore.verifyCode(type, account, code);
+    if (!result.ok && result.reason === "expired") throw new Error("验证码已过期，请重新获取");
+    if (!result.ok) throw new Error("验证码不正确");
+    return;
+  }
   const stored = verificationCodes.get(authKey(type, account));
   if (!stored || stored.expiresAt < Date.now()) throw new Error("验证码已过期，请重新获取");
   if (stored.code !== code) throw new Error("验证码不正确");
@@ -1237,6 +1697,38 @@ function verifyCode(type, account, value) {
 
 function authKey(type, account) {
   return `${type}:${account}`;
+}
+
+async function readStoredVerificationCode(type, account) {
+  if (authStore) return await authStore.getVerificationCode(type, account);
+  return verificationCodes.get(authKey(type, account)) || null;
+}
+
+async function writeStoredVerificationCode(type, account, value) {
+  if (authStore) {
+    await authStore.saveVerificationCode({
+      type,
+      account,
+      code: value.code,
+      delivery: value.delivery,
+      sentAt: value.sentAt,
+      expiresAt: value.expiresAt
+    });
+    return;
+  }
+  verificationCodes.set(authKey(type, account), {
+    code: value.code,
+    sentAt: value.sentAt,
+    expiresAt: value.expiresAt
+  });
+}
+
+async function deleteStoredVerificationCode(type, account) {
+  if (authStore) {
+    await authStore.deleteVerificationCode(type, account);
+    return;
+  }
+  verificationCodes.delete(authKey(type, account));
 }
 
 function maskAccount(account, type) {
@@ -1349,22 +1841,10 @@ function isPrivateNetworkIp(value) {
 }
 
 function makeUserId() {
-  return `user_${Date.now().toString(36)}_${randomBytes(3).toString("hex")}`;
-}
-
-function hashPassword(password) {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(password, salt, 32).toString("hex");
-  return `scrypt:${salt}:${hash}`;
-}
-
-function verifyPassword(password, passwordHash) {
-  const [, salt, hash] = String(passwordHash || "").split(":");
-  if (!salt || !hash) return false;
-  const expected = Buffer.from(hash, "hex");
-  if (!expected.length) return false;
-  const actual = scryptSync(password, salt, expected.length);
-  return expected.length === actual.length && timingSafeEqual(expected, actual);
+  const suffix = typeof crypto?.randomUUID === "function"
+    ? crypto.randomUUID().replace(/-/g, "").slice(0, 6)
+    : Math.random().toString(16).slice(2, 8);
+  return safeId(`user_${Date.now().toString(36)}_${suffix}`);
 }
 
 function publicUser(user) {
@@ -1705,6 +2185,8 @@ function buildStudioSampleItem(entry, classification) {
   const sampleLabel = studioSampleDirectionLabels[sceneId]?.[sampleId] || sampleId;
   const groupLabel = classification.groupTitle || studioSampleGroupLabel(entry.group, sceneId);
   const shotNumber = extractStudioShotNumber(entry.fileName);
+  const fullSrc = studioPreviewUrl(entry.relativePath);
+  const previewSrc = studioPreviewThumbUrl(entry.relativePath);
   return {
     id: safeId(`sample-${entry.relativePath}`),
     sceneId,
@@ -1715,10 +2197,24 @@ function buildStudioSampleItem(entry, classification) {
     title: `${groupLabel} · ${sampleLabel}`,
     label: shotNumber ? `第 ${shotNumber} 张` : sampleLabel,
     alt: `${sceneLabel} · ${groupLabel} · ${sampleLabel}`,
-    src: `/studio-previews/${entry.relativePath.split("/").map((part) => encodeURIComponent(part)).join("/")}`,
+    src: previewSrc,
+    previewSrc,
+    fullSrc,
     updatedAt: studioTimestampIso(groupTimestamp(entry.group)),
     sortKey: classification.sortKey
   };
+}
+
+function studioPreviewUrl(relativePath) {
+  return `/studio-previews/${urlPath(relativePath)}`;
+}
+
+function studioPreviewThumbUrl(relativePath) {
+  return `/studio-preview-thumbs/${urlPath(String(relativePath || "").replace(/\.[^.]+$/, ".jpg"))}`;
+}
+
+function urlPath(relativePath) {
+  return String(relativePath || "").split(/[\\/]+/).filter(Boolean).map((part) => encodeURIComponent(part)).join("/");
 }
 
 function studioIdentityGroupClassification(groupName, sceneId, sampleId, titlePrefix, subtitle, groupRank) {

@@ -42,7 +42,7 @@ export function createStripePaymentProvider({ env = process.env, stripeClient = 
         currency,
         webhookConfigured: false,
         confirmationMode: "disabled",
-        message: "支付功能准备中"
+        message: "付款暂未开放，先看套餐"
       };
     }
     if (!baseUrl) {
@@ -54,7 +54,7 @@ export function createStripePaymentProvider({ env = process.env, stripeClient = 
         currency,
         webhookConfigured: Boolean(webhookSecret),
         confirmationMode: webhookSecret ? "webhook" : "return",
-        message: "支付功能准备中，请稍后再试"
+        message: "付款暂未开放，稍后再试"
       };
     }
     return {
