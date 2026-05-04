@@ -12691,6 +12691,20 @@ html {
   flex-basis: clamp(88px, 6.8vw, 118px) !important;
 }
 
+#studioSampleSection .sample-photo-loading {
+  align-items: center;
+  align-self: stretch;
+  border: 1px dashed rgba(56, 50, 41, 0.18);
+  border-radius: 18px;
+  color: rgba(56, 50, 41, 0.58);
+  display: flex;
+  flex: 0 0 clamp(108px, 7.4vw, 126px);
+  font-size: 12px;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+}
+
 @media (min-width: 1101px) {
   #studioSampleSection .sample-one-screen-layout {
     align-items: stretch !important;

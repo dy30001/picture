@@ -374,6 +374,7 @@ const state = {
 };
 
 const dom = {};
+const studioSampleGroupRequestCache = new Map();
 const localClientKey = ensureLocalClientKey();
 let generationTimerId = 0;
 let creditEstimateTimerId = 0;
@@ -683,6 +684,7 @@ async function loadStudioSamples() {
     const response = await apiFetch("/api/studio-samples", { headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     state.studioSamples = normalizeStudioSamples(await response.json());
+    hydrateSelectedStudioSampleGroup();
   } catch (error) {
     state.studioSamples = { loaded: true, total: 0, updatedAt: "", scenes: {}, sceneGroups: {}, error: errorMessage(error) };
   }
@@ -918,6 +920,7 @@ function normalizeStudioSamples(data) {
   const source = data && typeof data === "object" ? data : {};
   const scenes = {};
   const sceneGroups = {};
+  const detailGroups = source.groupDetails && typeof source.groupDetails === "object" ? source.groupDetails : {};
   let total = 0;
   for (const scene of scenePacks) {
     const list = Array.isArray(source.scenes?.[scene.id]) ? source.scenes[scene.id] : [];
@@ -938,8 +941,10 @@ function normalizeStudioSamples(data) {
     loaded: true,
     total: Number(source.total) || total,
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : "",
+    mode: String(source.mode || ""),
     scenes,
     sceneGroups,
+    groupDetails: detailGroups,
     error: ""
   };
 }
@@ -991,7 +996,8 @@ function normalizeStudioSampleGroup(scene, item, index) {
     cover,
     coverAlt: String(source.coverAlt || `${scene.name} · ${title}`),
     count: Number(source.count) || items.length,
-    items
+    items,
+    detailLoaded: source.detailLoaded === true || (items.length > 1 && items.length >= Number(source.count || 0))
   };
 }
 
@@ -1321,6 +1327,9 @@ function renderStudio() {
         styleIds: [nextScene.samples[0]?.id || ""].filter(Boolean),
         styleLabels: [nextScene.samples[0]?.title || ""].filter(Boolean)
       });
+      if (sceneChanged && nextGroup && !studioGroupHasFullDetail(nextGroup)) {
+        void loadStudioSampleGroup(nextScene, nextGroup, { renderAfter: true });
+      }
       status(`已选 ${nextScene.name}，对应样片组已展开`);
     };
     button.addEventListener("click", selectScene);
@@ -1347,6 +1356,7 @@ function renderStudio() {
         });
         status(`${nextGroup.title} 已在同屏展开`);
       });
+      if (!studioGroupHasFullDetail(nextGroup)) void loadStudioSampleGroup(scene, nextGroup, { renderAfter: true, preserveScroll: true });
     });
   });
   dom.samplePreviewPanel.querySelectorAll("[data-studio-sample-photo]").forEach((button) => {
@@ -1371,7 +1381,7 @@ function renderStudio() {
       const photoId = button.dataset.studioSampleZoomPhoto || selectedPhoto?.id || entries[0]?.id || "";
       const photoIndex = entries.findIndex((item) => item.id === photoId);
       const activeSample = sampleForStudioGroup(scene, selectedGroup);
-      openStudioSamplePreview(scene, activeSample, photoIndex >= 0 ? photoIndex : 0, entries, selectedGroup);
+      void openStudioSamplePreview(scene, activeSample, photoIndex >= 0 ? photoIndex : 0, entries, selectedGroup);
     });
   });
   dom.sampleDirectionList.hidden = true;
@@ -1951,7 +1961,7 @@ function scenePackCard(scene, index = 0) {
   const cover = scenePackPreview(scene);
   const groups = studioSceneGroups(scene);
   const groupCount = groups.length;
-  const galleryCount = groups.reduce((sum, item) => sum + studioGroupPreviewEntries(scene, item).length, 0);
+  const galleryCount = groups.reduce((sum, item) => sum + (Number(item.count) || studioGroupPreviewEntries(scene, item).length), 0);
   const tags = scene.samples.slice(0, 2).map((item) => `<span>${esc(item.title)}</span>`).join("");
   const extra = groupCount > 2 ? `<span>+${Math.max(0, groupCount - 2)} 组样片</span>` : "";
   const templateIndex = String(index + 1).padStart(2, "0");
@@ -2012,6 +2022,66 @@ function studioSceneGroups(scene) {
   const groups = Array.isArray(state.studioSamples.sceneGroups?.[scene.id]) ? state.studioSamples.sceneGroups[scene.id] : [];
   if (groups.length) return groups;
   return studioStaticSampleGroups(scene);
+}
+
+function studioSampleGroupCacheKey(sceneId, group) {
+  return group ? `${sceneId}:${group.id || group.groupId || group.group}` : "";
+}
+
+function mergeStudioSampleGroup(scene, incoming) {
+  const group = normalizeStudioSampleGroup(scene, incoming, 0);
+  const list = Array.isArray(state.studioSamples.sceneGroups?.[scene.id]) ? state.studioSamples.sceneGroups[scene.id] : [];
+  const index = list.findIndex((item) => item.id === group.id || item.groupId === group.groupId);
+  if (index >= 0) {
+    state.studioSamples.sceneGroups[scene.id] = [
+      ...list.slice(0, index),
+      { ...list[index], ...group, detailLoaded: true },
+      ...list.slice(index + 1)
+    ];
+  }
+  const key = studioSampleGroupCacheKey(scene.id, group);
+  if (key) {
+    state.studioSamples.groupDetails = { ...(state.studioSamples.groupDetails || {}), [key]: { ...group, detailLoaded: true } };
+  }
+  return group;
+}
+
+function hydrateSelectedStudioSampleGroup() {
+  const scene = selectedStudioScene();
+  const group = selectedStudioSampleGroup(scene, studioSceneGroups(scene));
+  if (group && !studioGroupHasFullDetail(group)) void loadStudioSampleGroup(scene, group, { renderAfter: true });
+}
+
+function studioGroupHasFullDetail(group) {
+  return Boolean(group?.detailLoaded) || (Array.isArray(group?.items) && group.items.length >= Math.max(1, Number(group.count) || 0));
+}
+
+async function loadStudioSampleGroup(scene, group, { renderAfter = false, preserveScroll = false } = {}) {
+  const key = studioSampleGroupCacheKey(scene.id, group);
+  if (!key || studioGroupHasFullDetail(group)) return group;
+  const scrollSnapshot = preserveScroll ? readStudioSampleScroll() : null;
+  if (!studioSampleGroupRequestCache.has(key)) {
+    const path = `/api/studio-samples/${encodeURIComponent(scene.id)}/${encodeURIComponent(group.groupId || group.id)}`;
+    studioSampleGroupRequestCache.set(key, apiFetch(path, { headers: { Accept: "application/json" } })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) throw new Error(data.message || `${response.status} ${response.statusText}`);
+        return mergeStudioSampleGroup(scene, data.group || {});
+      })
+      .catch((error) => {
+        status(`样片组加载失败：${errorMessage(error)}`);
+        return group;
+      })
+      .finally(() => {
+        studioSampleGroupRequestCache.delete(key);
+      }));
+  }
+  const loadedGroup = await studioSampleGroupRequestCache.get(key);
+  if (renderAfter) {
+    renderStudio();
+    if (scrollSnapshot) restoreStudioSampleScroll(scrollSnapshot);
+  }
+  return loadedGroup;
 }
 
 function studioStaticSampleGroups(scene) {
@@ -2090,7 +2160,7 @@ function studioSampleDecision(scene, sample) {
 
 function studioSampleSummary(scene, selectedGroup, selectedPhoto) {
   const groups = studioSceneGroups(scene);
-  const count = groups.reduce((sum, item) => sum + studioGroupPreviewEntries(scene, item).length, 0);
+  const count = groups.reduce((sum, item) => sum + (Number(item.count) || studioGroupPreviewEntries(scene, item).length), 0);
   const selectedText = selectedGroup
     ? `${scene.name} · ${groups.length} 组 / ${count} 张 · 当前 ${selectedGroup.title}${selectedPhoto ? ` / ${selectedPhoto.label}` : ""}`
     : `${scene.name} · 已选效果分类，查看这一类的样片组`;
@@ -2183,12 +2253,13 @@ function studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto) {
       </div>
       <div class="empty-inline">这个模板大类的真实样片还在补充，先选婚纱照、情侣照、闺蜜照或儿童照。</div>`;
   }
-  const photoCount = groups.reduce((sum, item) => sum + studioGroupPreviewEntries(scene, item).length, 0);
+  const photoCount = groups.reduce((sum, item) => sum + (Number(item.count) || studioGroupPreviewEntries(scene, item).length), 0);
   const activeGroup = selectedGroup || groups[0];
   const activeEntries = studioGroupPreviewEntries(scene, activeGroup);
   const activePhoto = selectedPhoto || activeEntries[0] || null;
   const activeSample = sampleForStudioGroup(scene, activeGroup);
-  const loadingCopy = state.studioSamples.loaded ? `${groups.length} 组 / ${photoCount} 张` : "正在读取全部样片";
+  const groupDetailReady = studioGroupHasFullDetail(activeGroup);
+  const loadingCopy = state.studioSamples.loaded ? `${groups.length} 组 / ${photoCount} 张` : "正在读取样片索引";
   return `
     <div class="sample-preview-head sample-gallery-head sample-one-screen-head">
       <div>
@@ -2206,9 +2277,9 @@ function studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto) {
       <aside class="sample-group-detail">
         <div class="sample-group-visuals">
           <button class="sample-group-stage" data-studio-sample-zoom data-studio-sample-zoom-photo="${attr(activePhoto?.id || "")}" type="button" aria-label="放大查看当前样片">
-            ${activePhoto ? `<img src="${attr(activePhoto.src)}" alt="${attr(activePhoto.alt)}" />` : ""}
+            ${activePhoto ? `<img src="${attr(activePhoto.src)}" alt="${attr(activePhoto.alt)}" loading="eager" decoding="async" fetchpriority="high" />` : ""}
             <span>${esc(activePhoto ? `${activeGroup?.title || scene.name} · ${activePhoto.label}` : "选择一组效果")}</span>
-            <em>放大看细节</em>
+            <em>${groupDetailReady ? "放大看细节" : "正在载入这一组"}</em>
           </button>
           ${studioSamplePhotoGrid(scene, activeGroup, activePhoto)}
         </div>
@@ -2217,7 +2288,7 @@ function studioSamplePreviewPanel(scene, groups, selectedGroup, selectedPhoto) {
           <p>${esc(activeGroup?.subtitle || "同一屏完成选组和看片")}</p>
           <div>
             <span>${esc(activeSample?.title || scene.name)}</span>
-            <span>${activeEntries.length} 张</span>
+            <span>${Number(activeGroup?.count) || activeEntries.length} 张</span>
           </div>
         </div>
       </aside>
@@ -2229,7 +2300,7 @@ function studioSampleGroupCard(group, selectedGroup) {
   const selected = group?.id === selectedGroup?.id;
   return `
     <button class="sample-group-card ${selected ? "selected" : ""}" data-studio-sample-group="${attr(group.id)}" type="button" aria-pressed="${selected ? "true" : "false"}">
-      <img src="${attr(group.cover)}" alt="${attr(group.coverAlt || group.title)}" loading="lazy" />
+      <img src="${attr(group.cover)}" alt="${attr(group.coverAlt || group.title)}" loading="lazy" decoding="async" />
       <span>${esc(group.sampleTitle || "样片组")}</span>
       <strong>${esc(group.title)}</strong>
       <em>${esc(group.subtitle || `${group.count || 0} 张`)}</em>
@@ -2239,9 +2310,11 @@ function studioSampleGroupCard(group, selectedGroup) {
 function studioSamplePhotoGrid(scene, group, selectedPhoto) {
   const entries = studioGroupPreviewEntries(scene, group);
   if (!entries.length) return `<div class="empty-inline">这一组还没有照片</div>`;
+  const loading = !studioGroupHasFullDetail(group);
   return `
     <div class="sample-photo-grid" data-gallery-count="${entries.length}">
       ${entries.map((item, index) => studioSamplePhotoCard(item, selectedPhoto, index)).join("")}
+      ${loading ? `<div class="sample-photo-loading">正在补齐这一组 ${Number(group?.count) || entries.length} 张样片</div>` : ""}
     </div>`;
 }
 
@@ -2249,7 +2322,7 @@ function studioSamplePhotoCard(item, selectedPhoto, index) {
   const selected = item.id === selectedPhoto?.id;
   return `
     <button class="sample-photo-card ${selected ? "selected" : ""}" data-studio-gallery-item data-studio-sample-photo="${attr(item.id)}" type="button" aria-label="同屏查看第 ${index + 1} 张样片">
-      <img src="${attr(item.src)}" alt="${attr(item.alt)}" loading="lazy" />
+      <img src="${attr(item.src)}" alt="${attr(item.alt)}" loading="lazy" decoding="async" />
       <span>${esc(item.groupTitle || item.sampleTitle || "样片")}</span>
       <strong>${esc(item.label || `第 ${index + 1} 张`)}</strong>
     </button>`;
@@ -2274,11 +2347,14 @@ function studioSamplePreviewEntries(scene, sample) {
 function studioSceneGalleryEntries(scene, activeSample = null) {
   const groups = studioSceneGroups(scene);
   const merged = [];
-  for (const group of groups) {
+  const selectedGroup = selectedStudioSampleGroup(scene, groups);
+  for (const group of [selectedGroup, ...groups].filter(Boolean)) {
     for (const entry of studioGroupPreviewEntries(scene, group)) {
       if (merged.some((item) => item.src === entry.src)) continue;
       merged.push({ ...entry, sampleId: group.sampleId, sampleTitle: group.sampleTitle, groupId: group.groupId, groupTitle: group.title });
+      if (merged.length >= studioStaticSamplePhotoCount) break;
     }
+    if (merged.length >= studioStaticSamplePhotoCount) break;
   }
   if (!activeSample) return merged;
   return [
@@ -2289,6 +2365,12 @@ function studioSceneGalleryEntries(scene, activeSample = null) {
 
 function studioSampleAssetEntries(scene, sample) {
   const entries = Array.isArray(state.studioSamples.scenes?.[scene.id]) ? state.studioSamples.scenes[scene.id] : [];
+  if (!entries.length) {
+    return studioSceneGroups(scene)
+      .filter((group) => group.sampleId === sample.id)
+      .flatMap((group) => studioGroupPreviewEntries(scene, group))
+      .map((item, index) => normalizeStudioGalleryEntry(scene, item, index, sample));
+  }
   return entries
     .filter((item) => item.sampleId === sample.id)
     .map((item, index) => normalizeStudioGalleryEntry(scene, item, index, sample));
@@ -2379,8 +2461,11 @@ function studioPreviewScore(item, label, terms) {
   return score;
 }
 
-function openStudioSamplePreview(scene = selectedStudioScene(), sample = currentStudioPreviewSample(scene), activeIndex = 0, entriesOverride = null, group = null) {
+async function openStudioSamplePreview(scene = selectedStudioScene(), sample = currentStudioPreviewSample(scene), activeIndex = 0, entriesOverride = null, group = null) {
   if (!sample) return;
+  if (group && !studioGroupHasFullDetail(group)) {
+    group = await loadStudioSampleGroup(scene, group, { renderAfter: true });
+  }
   const previews = Array.isArray(entriesOverride) && entriesOverride.length ? entriesOverride : studioSamplePreviewEntries(scene, sample);
   if (!previews.length) return;
   const safeIndex = clamp(Number(activeIndex) || 0, 0, previews.length - 1);
@@ -2430,18 +2515,18 @@ function bindStudioSampleModal(scene, sample, previews, activeIndex, group) {
     button.addEventListener("click", () => {
       const step = Number(button.dataset.studioPreviewStep) || 0;
       const nextIndex = (activeIndex + step + previews.length) % previews.length;
-      openStudioSamplePreview(scene, sample, nextIndex, previews, group);
+      void openStudioSamplePreview(scene, sample, nextIndex, previews, group);
     });
   });
   dom.modalRoot.querySelectorAll("[data-studio-modal-preview-index]").forEach((button) => {
     button.addEventListener("click", () => {
-      openStudioSamplePreview(scene, sample, Number(button.dataset.studioModalPreviewIndex) || 0, previews, group);
+      void openStudioSamplePreview(scene, sample, Number(button.dataset.studioModalPreviewIndex) || 0, previews, group);
     });
   });
   dialog?.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeModal();
-    if (event.key === "ArrowRight") openStudioSamplePreview(scene, sample, (activeIndex + 1) % previews.length, previews, group);
-    if (event.key === "ArrowLeft") openStudioSamplePreview(scene, sample, (activeIndex - 1 + previews.length) % previews.length, previews, group);
+    if (event.key === "ArrowRight") void openStudioSamplePreview(scene, sample, (activeIndex + 1) % previews.length, previews, group);
+    if (event.key === "ArrowLeft") void openStudioSamplePreview(scene, sample, (activeIndex - 1 + previews.length) % previews.length, previews, group);
   });
   dialog?.focus();
 }
