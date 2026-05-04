@@ -197,17 +197,22 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     const studioSamples = await fetchJson(`${baseUrl}/api/studio-samples`);
     assert.equal(studioSamples.ok, true);
     assert.ok(studioSamples.total > 3, "studio samples should include generated final_4k images");
-    assert.ok(studioSamples.scenes.wedding.length > 3, "wedding scene should keep flat sample compatibility");
+    assert.equal(studioSamples.mode, "index", "studio samples should default to the lightweight index");
+    assert.equal(studioSamples.scenes.wedding.length, 0, "default index should not send the flat full photo list");
     assert.ok(studioSamples.sceneGroups.wedding.length > 3, "wedding scene should expose grouped sample sets");
     assert.ok(studioSamples.sceneGroups.couple.length > 3, "couple scene should expose grouped generated samples");
     assert.ok(studioSamples.sceneGroups.friends.length > 3, "friends scene should expose grouped generated samples");
     const parisGroup = studioSamples.sceneGroups.wedding.find((item) => item.title === "巴黎旅拍");
     assert.ok(parisGroup, "wedding groups should include Paris travel samples");
-    assert.equal(parisGroup.items.length, 9, "each destination group should keep its nine related photos together");
+    assert.ok(parisGroup.items.length <= 1, "index should only include a lightweight cover item");
     assert.equal(parisGroup.count, 9);
     assert.match(parisGroup.cover, /^\/studio-preview-thumbs\//, "group covers should use lightweight preview images");
     assert.match(parisGroup.items[0].src, /^\/studio-preview-thumbs\//, "sample items should use lightweight preview images by default");
     assert.match(parisGroup.items[0].fullSrc, /^\/studio-previews\//, "sample items should keep original images for zoom view");
+    const parisDetail = await fetchJson(`${baseUrl}/api/studio-samples/${encodeURIComponent(parisGroup.sceneId)}/${encodeURIComponent(parisGroup.groupId)}`);
+    assert.equal(parisDetail.ok, true);
+    assert.equal(parisDetail.group.items.length, 9, "group detail should keep its nine related photos together");
+    assert.equal(parisDetail.group.count, 9);
 
     const initialCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipA } });
     assert.equal(initialCredits.ok, true);

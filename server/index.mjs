@@ -64,6 +64,7 @@ const defaultSettings = {
   timeoutSeconds: 120
 };
 const studioSampleSceneIds = ["wedding", "couple", "friends", "child10", "portrait", "senior"];
+let studioSampleCatalogCache = null;
 const studioSampleSceneLabels = {
   wedding: "婚纱照",
   couple: "情侣照",
@@ -141,7 +142,21 @@ app.get("/api/health", (_request, response) => {
 
 app.get("/api/studio-samples", async (request, response) => {
   try {
-    sendJson(request, response, { ok: true, ...await studioSampleCatalog() }, { cacheSeconds: 60 });
+    const full = ["1", "true", "yes"].includes(String(request.query?.full || "").toLowerCase());
+    sendJson(request, response, { ok: true, ...await studioSampleCatalog({ includeItems: full }) }, { cacheSeconds: 60 });
+  } catch (error) {
+    response.status(500).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.get("/api/studio-samples/:sceneId/:groupId", async (request, response) => {
+  try {
+    const group = await studioSampleGroupDetail(request.params.sceneId, request.params.groupId);
+    if (!group) {
+      response.status(404).json({ ok: false, message: "样片组不存在" });
+      return;
+    }
+    sendJson(request, response, { ok: true, group }, { cacheSeconds: 60 });
   } catch (error) {
     response.status(500).json({ ok: false, message: errorMessage(error) });
   }
@@ -2069,7 +2084,20 @@ function safeDate(value, fallback) {
   return Number.isNaN(date.getTime()) ? fallback : date;
 }
 
-async function studioSampleCatalog() {
+async function studioSampleCatalog({ includeItems = false } = {}) {
+  const fullCatalog = await fullStudioSampleCatalog();
+  return includeItems ? fullCatalog : slimStudioSampleCatalog(fullCatalog);
+}
+
+async function studioSampleGroupDetail(sceneId, groupId) {
+  const catalog = await fullStudioSampleCatalog();
+  const sceneGroups = catalog.sceneGroups?.[sceneId] || [];
+  return sceneGroups.find((group) => group.id === groupId || group.groupId === groupId) || null;
+}
+
+async function fullStudioSampleCatalog() {
+  const signature = await studioSampleCatalogSignature();
+  if (studioSampleCatalogCache?.signature === signature && Date.now() - studioSampleCatalogCache.createdAt < 60_000) return studioSampleCatalogCache.catalog;
   const scenes = Object.fromEntries(studioSampleSceneIds.map((sceneId) => [sceneId, []]));
   const sceneGroups = Object.fromEntries(studioSampleSceneIds.map((sceneId) => [sceneId, []]));
   const groupIndex = new Map();
@@ -2103,7 +2131,58 @@ async function studioSampleCatalog() {
     sceneGroups[sceneId].forEach(finalizeStudioSampleGroup);
     sceneGroups[sceneId].sort(compareStudioSampleGroups);
   }
-  return { total, updatedAt, scenes, sceneGroups };
+  const catalog = { total, updatedAt, scenes, sceneGroups };
+  studioSampleCatalogCache = { signature, catalog, createdAt: Date.now() };
+  return catalog;
+}
+
+async function studioSampleCatalogSignature() {
+  try {
+    const groups = await readdir(studioPreviewDir, { withFileTypes: true });
+    return groups
+      .map((entry) => `${entry.name}:${entry.isDirectory() ? "d" : "f"}`)
+      .sort()
+      .join("|");
+  } catch (error) {
+    if (error?.code === "ENOENT") return "missing";
+    throw error;
+  }
+}
+
+function slimStudioSampleCatalog(catalog) {
+  const scenes = Object.fromEntries(studioSampleSceneIds.map((sceneId) => [sceneId, []]));
+  const sceneGroups = Object.fromEntries(studioSampleSceneIds.map((sceneId) => [
+    sceneId,
+    (catalog.sceneGroups?.[sceneId] || []).map(slimStudioSampleGroup)
+  ]));
+  return {
+    total: catalog.total,
+    updatedAt: catalog.updatedAt,
+    scenes,
+    sceneGroups,
+    mode: "index"
+  };
+}
+
+function slimStudioSampleGroup(group) {
+  return {
+    id: group.id,
+    sceneId: group.sceneId,
+    sampleId: group.sampleId,
+    sampleTitle: group.sampleTitle,
+    groupId: group.groupId,
+    group: group.group,
+    title: group.title,
+    subtitle: group.subtitle,
+    cover: group.cover,
+    coverAlt: group.coverAlt,
+    count: group.count,
+    items: group.items?.[0] ? [group.items[0]] : [],
+    updatedAt: group.updatedAt,
+    sortKey: group.sortKey,
+    groupRank: group.groupRank,
+    detailLoaded: false
+  };
 }
 
 async function readStudioSampleEntries(baseDir) {
