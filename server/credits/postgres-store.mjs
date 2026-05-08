@@ -5,8 +5,12 @@ import {
   normalizeCreditStore,
   trimCreditLedger
 } from "./store.mjs";
+import { postgresSchema } from "../persistence/postgres.mjs";
 
 let creditWriteQueue = Promise.resolve();
+const t = postgresSchema.tables;
+const a = postgresSchema.creditAccounts;
+const l = postgresSchema.creditLedgers;
 
 function normalizeClientKey(safeClientKey, value) {
   return safeClientKey(value || "local");
@@ -19,11 +23,11 @@ export function createPostgresCreditStore({ db, safeClientKey }) {
 
   async function ensureCreditAccount(clientKey, tx = db) {
     const key = clientKeyOf(clientKey);
-    const existing = await tx.query("SELECT client_key FROM credit_accounts WHERE client_key = $1 LIMIT 1", [key]);
+    const existing = await tx.query(`SELECT ${a.clientKey} AS client_key FROM ${t.creditAccounts} WHERE ${a.clientKey} = $1 LIMIT 1`, [key]);
     if (existing.rowCount > 0) return key;
     const initial = emptyCreditStore();
     await tx.query(
-      `INSERT INTO credit_accounts (client_key, balance, created_at, updated_at)
+      `INSERT INTO ${t.creditAccounts} (${a.clientKey}, ${a.balance}, ${a.createdAt}, ${a.updatedAt})
        VALUES ($1, $2, $3, $4)`,
       [key, initial.balance, initial.createdAt, initial.updatedAt]
     );
@@ -71,18 +75,22 @@ export function createPostgresCreditStore({ db, safeClientKey }) {
 
 async function readCreditStoreTx(tx, clientKey) {
   const account = await tx.query(
-    `SELECT balance, created_at, updated_at
-     FROM credit_accounts
-     WHERE client_key = $1
+    `SELECT ${a.balance} AS balance, ${a.createdAt} AS created_at, ${a.updatedAt} AS updated_at
+     FROM ${t.creditAccounts}
+     WHERE ${a.clientKey} = $1
      LIMIT 1`,
     [clientKey]
   );
   const ledger = await tx.query(
-    `SELECT id, type, package_id, order_id, task_id, provider, title, reason, credits,
-            balance_after, amount_cny, image_count, unit_cost, status, created_at
-     FROM credit_ledgers
-     WHERE client_key = $1
-     ORDER BY created_at DESC`,
+    `SELECT ${l.id} AS id, ${l.type} AS type, ${l.packageId} AS package_id,
+            ${l.orderId} AS order_id, ${l.taskId} AS task_id, ${l.provider} AS provider,
+            ${l.title} AS title, ${l.reason} AS reason, ${l.credits} AS credits,
+            ${l.balanceAfter} AS balance_after, ${l.amountCny} AS amount_cny,
+            ${l.imageCount} AS image_count, ${l.unitCost} AS unit_cost,
+            ${l.status} AS status, ${l.createdAt} AS created_at
+     FROM ${t.creditLedgers}
+     WHERE ${l.clientKey} = $1
+     ORDER BY ${l.createdAt} DESC`,
     [clientKey]
   );
   const row = account.rows[0] || {};
@@ -112,12 +120,12 @@ async function readCreditStoreTx(tx, clientKey) {
 
 async function replaceCreditStoreTx(tx, clientKey, store) {
   await tx.query(
-    `UPDATE credit_accounts
-     SET balance = $2, created_at = $3, updated_at = $4
-     WHERE client_key = $1`,
+    `UPDATE ${t.creditAccounts}
+     SET ${a.balance} = $2, ${a.createdAt} = $3, ${a.updatedAt} = $4
+     WHERE ${a.clientKey} = $1`,
     [clientKey, store.balance, store.createdAt, store.updatedAt]
   );
-  await tx.query("DELETE FROM credit_ledgers WHERE client_key = $1", [clientKey]);
+  await tx.query(`DELETE FROM ${t.creditLedgers} WHERE ${l.clientKey} = $1`, [clientKey]);
   for (const entry of store.ledger || []) {
     await insertLedgerEntry(tx, clientKey, entry);
   }
@@ -126,9 +134,10 @@ async function replaceCreditStoreTx(tx, clientKey, store) {
 async function insertLedgerEntry(tx, clientKey, entry) {
   const normalized = normalizeCreditEntry(entry);
   await tx.query(
-    `INSERT INTO credit_ledgers (
-      id, client_key, type, package_id, order_id, task_id, provider, title, reason, credits,
-      balance_after, amount_cny, image_count, unit_cost, status, created_at
+    `INSERT INTO ${t.creditLedgers} (
+      ${l.id}, ${l.clientKey}, ${l.type}, ${l.packageId}, ${l.orderId}, ${l.taskId},
+      ${l.provider}, ${l.title}, ${l.reason}, ${l.credits}, ${l.balanceAfter},
+      ${l.amountCny}, ${l.imageCount}, ${l.unitCost}, ${l.status}, ${l.createdAt}
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
       $11, $12, $13, $14, $15, $16

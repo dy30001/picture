@@ -9,6 +9,7 @@ import { once } from "node:events";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createPasswordResetEmail, createPasswordResetLinkEmail, createVerificationEmail } from "../server/auth/email-template.mjs";
 import { createAlipayPaymentProvider } from "../server/payments/alipay.mjs";
 import { createStripePaymentProvider, PaymentProviderError } from "../server/payments/stripe.mjs";
 
@@ -16,6 +17,53 @@ const serverEntry = new URL("../server/index.mjs", import.meta.url);
 const serverEntryPath = fileURLToPath(serverEntry);
 const generationErrorLog = new URL("../data/logs/generation-errors.ndjson", import.meta.url);
 const fileStorageEnv = { APP_STORAGE_BACKEND: "file", STORAGE_BACKEND: "file" };
+
+test("Registration verification email uses an official template", () => {
+  const email = createVerificationEmail({
+    account: "customer@example.com<script>",
+    code: "246810"
+  });
+
+  assert.equal(email.subject, "墨境个人 AI 摄影棚｜注册回执码");
+  assert.match(email.text, /注册回执码：246810/);
+  assert.match(email.text, /请勿转发给他人/);
+  assert.match(email.text, /官方网站：https:\/\/img\.inklens\.art/);
+  assert.match(email.html, /官方注册验证/);
+  assert.match(email.html, /注册回执码/);
+  assert.match(email.html, /246810/);
+  assert.match(email.html, /5 分钟/);
+  assert.match(email.html, /本邮件由 墨境个人 AI 摄影棚 系统自动发送/);
+  assert.doesNotMatch(email.html, /<script>/);
+  assert.match(email.html, /cu\*\*\*@example\.com&lt;script&gt;/);
+});
+
+test("Password reset email uses the reset template", () => {
+  const email = createPasswordResetEmail({
+    account: "customer@example.com",
+    code: "654321"
+  });
+
+  assert.equal(email.subject, "墨境个人 AI 摄影棚｜重置密码验证码");
+  assert.match(email.text, /重置密码验证码：654321/);
+  assert.match(email.text, /你正在重置墨境账号密码/);
+  assert.match(email.html, /密码重置验证/);
+  assert.match(email.html, /重置密码验证码/);
+  assert.match(email.html, /设置新的登录密码/);
+});
+
+test("Password reset link email uses a reset URL", () => {
+  const email = createPasswordResetLinkEmail({
+    account: "customer@example.com",
+    resetUrl: "https://img.inklens.art/?tab=register&auth=reset-link&token=test-reset-token"
+  });
+
+  assert.equal(email.subject, "墨境个人 AI 摄影棚｜重置密码");
+  assert.match(email.text, /请点击下面的地址重置密码/);
+  assert.match(email.text, /https:\/\/img\.inklens\.art\/\?tab=register&auth=reset-link&token=test-reset-token/);
+  assert.match(email.html, /重置密码/);
+  assert.match(email.html, /href="https:\/\/img\.inklens\.art\/\?tab=register&amp;auth=reset-link&amp;token=test-reset-token"/);
+  assert.match(email.html, /30 分钟/);
+});
 
 test("Node server serves the playground without a fixed port", { skip: !existsSync(serverEntryPath) }, async () => {
   const port = await getOpenPort();
@@ -74,7 +122,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.doesNotMatch(html, /id="adminPanel"/);
     assert.match(html, /img\.inklens\.art/);
     assert.match(html, /墨境个人 AI 摄影棚/);
-    assert.match(html, /拍摄定制/);
+    assert.match(html, /影像定制/);
     assert.match(html, /图片创作/);
     assert.match(html, /我的作品/);
     assert.match(html, /登录/);
@@ -82,17 +130,17 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.doesNotMatch(html, /后台管理/);
     assert.match(html, /只看精选/);
     assert.match(html, /id="templateCollections"/);
-    assert.match(html, /热门风格，直接开拍/);
+    assert.match(html, /热门风格，直接生成/);
     assert.match(html, /id="templateGrid"/);
-    assert.match(html, /<nav class="primary-nav"[\s\S]*首页[\s\S]*拍摄定制[\s\S]*图片创作[\s\S]*我的作品[\s\S]*登录[\s\S]*我的积分[\s\S]*<\/nav>/);
+    assert.match(html, /<nav class="primary-nav"[\s\S]*首页[\s\S]*影像定制[\s\S]*图片创作[\s\S]*我的作品[\s\S]*登录[\s\S]*我的积分[\s\S]*<\/nav>/);
     assert.doesNotMatch(html, /账户权益/);
     assert.match(html, /生活愿景成片/);
     assert.match(html, /补上重要时刻/);
     assert.match(html, /正式作品交付/);
-    assert.match(html, /够拍什么/);
+    assert.match(html, /够生成什么/);
     assert.match(html, /id="creditDirectUse"/);
     assert.match(html, /id="creditEditUse"/);
-    assert.match(html, /只写要求拍一张：20 积分/);
+    assert.match(html, /文字生成一张：20 积分/);
     assert.match(html, /上传照片照着改：30 积分/);
     assert.match(html, /要更大图：2K \+20，4K \+60/);
     assert.match(html, /积分明细/);
@@ -102,7 +150,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.doesNotMatch(html, /套餐直达/);
     assert.doesNotMatch(html, /怎么扣/);
     assert.match(html, /让向往的生活，先在照片里发生/);
-    assert.match(html, /把想要的生活，拍成看得见的作品/);
+    assert.match(html, /把想要的生活，变成看得见的作品/);
     assert.match(html, /选择组合，上传照片/);
     assert.match(html, /订单状态清楚显示/);
     assert.match(html, /这里只放正式交付结果/);
@@ -120,11 +168,25 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(html, /id="secondaryNav"/);
     assert.match(html, /id="openTemplateLibraryBtn"/);
     assert.match(html, /id="registerPanel"/);
+    assert.match(html, /id="authNavBtn"/);
+    assert.match(html, /id="topbarAccount"/);
+    assert.match(html, /id="topbarAccountCreditsBtn"/);
+    assert.match(html, /id="topbarAccountLogoutBtn"/);
     assert.match(html, /id="registerNowBtn"/);
-    assert.match(html, /登录后继续创作/);
+    assert.match(html, /id="registerUsernameField"/);
+    assert.match(html, /id="registerUsernameInput"/);
+    assert.match(html, /id="registerPasswordConfirmField"/);
+    assert.match(html, /id="registerPasswordConfirmInput"/);
+    assert.match(html, /id="registerPasswordToggleBtn"/);
+    assert.match(html, /id="registerPasswordConfirmToggleBtn"/);
+    assert.match(html, /创建你的账号/);
     assert.match(html, /邮箱登录/);
     assert.match(html, /还没有账号？创建一个/);
-    assert.match(html, /立即登录/);
+    assert.match(html, /邮箱回执码/);
+    assert.match(html, /发送回执码/);
+    assert.match(html, /确认密码/);
+    assert.match(html, /已有账号？去登录/);
+    assert.match(html, /创建账号/);
     assert.doesNotMatch(html, /注册开通/);
     assert.match(html, /id="generatePanel"/);
     assert.doesNotMatch(html, /id="creatorSettingsPanel"/);
@@ -133,7 +195,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.doesNotMatch(html, /去连接设置/);
     assert.doesNotMatch(html, /测试连接/);
     assert.match(html, /<h2 id="historyTitle">我的作品<\/h2>/);
-    assert.match(html, /看效果/);
+    assert.match(html, /样片集/);
     assert.match(html, /提交资料/);
     assert.match(html, /制作状态/);
     assert.match(html, /查看成片/);
@@ -142,6 +204,9 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     const appScript = await fetchText(`${baseUrl}/app.js`);
     assert.match(appScript, /婚纱照/);
     assert.match(appScript, /studioNextAction/);
+    assert.match(appScript, /删除后进入垃圾箱/);
+    assert.match(appScript, /7 天内可在“已删除”手动恢复/);
+    assert.match(appScript, /historyTrashRetentionDays/);
     assert.match(appScript, /secondaryMenus/);
     assert.match(appScript, /renderCreateGenerateOverview/);
     assert.match(appScript, /goToCreateWorkspace/);
@@ -168,6 +233,10 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(appScript, /deletedHistoryBtn/);
     assert.match(appScript, /authModeRegisterBtn/);
     assert.match(appScript, /authModeLoginBtn/);
+    assert.match(appScript, /authForgotPasswordBtn/);
+    assert.match(appScript, /发送重置邮件/);
+    assert.match(appScript, /\/api\/auth\/password-reset\/request/);
+    assert.match(appScript, /\/api\/auth\/password-reset\/confirm/);
     assert.doesNotMatch(appScript, /连接设置/);
     assert.doesNotMatch(appScript, /测试连接/);
     assert.doesNotMatch(appScript, /趣味生图/);
@@ -202,14 +271,15 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.ok(studioSamples.sceneGroups.wedding.length > 3, "wedding scene should expose grouped sample sets");
     assert.ok(studioSamples.sceneGroups.couple.length > 3, "couple scene should expose grouped generated samples");
     assert.ok(studioSamples.sceneGroups.friends.length > 3, "friends scene should expose grouped generated samples");
+    assert.ok(studioSamples.sceneGroups.child10.length > 0, "child10 scene should expose grouped generated samples");
+    assert.ok(studioSamples.sceneGroups.portrait.length > 0, "portrait scene should expose grouped generated samples");
+    assert.ok(studioSamples.sceneGroups.senior.length > 0, "senior scene should expose grouped generated samples");
     const parisGroup = studioSamples.sceneGroups.wedding.find((item) => item.title === "巴黎旅拍");
     assert.ok(parisGroup, "wedding groups should include Paris travel samples");
-    assert.ok(parisGroup.items.length <= 1, "index should only include a lightweight cover item");
+    assert.equal(Array.isArray(parisGroup.items), false, "index should not include photo item payloads");
     assert.equal(parisGroup.count, 9);
     assert.match(parisGroup.cover, /^\/studio-preview-thumbs\//, "group covers should use lightweight preview images");
-    assert.match(parisGroup.items[0].src, /^\/studio-preview-thumbs\//, "sample items should use lightweight preview images by default");
-    assert.match(parisGroup.items[0].fullSrc, /^\/studio-previews\//, "sample items should keep original images for zoom view");
-    const parisDetail = await fetchJson(`${baseUrl}/api/studio-samples/${encodeURIComponent(parisGroup.sceneId)}/${encodeURIComponent(parisGroup.groupId)}`);
+    const parisDetail = await fetchJson(`${baseUrl}/api/studio-samples/wedding/${encodeURIComponent(parisGroup.groupId)}`);
     assert.equal(parisDetail.ok, true);
     assert.equal(parisDetail.group.items.length, 9, "group detail should keep its nine related photos together");
     assert.equal(parisDetail.group.count, 9);
@@ -240,7 +310,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(unauthCheckout.status, 401);
     const unauthCheckoutJson = await unauthCheckout.json();
     assert.equal(unauthCheckoutJson.ok, false);
-    assert.match(unauthCheckoutJson.message, /登录后可买积分/);
+    assert.match(unauthCheckoutJson.message, /登录后可操作/);
 
     const unauthRecharge = await fetch(`${baseUrl}/api/credits/recharge`, {
       method: "POST",
@@ -250,7 +320,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(unauthRecharge.status, 401);
     const unauthRechargeJson = await unauthRecharge.json();
     assert.equal(unauthRechargeJson.ok, false);
-    assert.match(unauthRechargeJson.message, /登录后可买积分/);
+    assert.match(unauthRechargeJson.message, /登录后可操作/);
 
     const unauthOrder = await fetch(`${baseUrl}/api/credits/orders`, {
       method: "POST",
@@ -260,7 +330,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(unauthOrder.status, 401);
     const unauthOrderJson = await unauthOrder.json();
     assert.equal(unauthOrderJson.ok, false);
-    assert.match(unauthOrderJson.message, /登录后可买积分/);
+    assert.match(unauthOrderJson.message, /登录后可操作/);
 
     const accountHistoryTaskId = `account-history-${port}`;
     const explicitHistorySync = await fetchJson(`${baseUrl}/api/history/sync`, {
@@ -297,19 +367,95 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
       body: JSON.stringify({
         type: "email",
         account: `customer-${port}@example.com`,
+        username: `customer_${port}`,
         code: verification.code,
         password: "secret123",
         clientKey: explicitClient
       })
     });
     assert.equal(registered.ok, true);
-    assert.match(String(registered.user.username || ""), /^customer-/);
+    assert.equal(String(registered.user.username || ""), `customer_${port}`);
     accountClient = registered.clientKey;
+    const accountAuthHeaders = { "X-Client-Key": accountClient, Authorization: `Bearer ${registered.sessionToken}` };
+    assert.match(String(registered.sessionToken || ""), /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
     assert.equal(accountClient, accountClientKey(registered.user.id));
 
-    const accountCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    const accountCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: accountAuthHeaders });
     assert.equal(accountCredits.clientKey, accountClient);
     assert.equal(accountCredits.balance, 80);
+
+    const resetRequest = await fetchJson(`${baseUrl}/api/auth/password-reset/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `customer-${port}@example.com` })
+    });
+    assert.equal(resetRequest.ok, true);
+    assert.equal(resetRequest.delivery, "test");
+    assert.match(String(resetRequest.resetUrl || ""), new RegExp(`127\\.0\\.0\\.1:${port}/\\?tab=register&auth=reset-link&token=`));
+    assert.ok(String(resetRequest.token || "").length > 20);
+
+    const resetPassword = "changed987";
+    const resetResponse = await fetchJson(`${baseUrl}/api/auth/password-reset/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: resetRequest.token,
+        password: resetPassword
+      })
+    });
+    assert.equal(resetResponse.ok, true);
+    assert.match(resetResponse.message, /密码已重置/);
+
+    const reusedReset = await fetch(`${baseUrl}/api/auth/password-reset/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: resetRequest.token,
+        password: "again123"
+      })
+    });
+    assert.equal(reusedReset.status, 400);
+    const reusedResetJson = await reusedReset.json();
+    assert.match(String(reusedResetJson.message || ""), /重置链接已失效|重置链接无效/);
+
+    const oldPasswordLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `customer-${port}@example.com`,
+        password: "secret123"
+      })
+    });
+    assert.equal(oldPasswordLogin.status, 401);
+    const oldPasswordLoginJson = await oldPasswordLogin.json();
+    assert.match(oldPasswordLoginJson.message, /账号或密码不正确/);
+
+    const relogged = await fetchJson(`${baseUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `customer-${port}@example.com`,
+        password: resetPassword
+      })
+    });
+    assert.equal(relogged.ok, true);
+    assert.equal(relogged.clientKey, accountClient);
+
+    const forgedAccountCredits = await fetch(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    assert.equal(forgedAccountCredits.status, 401);
+    const forgedAccountCreditsJson = await forgedAccountCredits.json();
+    assert.match(forgedAccountCreditsJson.message, /登录已失效/);
+
+    const forgedStudioOrder = await fetch(`${baseUrl}/api/studio-orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      body: JSON.stringify({ comboId: "couple", photos: [] })
+    });
+    assert.equal(forgedStudioOrder.status, 401);
+    const forgedStudioOrderJson = await forgedStudioOrder.json();
+    assert.match(forgedStudioOrderJson.message, /登录已失效/);
 
     const pixelImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
     const unauthStudioOrder = await fetch(`${baseUrl}/api/studio-orders`, {
@@ -321,7 +467,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 
     const createdStudioOrder = await fetchJson(`${baseUrl}/api/studio-orders`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...accountAuthHeaders },
       body: JSON.stringify({
         comboId: "couple",
         comboLabel: "情侣 2 人",
@@ -349,7 +495,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(createdStudioOrder.order.photoCount, 2);
     assert.match(createdStudioOrder.order.photos[0].src, /^\/studio-order-assets\//);
 
-    const customerStudioOrders = await fetchJson(`${baseUrl}/api/studio-orders`, { headers: { "X-Client-Key": accountClient } });
+    const customerStudioOrders = await fetchJson(`${baseUrl}/api/studio-orders`, { headers: accountAuthHeaders });
     assert.equal(customerStudioOrders.ok, true);
     assert.equal(customerStudioOrders.orders[0].id, createdStudioOrder.order.id);
 
@@ -375,13 +521,13 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(uploadedStudioResult.order.resultCount, 1);
     assert.match(uploadedStudioResult.order.results[0].src, /^\/studio-order-assets\//);
 
-    const completedStudioOrders = await fetchJson(`${baseUrl}/api/studio-orders`, { headers: { "X-Client-Key": accountClient } });
+    const completedStudioOrders = await fetchJson(`${baseUrl}/api/studio-orders`, { headers: accountAuthHeaders });
     assert.equal(completedStudioOrders.orders[0].status, "completed");
     assert.equal(completedStudioOrders.orders[0].resultCount, 1);
 
     const pendingOrder = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...accountAuthHeaders },
       body: JSON.stringify({ packageId: "starter" })
     });
     assert.equal(pendingOrder.ok, true);
@@ -391,7 +537,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.match(pendingOrder.checkoutUrl, /payment=success/);
     assert.match(pendingOrder.sessionId, /^cs_fake_/);
 
-    const accountOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": accountClient } });
+    const accountOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: accountAuthHeaders });
     assert.equal(accountOrders.clientKey, accountClient);
     assert.equal(accountOrders.orders[0].id, pendingOrder.order.id);
 
@@ -420,14 +566,14 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(webhookJson.ok, true);
     assert.equal(webhookJson.received, true);
 
-    const accountCreditsAfterWebhook = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    const accountCreditsAfterWebhook = await fetchJson(`${baseUrl}/api/credits`, { headers: accountAuthHeaders });
     assert.equal(accountCreditsAfterWebhook.balance, 410);
 
-    const paidOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: { "X-Client-Key": accountClient } });
+    const paidOrders = await fetchJson(`${baseUrl}/api/credits/orders`, { headers: accountAuthHeaders });
     assert.equal(paidOrders.orders[0].status, "paid");
     assert.match(paidOrders.orders[0].ledgerId, /^recharge-/);
 
-    const migratedHistory = await fetchJson(`${baseUrl}/api/history`, { headers: { "X-Client-Key": accountClient } });
+    const migratedHistory = await fetchJson(`${baseUrl}/api/history`, { headers: accountAuthHeaders });
     assert.equal(migratedHistory.clientKey, accountClient);
     assert.equal(migratedHistory.history.some((item) => item.id === accountHistoryTaskId), true);
     const migratedTask = migratedHistory.history.find((item) => item.id === accountHistoryTaskId);
@@ -446,18 +592,20 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
       body: JSON.stringify({
         type: "email",
         account: `customer-${port}@example.com`,
-        password: "secret123",
+        password: resetPassword,
         clientKey: clientB
       })
     });
     assert.equal(loggedIn.ok, true);
     assert.equal(loggedIn.clientKey, accountClient);
-    const accountCreditsAfterLogin = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    const loginAuthHeaders = { "X-Client-Key": accountClient, Authorization: `Bearer ${loggedIn.sessionToken}` };
+    assert.match(String(loggedIn.sessionToken || ""), /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    const accountCreditsAfterLogin = await fetchJson(`${baseUrl}/api/credits`, { headers: loginAuthHeaders });
     assert.equal(accountCreditsAfterLogin.balance, 410);
 
     const recharge = await fetchJson(`${baseUrl}/api/credits/recharge`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...loginAuthHeaders },
       body: JSON.stringify({ packageId: "starter" })
     });
     assert.equal(recharge.ok, true);
@@ -465,13 +613,13 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(recharge.entry.credits, 330);
     assert.equal(recharge.balance, 740);
 
-    const accountCreditsAfterRecharge = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    const accountCreditsAfterRecharge = await fetchJson(`${baseUrl}/api/credits`, { headers: loginAuthHeaders });
     assert.equal(accountCreditsAfterRecharge.balance, 740);
     assert.equal(accountCreditsAfterRecharge.ledger[0].packageId, "starter");
 
     const baseEstimate = await fetchJson(`${baseUrl}/api/credits/estimate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...loginAuthHeaders },
       body: JSON.stringify({
         params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
         references: []
@@ -483,7 +631,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
 
     const high4kEditEstimate = await fetchJson(`${baseUrl}/api/credits/estimate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...loginAuthHeaders },
       body: JSON.stringify({
         params: { size: "3840x2160", quality: "high", outputFormat: "png", count: 2 },
         references: [{ id: "a", name: "a.png", dataUrl: "data:image/png;base64,aa" }, { id: "b", name: "b.png", dataUrl: "data:image/png;base64,bb" }]
@@ -510,7 +658,7 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     if (!successAddress || typeof successAddress === "string") throw new Error("Could not start fake success upstream");
     const chargedGenerate = await fetchJson(`${baseUrl}/api/generate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...loginAuthHeaders },
       body: JSON.stringify({
         taskId: `credit-success-${port}`,
         prompt: "credit success charge",
@@ -529,10 +677,16 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(chargedGenerate.creditCost, 20);
     assert.equal(chargedGenerate.creditBalance, 720);
     assert.match(chargedGenerate.creditLedgerId, /^spend-/);
-    const chargedCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Client-Key": accountClient } });
+    const chargedCredits = await fetchJson(`${baseUrl}/api/credits`, { headers: loginAuthHeaders });
     assert.equal(chargedCredits.balance, 720);
     assert.equal(chargedCredits.ledger[0].type, "spend");
     assert.equal(chargedCredits.ledger[0].credits, -20);
+    const chargedHistory = await fetchJson(`${baseUrl}/api/history`, { headers: loginAuthHeaders });
+    const chargedHistoryTask = chargedHistory.history.find((item) => item.id === `credit-success-${port}`);
+    assert.ok(chargedHistoryTask, "successful generation should be recorded in user history");
+    assert.equal(chargedHistoryTask.status, "succeeded");
+    assert.equal(chargedHistoryTask.creditCost, 20);
+    assert.ok(chargedHistoryTask.images[0].startsWith(`/generated-history/${accountClient}/`), chargedHistoryTask.images[0]);
 
     const creditsB = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": ipB } });
     assert.equal(creditsB.clientKey, clientB);
@@ -552,6 +706,12 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(poorGenerate.status, 402);
     const poorGenerateJson = await poorGenerate.json();
     assert.match(poorGenerateJson.message, /积分不足/);
+    assert.equal(poorGenerateJson.historySaved, true);
+    const poorHistory = await fetchJson(`${baseUrl}/api/history`, { headers: { "X-Forwarded-For": ipB } });
+    const poorHistoryTask = poorHistory.history.find((item) => item.id === `poor-${port}`);
+    assert.ok(poorHistoryTask, "credit failure should still be recorded in user history");
+    assert.equal(poorHistoryTask.status, "failed");
+    assert.match(poorHistoryTask.error, /积分不足/);
 
     const templates = await fetchJson(`${baseUrl}/api/templates`);
     assert.equal(templates.ok, true);
@@ -620,6 +780,28 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     assert.equal(historyB.clientKey, clientB);
     assert.equal(historyB.history.some((item) => item.id === historyTaskId), false, "client B must not see client A history");
 
+    const expiredHistoryTaskId = `expired-trash-${port}`;
+    await fetchJson(`${baseUrl}/api/history/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Forwarded-For": ipA },
+      body: JSON.stringify({
+        history: [{
+          id: expiredHistoryTaskId,
+          prompt: "expired trash cleanup check",
+          params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
+          references: [],
+          status: "failed",
+          images: [],
+          error: "old deleted record",
+          createdAt: Date.now() - 9 * 24 * 60 * 60 * 1000,
+          finishedAt: Date.now() - 9 * 24 * 60 * 60 * 1000,
+          deletedAt: Date.now() - 8 * 24 * 60 * 60 * 1000
+        }]
+      })
+    });
+    const expiredTrash = await fetchJson(`${baseUrl}/api/history?deleted=1`, { headers: { "X-Forwarded-For": ipA } });
+    assert.equal(expiredTrash.history.some((item) => item.id === expiredHistoryTaskId), false, "deleted history older than seven days should be cleaned");
+
     const missingApi = await fetch(`${baseUrl}/api/not-found`);
     assert.equal(missingApi.status, 404);
     assert.match(missingApi.headers.get("content-type") || "", /application\/json/);
@@ -647,6 +829,93 @@ test("Node server serves the playground without a fixed port", { skip: !existsSy
     if (accountClient) cleanupOrderClient(accountClient);
     cleanupStudioOrders();
     rmSync(authDir, { recursive: true, force: true });
+  }
+
+  assert.notEqual(child.exitCode, 1, output());
+});
+
+test("Node server can use the configured default image channel", { skip: !existsSync(serverEntryPath) }, async () => {
+  const port = await getOpenPort();
+  const clientKey = historyClientKey(`default-image-channel-${port}`);
+  cleanupHistoryClient(clientKey);
+  cleanupCreditClient(clientKey);
+  cleanupOrderClient(clientKey);
+  let upstreamModel = "";
+  let upstreamAuth = "";
+  const upstream = createHttpServer(async (request, response) => {
+    if (request.url === "/v1/models") {
+      upstreamAuth = String(request.headers.authorization || "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ data: [{ id: "gpt-image-2" }] }));
+      return;
+    }
+    if (request.url === "/v1/images/generations") {
+      upstreamAuth = String(request.headers.authorization || "");
+      const body = JSON.parse(await readRequestBody(request));
+      upstreamModel = String(body.model || "");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({
+        data: [{ b64_json: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=" }]
+      }));
+      return;
+    }
+    response.writeHead(404, { "content-type": "application/json" });
+    response.end(JSON.stringify({ error: { message: "not found" } }));
+  });
+  upstream.listen(0, "127.0.0.1");
+  await once(upstream, "listening");
+  const upstreamAddress = upstream.address();
+  if (!upstreamAddress || typeof upstreamAddress === "string") throw new Error("Could not start fake default upstream");
+  const child = spawn(
+    process.execPath,
+    [serverEntryPath, "--host", "127.0.0.1", "--port", String(port)],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ...fileStorageEnv,
+        INKLENS_IMAGE_API_URL: `http://127.0.0.1:${upstreamAddress.port}/v1`,
+        INKLENS_IMAGE_API_KEY: "env-default-key",
+        INKLENS_IMAGE_MODEL_ID: "image2"
+      }
+    }
+  );
+  const output = collectOutput(child);
+
+  try {
+    const baseUrl = `http://127.0.0.1:${port}`;
+    await waitForHttp(baseUrl, child, output);
+    const connection = await fetchJson(`${baseUrl}/api/test-connection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: {} })
+    });
+    assert.equal(connection.ok, true);
+    assert.match(connection.message, /1 个模型/);
+    assert.equal(upstreamAuth, "Bearer env-default-key");
+
+    const generation = await fetchJson(`${baseUrl}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Client-Key": clientKey },
+      body: JSON.stringify({
+        taskId: `default-image-channel-${port}`,
+        prompt: "default channel generation",
+        settings: {},
+        params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
+        references: []
+      })
+    });
+    assert.equal(generation.ok, true);
+    assert.equal(upstreamModel, "gpt-image-2");
+    assert.equal(generation.images.length, 1);
+  } finally {
+    upstream.close();
+    child.kill("SIGTERM");
+    await Promise.race([once(child, "exit"), delay(1500)]);
+    if (child.exitCode === null) child.kill("SIGKILL");
+    cleanupHistoryClient(clientKey);
+    cleanupCreditClient(clientKey);
+    cleanupOrderClient(clientKey);
   }
 
   assert.notEqual(child.exitCode, 1, output());
@@ -717,6 +986,12 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
     const creditsAfterFailure = await fetchJson(`${baseUrl}/api/credits`, { headers: { "X-Forwarded-For": htmlIp } });
     assert.equal(creditsAfterFailure.balance, 80, "failed generation must not spend credits");
     assert.equal(creditsAfterFailure.ledger.some((item) => item.type === "spend"), false);
+    const historyAfterFailure = await fetchJson(`${baseUrl}/api/history`, { headers: { "X-Forwarded-For": htmlIp } });
+    const failureTask = historyAfterFailure.history.find((item) => item.id === htmlTaskId);
+    assert.ok(failureTask, "upstream failure should be recorded in user history");
+    assert.equal(failureTask.status, "failed");
+    assert.match(failureTask.error, /网页 HTML/);
+    assert.equal(failureTask.creditCost, 0);
   } finally {
     upstream.close();
     child.kill("SIGTERM");
@@ -727,7 +1002,114 @@ test("Node server logs upstream HTML generation failures", { skip: !existsSync(s
     cleanupOrderClient(htmlClient);
   }
 
-  assert.notEqual(child.exitCode, 1, output());
+    assert.notEqual(child.exitCode, 1, output());
+});
+
+test("Registration requires explicit unique username and unique email", { skip: !existsSync(serverEntryPath) }, async () => {
+  const port = await getOpenPort();
+  const authDir = mkdtempSync(join(tmpdir(), "inklens-auth-username-"));
+  const child = spawn(
+    process.execPath,
+    [serverEntryPath, "--host", "127.0.0.1", "--port", String(port)],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        ...fileStorageEnv,
+        APP_BASE_URL: `http://127.0.0.1:${port}`,
+        INKLENS_AUTH_TEST_MODE: "1",
+        INKLENS_AUTH_DIR: authDir
+      }
+    }
+  );
+  const output = collectOutput(child);
+
+  try {
+    const baseUrl = `http://127.0.0.1:${port}`;
+    await waitForHttp(baseUrl, child, output);
+
+    const firstVerification = await fetchJson(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `username-check-${port}@example.com` })
+    });
+    assert.equal(firstVerification.ok, true);
+
+    const missingUsername = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `username-check-${port}@example.com`,
+        code: firstVerification.code,
+        password: "secret123"
+      })
+    });
+    assert.equal(missingUsername.status, 400);
+    const missingUsernameJson = await missingUsername.json();
+    assert.match(String(missingUsernameJson.message || ""), /请输入用户名/);
+
+    const created = await fetchJson(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `username-check-${port}@example.com`,
+        username: `shared_name_${port}`,
+        code: firstVerification.code,
+        password: "secret123"
+      })
+    });
+    assert.equal(created.ok, true);
+    assert.equal(String(created.user.username || ""), `shared_name_${port}`);
+
+    const secondVerification = await fetchJson(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `username-check-second-${port}@example.com` })
+    });
+    assert.equal(secondVerification.ok, true);
+
+    const duplicateUsername = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `username-check-second-${port}@example.com`,
+        username: `shared_name_${port}`,
+        code: secondVerification.code,
+        password: "secret123"
+      })
+    });
+    assert.equal(duplicateUsername.status, 409);
+    const duplicateUsernameJson = await duplicateUsername.json();
+    assert.match(String(duplicateUsernameJson.message || ""), /用户名已被占用/);
+
+    const thirdVerification = await fetchJson(`${baseUrl}/api/auth/verification-code`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "email", account: `username-check-third-${port}@example.com` })
+    });
+    assert.equal(thirdVerification.ok, true);
+
+    const duplicateEmail = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "email",
+        account: `username-check-${port}@example.com`,
+        username: `another_name_${port}`,
+        code: thirdVerification.code,
+        password: "secret123"
+      })
+    });
+    assert.equal(duplicateEmail.status, 409);
+    const duplicateEmailJson = await duplicateEmail.json();
+    assert.match(String(duplicateEmailJson.message || ""), /账号已注册/);
+  } finally {
+    child.kill("SIGTERM");
+    await once(child, "exit");
+  }
 });
 
 test("Node server only exposes onscreen auth codes on local hosts", { skip: !existsSync(serverEntryPath) }, async () => {
@@ -1005,6 +1387,7 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
       body: JSON.stringify({
         type: "email",
         account: `alipay-${port}@example.com`,
+        username: `alipay_${port}`,
         code: verification.code,
         password: "secret123",
         clientKey: explicitClient
@@ -1012,10 +1395,11 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
     });
     assert.equal(registered.ok, true);
     accountClient = registered.clientKey;
+    const alipayAuthHeaders = { "X-Client-Key": accountClient, Authorization: `Bearer ${registered.sessionToken}` };
 
     const created = await fetchJson(`${baseUrl}/api/payments/checkout-session`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...alipayAuthHeaders },
       body: JSON.stringify({ packageId: "starter" })
     });
     assert.equal(created.ok, true);
@@ -1028,7 +1412,7 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
 
     const confirmResult = await fetchJson(`${baseUrl}/api/payments/confirm-session`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Client-Key": accountClient },
+      headers: { "Content-Type": "application/json", ...alipayAuthHeaders },
       body: JSON.stringify({ orderId: created.order.id, tradeNo: gatewayTradeNo })
     });
     assert.equal(confirmResult.ok, true);
@@ -1038,13 +1422,13 @@ test("Node server confirms Alipay recharge by return-query without Alipay public
     assert.equal(confirmResult.balance, 410);
 
     const orders = await fetchJson(`${baseUrl}/api/credits/orders`, {
-      headers: { "X-Client-Key": accountClient }
+      headers: alipayAuthHeaders
     });
     assert.equal(orders.orders[0].status, "paid");
     assert.equal(orders.orders[0].providerPaymentId, gatewayTradeNo);
 
     const credits = await fetchJson(`${baseUrl}/api/credits`, {
-      headers: { "X-Client-Key": accountClient }
+      headers: alipayAuthHeaders
     });
     assert.equal(credits.balance, 410);
 

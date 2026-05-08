@@ -3,14 +3,17 @@ import nodemailer from "nodemailer";
 import { access, appendFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { createCreditOrderStore } from "./credits/orders.mjs";
 import { createPostgresCreditOrderStore } from "./credits/postgres-orders.mjs";
 import { createPostgresCreditStore } from "./credits/postgres-store.mjs";
+import { migrateCreditAndOrderStores } from "./credits/migration.mjs";
 import { createCreditService, CreditServiceError } from "./credits/service.mjs";
-import { createCreditStore, isWelcomeOnlyCreditStore } from "./credits/store.mjs";
-import { hashPassword, verifyPassword } from "./auth/crypto.mjs";
+import { createCreditStore } from "./credits/store.mjs";
+import { hashOpaqueToken, hashPassword, randomToken, verifyOpaqueToken, verifyPassword } from "./auth/crypto.mjs";
+import { createPasswordResetEmail, createPasswordResetLinkEmail, createVerificationEmail } from "./auth/email-template.mjs";
 import { createPostgresAuthStore } from "./auth/postgres-store.mjs";
 import { createAlipayPaymentProvider } from "./payments/alipay.mjs";
 import { createStripePaymentProvider } from "./payments/stripe.mjs";
@@ -33,8 +36,11 @@ const studioPreviewThumbDir = resolve(process.env.INKLENS_STUDIO_PREVIEW_THUMB_D
 const studioReviewDir = join(root, "review");
 const authCodeTtlMs = 5 * 60 * 1000;
 const authCodeCooldownMs = 60 * 1000;
+const passwordResetTokenTtlMs = 30 * 60 * 1000;
 const authLoginFailureWindowMs = 15 * 60 * 1000;
 const authLoginFailureLimit = 5;
+const authSessionTtlMs = 30 * 24 * 60 * 60 * 1000;
+const historyTrashRetentionMs = 7 * 24 * 60 * 60 * 1000;
 const studioAdminKey = String(process.env.INKLENS_STUDIO_ADMIN_KEY || process.env.STUDIO_ADMIN_KEY || "mojing-admin-local").trim();
 const studioOrderStoreFile = join(dataDir, "studio-orders.json");
 const studioOrderAssetDir = join(dataDir, "studio-order-assets");
@@ -53,15 +59,16 @@ const creditService = createCreditService({ store: creditStore, orderStore: cred
 const stripePaymentProvider = createStripePaymentProvider({ env: process.env });
 const alipayPaymentProvider = createAlipayPaymentProvider({ env: process.env });
 const verificationCodes = new Map();
+const passwordResetTokens = new Map();
 const defaultSettings = {
-  apiUrl: "https://img.inklens.art/v1",
-  apiKey: "",
+  apiUrl: envFirst(["INKLENS_IMAGE_API_URL", "IMAGE_API_URL", "OPENAI_BASE_URL"], "https://alexai.work/v1"),
+  apiKey: envFirst(["INKLENS_IMAGE_API_KEY", "IMAGE_API_KEY", "OPENAI_API_KEY"], ""),
   codexCli: false,
-  apiMode: "images",
-  mainModelId: "gpt-5.5",
-  modelId: "gpt-image-2",
-  toolName: "image_generation",
-  timeoutSeconds: 120
+  apiMode: envFirst(["INKLENS_IMAGE_API_MODE", "IMAGE_API_MODE"], "images"),
+  mainModelId: envFirst(["INKLENS_IMAGE_MAIN_MODEL_ID", "IMAGE_MAIN_MODEL_ID"], "gpt-5.5"),
+  modelId: envFirst(["INKLENS_IMAGE_MODEL_ID", "IMAGE_MODEL_ID"], "gpt-image-2"),
+  toolName: envFirst(["INKLENS_IMAGE_TOOL_NAME", "IMAGE_TOOL_NAME"], "image_generation"),
+  timeoutSeconds: Math.max(1, Number(envFirst(["INKLENS_IMAGE_TIMEOUT_SECONDS", "IMAGE_TIMEOUT_SECONDS"], "300")) || 300)
 };
 const studioSampleSceneIds = ["wedding", "couple", "friends", "child10", "portrait", "senior"];
 let studioSampleCatalogCache = null;
@@ -165,7 +172,7 @@ app.get("/api/studio-samples/:sceneId/:groupId", async (request, response) => {
 app.get("/api/studio-orders", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
-    if (!await requireAccountClientKey(response, clientKey)) return;
+    if (!await requireAccountSession(response, request, clientKey)) return;
     const orders = await listStudioOrders({ clientKey, limit: 20 });
     response.json({ ok: true, clientKey, orders, total: orders.length, updatedAt: orders[0]?.updatedAt || "" });
   } catch (error) {
@@ -176,7 +183,7 @@ app.get("/api/studio-orders", async (request, response) => {
 app.post("/api/studio-orders", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
-    if (!await requireAccountClientKey(response, clientKey)) return;
+    if (!await requireAccountSession(response, request, clientKey)) return;
     const order = await createStudioOrder(request.body, clientKey);
     response.status(201).json({ ok: true, clientKey, order });
   } catch (error) {
@@ -220,23 +227,33 @@ app.post("/api/auth/verification-code", async (request, response) => {
   try {
     const type = normalizeAccountType(request.body?.type);
     const account = normalizeAccount(request.body?.account, type);
-    const existing = await readStoredVerificationCode(type, account);
+    const purpose = normalizeAuthCodePurpose(request.body?.purpose, "register");
+    if (purpose === "register" && await hasRegisteredAccount(type, account)) {
+      response.status(409).json({ ok: false, message: "账号已注册" });
+      return;
+    }
+    if (purpose === "reset" && !await hasRegisteredAccount(type, account)) {
+      response.status(404).json({ ok: false, message: "账号不存在" });
+      return;
+    }
+    const existing = await readStoredVerificationCode(type, account, purpose);
     if (existing?.sentAt && Date.now() - existing.sentAt < authCodeCooldownMs) {
       response.status(429).json({ ok: false, message: "验证码刚发送过，稍后可重试" });
       return;
     }
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const delivery = authCodeDelivery(request);
-    if (delivery === "email") await sendVerificationEmail(account, code);
+    if (delivery === "email") await sendAuthPurposeEmail(account, code, purpose);
     const sentAt = Date.now();
-    await writeStoredVerificationCode(type, account, { code, delivery, sentAt, expiresAt: sentAt + authCodeTtlMs });
+    await writeStoredVerificationCode(type, account, purpose, { code, delivery, sentAt, expiresAt: sentAt + authCodeTtlMs });
     const result = {
       ok: true,
       type,
+      purpose,
       accountLabel: maskAccount(account, type),
       expiresIn: 300,
       delivery,
-      message: authCodeMessage(delivery)
+      message: authCodeMessage(delivery, purpose)
     };
     if (delivery !== "email") result.code = code;
     response.json(result);
@@ -257,7 +274,11 @@ app.post("/api/auth/register", async (request, response) => {
       response.status(409).json({ ok: false, message: "账号已注册" });
       return;
     }
-    await verifyCode(type, account, request.body?.code);
+    if (users.some((user) => sameUsername(user.username, username))) {
+      response.status(409).json({ ok: false, message: "用户名已被占用" });
+      return;
+    }
+    await verifyCode(type, account, "register", request.body?.code);
     const user = {
       id: makeUserId(),
       type,
@@ -275,10 +296,126 @@ app.post("/api/auth/register", async (request, response) => {
       users.push(user);
       await writeUsers(users);
     }
-    await deleteStoredVerificationCode(type, account);
+    await deleteStoredVerificationCode(type, account, "register");
     const clientKey = accountClientKey(user.id);
     await migrateClientData(normalizeExplicitClientKey(request.body?.clientKey), clientKey);
-    response.status(201).json({ ok: true, user: publicUser(user), clientKey });
+    response.status(201).json({ ok: true, user: publicUser(user), clientKey, sessionToken: createAuthSessionToken(user) });
+  } catch (error) {
+    const duplicate = error?.code === "23505";
+    const duplicateMessage = duplicate
+      ? duplicateErrorTargetsUsername(error)
+        ? "用户名已被占用"
+        : "账号已注册"
+      : errorMessage(error);
+    response.status(duplicate ? 409 : 400).json({ ok: false, message: duplicateMessage });
+  }
+});
+
+app.post("/api/auth/password-reset", async (request, response) => {
+  try {
+    const type = normalizeAccountType(request.body?.type);
+    const account = normalizeAccount(request.body?.account, type);
+    const password = normalizePassword(request.body?.password);
+    const user = await findUserByAccount(type, account);
+    if (!user) {
+      response.status(404).json({ ok: false, message: "账号不存在" });
+      return;
+    }
+    await verifyCode(type, account, "reset", request.body?.code);
+    const passwordHash = hashPassword(password);
+    if (authStore) {
+      await authStore.updatePasswordHash(user.id, passwordHash);
+    } else {
+      const users = await readUsers();
+      const target = users.find((item) => item.id === user.id);
+      if (!target) {
+        response.status(404).json({ ok: false, message: "账号不存在" });
+        return;
+      }
+      target.passwordHash = passwordHash;
+      await writeUsers(users);
+    }
+    await deleteStoredVerificationCode(type, account, "reset");
+    response.json({ ok: true, message: "密码已重置，请用新密码登录" });
+  } catch (error) {
+    response.status(400).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.post("/api/auth/password-reset/request", async (request, response) => {
+  try {
+    const type = normalizeAccountType(request.body?.type);
+    const account = normalizeAccount(request.body?.account, type);
+    const user = await findUserByAccount(type, account);
+    if (!user) {
+      response.status(404).json({ ok: false, message: "账号不存在" });
+      return;
+    }
+    const existing = await readPasswordResetToken(type, account);
+    if (existing?.sentAt && Date.now() - existing.sentAt < authCodeCooldownMs) {
+      response.status(429).json({ ok: false, message: "重置邮件刚发送过，稍后可重试" });
+      return;
+    }
+    const token = randomToken(24);
+    const sentAt = Date.now();
+    const expiresAt = sentAt + passwordResetTokenTtlMs;
+    await writePasswordResetToken(type, account, {
+      token,
+      sentAt,
+      expiresAt
+    });
+    const resetUrl = buildPasswordResetUrl(request, token);
+    if (isAuthTestMode()) {
+      response.json({
+        ok: true,
+        type,
+        accountLabel: maskAccount(account, type),
+        expiresIn: Math.floor(passwordResetTokenTtlMs / 1000),
+        delivery: "test",
+        resetUrl,
+        token,
+        message: "测试模式已返回重置链接"
+      });
+      return;
+    }
+    await sendPasswordResetLinkEmail(account, resetUrl);
+    response.json({
+      ok: true,
+      type,
+      accountLabel: maskAccount(account, type),
+      expiresIn: Math.floor(passwordResetTokenTtlMs / 1000),
+      delivery: "email",
+      message: "重置邮件已发送，请打开邮箱继续设置新密码"
+    });
+  } catch (error) {
+    response.status(400).json({ ok: false, message: errorMessage(error) });
+  }
+});
+
+app.post("/api/auth/password-reset/confirm", async (request, response) => {
+  try {
+    const password = normalizePassword(request.body?.password);
+    const token = String(request.body?.token || "").trim();
+    const tokenRecord = await consumePasswordResetToken(token);
+    const user = await findUserByAccount(tokenRecord.type, tokenRecord.account);
+    if (!user) {
+      response.status(404).json({ ok: false, message: "账号不存在" });
+      return;
+    }
+    const passwordHash = hashPassword(password);
+    if (authStore) {
+      await authStore.updatePasswordHash(user.id, passwordHash);
+    } else {
+      const users = await readUsers();
+      const target = users.find((item) => item.id === user.id);
+      if (!target) {
+        response.status(404).json({ ok: false, message: "账号不存在" });
+        return;
+      }
+      target.passwordHash = passwordHash;
+      await writeUsers(users);
+    }
+    response.json({ ok: true, message: "密码已重置，请用新密码登录" });
   } catch (error) {
     response.status(400).json({ ok: false, message: errorMessage(error) });
   }
@@ -325,7 +462,7 @@ app.post("/api/auth/login", async (request, response) => {
     }
     const clientKey = accountClientKey(user.id);
     await migrateClientData(normalizeExplicitClientKey(request.body?.clientKey), clientKey);
-    response.json({ ok: true, user: publicUser(user), clientKey });
+    response.json({ ok: true, user: publicUser(user), clientKey, sessionToken: createAuthSessionToken(user) });
   } catch (error) {
     response.status(400).json({ ok: false, message: errorMessage(error) });
   }
@@ -357,6 +494,10 @@ app.get("/api/templates/:id", async (request, response) => {
 });
 
 app.post("/api/test-connection", async (request, response) => {
+  if (!request.body?.settings || typeof request.body.settings !== "object") {
+    response.status(400).json({ ok: false, message: "请提供要测试的连接配置" });
+    return;
+  }
   const settings = sanitizeSettings(request.body?.settings);
   if (!settings.apiKey.trim()) {
     response.status(400).json({ ok: false, message: "API Key 为空" });
@@ -379,6 +520,7 @@ app.post("/api/test-connection", async (request, response) => {
 app.get("/api/credits", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
     response.json({ ok: true, clientKey, ...await creditService.getCredits(clientKey) });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -388,6 +530,7 @@ app.get("/api/credits", async (request, response) => {
 app.post("/api/credits/estimate", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
     const params = sanitizeParams(request.body?.params);
     const references = requestReferences(request.body?.references);
     response.json({ ok: true, clientKey, ...await creditService.estimate(params, references, clientKey) });
@@ -399,7 +542,7 @@ app.post("/api/credits/estimate", async (request, response) => {
 app.post("/api/credits/recharge", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
-    if (!await requireAccountClientKey(response, clientKey)) return;
+    if (!await requireAccountSession(response, request, clientKey)) return;
     const packageId = String(request.body?.packageId || "");
     response.json({ ok: true, clientKey, ...await creditService.recharge(packageId, clientKey) });
   } catch (error) {
@@ -410,6 +553,7 @@ app.post("/api/credits/recharge", async (request, response) => {
 app.get("/api/credits/orders", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
     response.json({ ok: true, clientKey, ...await creditService.listOrders(clientKey) });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -419,7 +563,7 @@ app.get("/api/credits/orders", async (request, response) => {
 app.post("/api/credits/orders", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
-    if (!await requireAccountClientKey(response, clientKey)) return;
+    if (!await requireAccountSession(response, request, clientKey)) return;
     const packageId = String(request.body?.packageId || "");
     response.json({ ok: true, clientKey, ...await creditService.createRechargeOrder(packageId, clientKey, { status: "pending" }) });
   } catch (error) {
@@ -434,7 +578,7 @@ app.get("/api/payments/config", (request, response) => {
 app.post("/api/payments/checkout-session", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
-    if (!await requireAccountClientKey(response, clientKey)) return;
+    if (!await requireAccountSession(response, request, clientKey)) return;
     const packageId = String(request.body?.packageId || "");
     const origin = requestOrigin(request);
     const { provider, payment } = selectedPayment(origin);
@@ -493,7 +637,7 @@ app.post("/api/payments/confirm-session", async (request, response) => {
     const origin = requestOrigin(request);
     const { provider, payment } = selectedPayment(origin);
     const requestClientKey = clientKeyFromRequest(request);
-    if (!await requireAccountClientKey(response, requestClientKey)) return;
+    if (!await requireAccountSession(response, request, requestClientKey)) return;
     const sessionId = safeId(request.body?.sessionId || request.body?.session_id || "");
     const orderId = safeId(request.body?.orderId || request.body?.order || "");
     const tradeNo = safeId(request.body?.tradeNo || request.body?.trade_no || "");
@@ -531,18 +675,42 @@ app.post("/api/payments/confirm-session", async (request, response) => {
 app.post("/api/generate", async (request, response) => {
   const requestId = generationRequestId();
   const clientKey = clientKeyFromRequest(request);
+  if (!await requireSessionForAccountClient(response, request, clientKey)) return;
   const settings = sanitizeSettings(request.body?.settings);
   const prompt = String(request.body?.prompt || "").trim();
   const params = sanitizeParams(request.body?.params);
   const references = requestReferences(request.body?.references);
   const taskId = safeId(request.body?.taskId || request.body?.id || `task-${Date.now().toString(36)}`);
   const createdAt = safeDate(request.body?.createdAt, new Date());
+  const baseHistoryTask = generationHistoryTask({
+    id: taskId,
+    prompt,
+    params,
+    references,
+    status: "running",
+    createdAt: createdAt.getTime()
+  });
+  await saveHistoryTaskSafely(baseHistoryTask, clientKey);
   if (!settings.apiKey.trim()) {
-    response.status(400).json({ ok: false, message: "API 配置不可用" });
+    const message = "API 配置不可用";
+    const historySaved = await saveHistoryTaskSafely(generationHistoryTask({
+      ...baseHistoryTask,
+      status: "failed",
+      error: message,
+      finishedAt: Date.now()
+    }), clientKey);
+    response.status(400).json({ ok: false, message, historySaved });
     return;
   }
   if (!prompt) {
-    response.status(400).json({ ok: false, message: "请输入提示词" });
+    const message = "请输入提示词";
+    const historySaved = await saveHistoryTaskSafely(generationHistoryTask({
+      ...baseHistoryTask,
+      status: "failed",
+      error: message,
+      finishedAt: Date.now()
+    }), clientKey);
+    response.status(400).json({ ok: false, message, historySaved });
     return;
   }
   let creditEstimate = null;
@@ -558,6 +726,7 @@ app.post("/api/generate", async (request, response) => {
       clientKey
     });
     const task = {
+      ...baseHistoryTask,
       id: taskId,
       prompt,
       params,
@@ -587,7 +756,14 @@ app.post("/api/generate", async (request, response) => {
   } catch (error) {
     const message = errorMessage(error);
     if (error instanceof CreditServiceError) {
-      response.status(errorStatus(error, 402)).json({ ok: false, message, credit: error.details || null });
+      const historySaved = await saveHistoryTaskSafely(generationHistoryTask({
+        ...baseHistoryTask,
+        status: "failed",
+        error: message,
+        creditUnitCost: creditEstimate?.unitCost || 0,
+        finishedAt: Date.now()
+      }), clientKey);
+      response.status(errorStatus(error, 402)).json({ ok: false, message, credit: error.details || null, historySaved });
       return;
     }
     await writeGenerationErrorLog({
@@ -601,6 +777,7 @@ app.post("/api/generate", async (request, response) => {
       error
     });
     await saveHistoryTaskSafely({
+      ...baseHistoryTask,
       id: taskId,
       prompt,
       params,
@@ -622,6 +799,7 @@ app.post("/api/generate", async (request, response) => {
 app.get("/api/history", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
     const limit = clampNumber(Number(request.query?.limit) || 80, 1, 200);
     const deleted = request.query?.deleted === "1" || request.query?.deleted === "true";
     const history = await listHistoryTasks(limit, deleted, clientKey);
@@ -634,6 +812,7 @@ app.get("/api/history", async (request, response) => {
 app.post("/api/history/sync", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
     const history = Array.isArray(request.body?.history) ? request.body.history.slice(0, 80) : [];
     let saved = 0;
     for (const task of history) {
@@ -649,7 +828,9 @@ app.post("/api/history/sync", async (request, response) => {
 
 app.delete("/api/history/:id", async (request, response) => {
   try {
-    const task = await softDeleteHistoryTask(request.params.id, clientKeyFromRequest(request));
+    const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
+    const task = await softDeleteHistoryTask(request.params.id, clientKey);
     response.json({ ok: true, task });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -658,7 +839,9 @@ app.delete("/api/history/:id", async (request, response) => {
 
 app.post("/api/history/:id/restore", async (request, response) => {
   try {
-    const task = await restoreHistoryTask(request.params.id, clientKeyFromRequest(request));
+    const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
+    const task = await restoreHistoryTask(request.params.id, clientKey);
     response.json({ ok: true, task });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -667,7 +850,9 @@ app.post("/api/history/:id/restore", async (request, response) => {
 
 app.delete("/api/history/:id/permanent", async (request, response) => {
   try {
-    await deleteHistoryTaskPermanently(request.params.id, clientKeyFromRequest(request));
+    const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
+    await deleteHistoryTaskPermanently(request.params.id, clientKey);
     response.json({ ok: true });
   } catch (error) {
     response.status(503).json({ ok: false, message: errorMessage(error) });
@@ -677,6 +862,7 @@ app.delete("/api/history/:id/permanent", async (request, response) => {
 app.delete("/api/history", async (request, response) => {
   try {
     const clientKey = clientKeyFromRequest(request);
+    if (!await requireSessionForAccountClient(response, request, clientKey)) return;
     const deleted = request.query?.deleted === "1" || request.query?.deleted === "true";
     const count = deleted ? await clearDeletedHistoryTasks(clientKey) : await softDeleteAllHistoryTasks(clientKey);
     response.json({ ok: true, deleted, count });
@@ -732,16 +918,27 @@ function sendJson(request, response, payload, { cacheSeconds = 0 } = {}) {
 }
 
 function sanitizeSettings(value) {
-  const settings = { ...defaultSettings, ...(value && typeof value === "object" ? value : {}) };
+  const incoming = value && typeof value === "object" ? value : {};
+  const useServerChannel = !String(incoming.apiKey || "").trim() && Boolean(defaultSettings.apiKey.trim());
+  const settings = { ...defaultSettings, ...incoming };
+  if (useServerChannel) {
+    settings.apiUrl = defaultSettings.apiUrl;
+    settings.apiKey = defaultSettings.apiKey;
+    settings.apiMode = defaultSettings.apiMode;
+    settings.mainModelId = defaultSettings.mainModelId;
+    settings.modelId = defaultSettings.modelId;
+    settings.toolName = defaultSettings.toolName;
+  }
+  const timeoutSeconds = Math.max(1, Number(settings.timeoutSeconds) || defaultSettings.timeoutSeconds);
   return {
     ...settings,
     apiUrl: normalizeApiBaseUrl(String(settings.apiUrl || defaultSettings.apiUrl)),
     apiKey: String(settings.apiKey || ""),
     apiMode: settings.apiMode === "responses" ? "responses" : "images",
     mainModelId: String(settings.mainModelId || defaultSettings.mainModelId),
-    modelId: String(settings.modelId || defaultSettings.modelId),
+    modelId: normalizeImageModelId(settings.modelId || defaultSettings.modelId),
     toolName: String(settings.toolName || defaultSettings.toolName),
-    timeoutSeconds: Math.max(1, Number(settings.timeoutSeconds) || defaultSettings.timeoutSeconds)
+    timeoutSeconds
   };
 }
 
@@ -784,7 +981,7 @@ async function generateViaImagesApi(settings, prompt, params) {
 
 async function editViaImagesApi(settings, prompt, params, references) {
   const form = new FormData();
-  form.set("model", settings.modelId.trim() || "gpt-image-2");
+  form.set("model", normalizeImageModelId(settings.modelId) || "gpt-image-2");
   form.set("prompt", prompt);
   form.set("n", String(params.count));
   addImageOptions(form, params);
@@ -821,7 +1018,7 @@ async function generateViaResponsesApi(settings, prompt, params, references) {
 
 function buildImagesGenerationBody(settings, prompt, params) {
   const body = {
-    model: settings.modelId.trim() || "gpt-image-2",
+    model: normalizeImageModelId(settings.modelId) || "gpt-image-2",
     prompt,
     n: params.count
   };
@@ -885,7 +1082,7 @@ async function parseJson(response) {
   } catch {
     const contentType = response.headers.get("content-type") ?? "";
     if (/html/i.test(contentType) || /^\s*<!doctype html/i.test(text) || /^\s*<html/i.test(text)) {
-      const error = new Error("接口返回了网页 HTML，不是 JSON。请确认 API URL 使用 OpenAI 兼容地址，例如 https://img.inklens.art/v1");
+      const error = new Error("接口返回了网页 HTML，不是 JSON。请确认 API URL 使用 OpenAI 兼容地址，例如 https://alexai.work/v1");
       attachUpstreamDetails(error, response, text);
       throw error;
     }
@@ -900,6 +1097,20 @@ function assertOk(response, json) {
   const error = new Error(json.error?.message ?? `${response.status} ${response.statusText}`);
   attachUpstreamDetails(error, response, JSON.stringify(json).slice(0, 1000));
   throw error;
+}
+
+function envFirst(names, fallback = "") {
+  for (const name of names) {
+    const value = String(process.env[name] || "").trim();
+    if (value) return value;
+  }
+  return fallback;
+}
+
+function normalizeImageModelId(value) {
+  const model = String(value || "").trim();
+  if (!model) return "";
+  return model.toLowerCase() === "image2" ? "gpt-image-2" : model;
 }
 
 function imagesResult(json, format) {
@@ -981,6 +1192,24 @@ function parseDataImage(value, fallbackFormat) {
   return { extension, buffer: Buffer.from(match[2], "base64") };
 }
 
+function generationHistoryTask(task) {
+  return normalizeHistoryRecord({
+    id: task?.id,
+    prompt: task?.prompt,
+    params: task?.params,
+    references: task?.references,
+    status: task?.status || "running",
+    images: task?.images || [],
+    error: task?.error || "",
+    revisedPrompt: task?.revisedPrompt || "",
+    creditCost: task?.creditCost || 0,
+    creditUnitCost: task?.creditUnitCost || 0,
+    creditLedgerId: task?.creditLedgerId || "",
+    createdAt: task?.createdAt,
+    finishedAt: task?.finishedAt || null
+  });
+}
+
 function normalizeClientHistoryTask(task) {
   const params = sanitizeParams(task.params);
   return {
@@ -988,7 +1217,7 @@ function normalizeClientHistoryTask(task) {
     prompt: String(task.prompt || ""),
     params,
     references: historyReferences(task.references),
-    status: ["running", "succeeded", "failed"].includes(task.status) ? task.status : "succeeded",
+    status: ["queued", "running", "succeeded", "failed"].includes(task.status) ? task.status : "succeeded",
     images: Array.isArray(task.images) ? task.images : Array.isArray(task.outputImages) ? task.outputImages : [],
     error: String(task.error || ""),
     revisedPrompt: String(task.revisedPrompt || task.revised_prompt || ""),
@@ -996,7 +1225,8 @@ function normalizeClientHistoryTask(task) {
     creditUnitCost: Math.max(0, Number(task.creditUnitCost) || 0),
     creditLedgerId: String(task.creditLedgerId || ""),
     createdAt: safeDate(task.createdAt, new Date()).getTime(),
-    finishedAt: task.finishedAt ? safeDate(task.finishedAt, new Date()).getTime() : null
+    finishedAt: task.finishedAt ? safeDate(task.finishedAt, new Date()).getTime() : null,
+    deletedAt: task.deletedAt ? safeDate(task.deletedAt, new Date()).getTime() : null
   };
 }
 
@@ -1030,11 +1260,24 @@ async function saveHistoryTask(task, clientKey = "local") {
 }
 
 async function listHistoryTasks(limit, deleted = false, clientKey = "local") {
+  await clearExpiredDeletedHistoryTasks(clientKey);
   const history = await readHistoryStore(clientKey);
   return history
     .filter((task) => deleted ? task.deletedAt : !task.deletedAt)
     .sort((left, right) => Number(right.createdAt || 0) - Number(left.createdAt || 0))
     .slice(0, clampNumber(Number(limit) || 80, 1, 200));
+}
+
+async function clearExpiredDeletedHistoryTasks(clientKey = "local") {
+  const cutoff = Date.now() - historyTrashRetentionMs;
+  const images = await mutateHistoryStore((history) => {
+    const expired = history.filter((task) => task.deletedAt && Number(task.deletedAt) <= cutoff);
+    if (!expired.length) return [];
+    history.splice(0, history.length, ...history.filter((task) => !task.deletedAt || Number(task.deletedAt) > cutoff));
+    return expired.flatMap((task) => task.images);
+  }, clientKey);
+  await removeHistoryImages(images);
+  return images.length;
 }
 
 async function softDeleteHistoryTask(id, clientKey = "local") {
@@ -1169,7 +1412,7 @@ function normalizeHistoryRecord(task) {
     prompt: String(task?.prompt || ""),
     params: sanitizeParams(task?.params),
     references: historyReferences(task?.references),
-    status: ["running", "succeeded", "failed"].includes(task?.status) ? task.status : "succeeded",
+    status: ["queued", "running", "succeeded", "failed"].includes(task?.status) ? task.status : "succeeded",
     images: Array.isArray(task?.images) ? task.images.map(String) : [],
     error: String(task?.error || ""),
     revisedPrompt: String(task?.revisedPrompt || task?.revised_prompt || ""),
@@ -1261,7 +1504,7 @@ async function createStudioOrder(payload, clientKey) {
     comboId: safeId(source.comboId || "custom"),
     comboLabel: compactStudioText(source.comboLabel || "定制组合", 40),
     sceneId: safeId(source.sceneId || ""),
-    sceneLabel: compactStudioText(source.sceneLabel || "拍摄定制", 40),
+    sceneLabel: compactStudioText(source.sceneLabel || "影像定制", 40),
     peopleCount: people.length,
     people,
     styleIds: normalizeStudioTextArray(source.styleIds, 12, 40),
@@ -1400,7 +1643,7 @@ function normalizeStudioOrderRecord(item) {
     comboId: safeId(item?.comboId || "custom"),
     comboLabel: compactStudioText(item?.comboLabel || "定制组合", 40),
     sceneId: safeId(item?.sceneId || ""),
-    sceneLabel: compactStudioText(item?.sceneLabel || "拍摄定制", 40),
+    sceneLabel: compactStudioText(item?.sceneLabel || "影像定制", 40),
     peopleCount: peopleWithPhotoCounts.length,
     people: peopleWithPhotoCounts,
     styleIds: normalizeStudioTextArray(item?.styleIds, 12, 40),
@@ -1630,10 +1873,34 @@ async function isAccountClientKey(clientKey) {
   return users.some((user) => accountClientKey(user.id) === normalized);
 }
 
+async function userForAccountClientKey(clientKey) {
+  const normalized = normalizeExplicitClientKey(clientKey);
+  if (!normalized) return null;
+  const users = await readUsers();
+  return users.find((user) => accountClientKey(user.id) === normalized) || null;
+}
+
 async function requireAccountClientKey(response, clientKey) {
   if (await isAccountClientKey(clientKey)) return true;
   response.status(401).json({ ok: false, message: "登录后可买积分" });
   return false;
+}
+
+async function requireAccountSession(response, request, clientKey) {
+  const user = await userForAccountClientKey(clientKey);
+  if (!user) {
+    response.status(401).json({ ok: false, message: "登录后可操作" });
+    return null;
+  }
+  if (verifyAuthSessionToken(requestAuthToken(request), user)) return user;
+  response.status(401).json({ ok: false, message: "登录已失效，请重新登录" });
+  return null;
+}
+
+async function requireSessionForAccountClient(response, request, clientKey) {
+  const normalized = normalizeExplicitClientKey(clientKey);
+  if (!normalized || !normalized.startsWith("account-")) return true;
+  return Boolean(await requireAccountSession(response, request, normalized));
 }
 
 async function readUsers() {
@@ -1654,9 +1921,25 @@ async function writeUsers(users) {
   await writeFile(authUsersFile, `${JSON.stringify({ users }, null, 2)}\n`, "utf-8");
 }
 
+async function hasRegisteredAccount(type, account) {
+  return Boolean(await findUserByAccount(type, account));
+}
+
+async function findUserByAccount(type, account) {
+  if (authStore) return await authStore.findUserByAccount(type, account);
+  const users = await readUsers();
+  return users.find((item) => item.type === type && item.account === account) || null;
+}
+
 function normalizeAccountType(value) {
   if (!value || value === "email") return "email";
   throw new Error("当前只支持邮箱注册");
+}
+
+function normalizeAuthCodePurpose(value, fallback = "register") {
+  return ["register", "reset"].includes(String(value || "").trim().toLowerCase())
+    ? String(value || "").trim().toLowerCase()
+    : fallback;
 }
 
 function normalizeAccount(value, type) {
@@ -1668,27 +1951,18 @@ function normalizeAccount(value, type) {
 
 function normalizeUsername(value, account = "", users = []) {
   const username = String(value || "").trim().replace(/\s+/g, " ");
-  if (!username) return deriveDefaultUsername(account, users);
+  if (!username) throw new Error("请输入用户名");
   if (username.length < 2 || username.length > 24) throw new Error("用户名需为 2-24 个字符");
   return username;
 }
 
-function deriveDefaultUsername(account, users = []) {
-  const [localPart = ""] = String(account || "").split("@");
-  let base = String(localPart || "").trim().replace(/\s+/g, "");
-  if (!base) base = "新用户";
-  if (base.length < 2) base = `${base}用户`;
-  base = base.slice(0, 24);
-  const taken = new Set(users.map((user) => String(user.username || "").trim()).filter(Boolean));
-  if (!taken.has(base)) return base;
-  let index = 2;
-  while (index < 1000) {
-    const suffix = String(index);
-    const candidate = `${base.slice(0, Math.max(1, 24 - suffix.length))}${suffix}`;
-    if (!taken.has(candidate)) return candidate;
-    index += 1;
-  }
-  return `${base.slice(0, 21)}001`;
+function sameUsername(left, right) {
+  return String(left || "").trim().toLowerCase() === String(right || "").trim().toLowerCase();
+}
+
+function duplicateErrorTargetsUsername(error) {
+  const message = String(error?.detail || error?.constraint || error?.message || "");
+  return /用户名|username/i.test(message);
 }
 
 function normalizePassword(value) {
@@ -1697,33 +1971,34 @@ function normalizePassword(value) {
   return password;
 }
 
-async function verifyCode(type, account, value) {
+async function verifyCode(type, account, purpose, value) {
   const code = String(value || "").trim();
   if (authStore) {
-    const result = await authStore.verifyCode(type, account, code);
+    const result = await authStore.verifyCode(type, account, purpose, code);
     if (!result.ok && result.reason === "expired") throw new Error("验证码已过期，请重新获取");
     if (!result.ok) throw new Error("验证码不正确");
     return;
   }
-  const stored = verificationCodes.get(authKey(type, account));
+  const stored = verificationCodes.get(authKey(type, account, purpose));
   if (!stored || stored.expiresAt < Date.now()) throw new Error("验证码已过期，请重新获取");
   if (stored.code !== code) throw new Error("验证码不正确");
 }
 
-function authKey(type, account) {
-  return `${type}:${account}`;
+function authKey(type, account, purpose = "register") {
+  return `${type}:${account}:${purpose}`;
 }
 
-async function readStoredVerificationCode(type, account) {
-  if (authStore) return await authStore.getVerificationCode(type, account);
-  return verificationCodes.get(authKey(type, account)) || null;
+async function readStoredVerificationCode(type, account, purpose = "register") {
+  if (authStore) return await authStore.getVerificationCode(type, account, purpose);
+  return verificationCodes.get(authKey(type, account, purpose)) || null;
 }
 
-async function writeStoredVerificationCode(type, account, value) {
+async function writeStoredVerificationCode(type, account, purpose = "register", value) {
   if (authStore) {
     await authStore.saveVerificationCode({
       type,
       account,
+      purpose,
       code: value.code,
       delivery: value.delivery,
       sentAt: value.sentAt,
@@ -1731,19 +2006,57 @@ async function writeStoredVerificationCode(type, account, value) {
     });
     return;
   }
-  verificationCodes.set(authKey(type, account), {
+  verificationCodes.set(authKey(type, account, purpose), {
     code: value.code,
     sentAt: value.sentAt,
     expiresAt: value.expiresAt
   });
 }
 
-async function deleteStoredVerificationCode(type, account) {
+async function deleteStoredVerificationCode(type, account, purpose = "register") {
   if (authStore) {
-    await authStore.deleteVerificationCode(type, account);
+    await authStore.deleteVerificationCode(type, account, purpose);
     return;
   }
-  verificationCodes.delete(authKey(type, account));
+  verificationCodes.delete(authKey(type, account, purpose));
+}
+
+function passwordResetKey(type, account) {
+  return `${type}:${account}:password-reset-link`;
+}
+
+async function readPasswordResetToken(type, account) {
+  return passwordResetTokens.get(passwordResetKey(type, account)) || null;
+}
+
+async function writePasswordResetToken(type, account, value) {
+  passwordResetTokens.set(passwordResetKey(type, account), {
+    tokenHash: hashOpaqueToken(value.token),
+    sentAt: value.sentAt,
+    expiresAt: value.expiresAt,
+    type,
+    account
+  });
+}
+
+async function deletePasswordResetToken(type, account) {
+  passwordResetTokens.delete(passwordResetKey(type, account));
+}
+
+async function consumePasswordResetToken(token) {
+  const input = String(token || "").trim();
+  if (!input) throw new Error("重置链接无效，请重新获取");
+  for (const [, record] of passwordResetTokens.entries()) {
+    if (!record) continue;
+    if (record.expiresAt < Date.now()) {
+      await deletePasswordResetToken(record.type, record.account);
+      continue;
+    }
+    if (!verifyOpaqueToken(input, record.tokenHash)) continue;
+    await deletePasswordResetToken(record.type, record.account);
+    return record;
+  }
+  throw new Error("重置链接已失效，请重新获取");
 }
 
 function maskAccount(account, type) {
@@ -1754,6 +2067,26 @@ function maskAccount(account, type) {
 }
 
 async function sendVerificationEmail(account, code) {
+  await sendAuthMail(account, createVerificationEmail({ account, code }));
+}
+
+async function sendPasswordResetEmail(account, code) {
+  await sendAuthMail(account, createPasswordResetEmail({ account, code }));
+}
+
+async function sendPasswordResetLinkEmail(account, resetUrl) {
+  await sendAuthMail(account, createPasswordResetLinkEmail({ account, resetUrl }));
+}
+
+async function sendAuthPurposeEmail(account, code, purpose = "register") {
+  if (purpose === "reset") {
+    await sendPasswordResetEmail(account, code);
+    return;
+  }
+  await sendVerificationEmail(account, code);
+}
+
+async function sendAuthMail(account, payload) {
   const config = emailConfig();
   if (!config.host) throw new Error("邮箱服务未配置，请设置 INKLENS_SMTP_HOST");
   const transporter = nodemailer.createTransport({
@@ -1762,25 +2095,23 @@ async function sendVerificationEmail(account, code) {
     secure: config.secure,
     auth: config.user && config.pass ? { user: config.user, pass: config.pass } : undefined
   });
-  await transporter.sendMail({
+  const result = await transporter.sendMail({
     from: config.from,
     to: account,
-    subject: "墨境邮箱验证码",
-    text: `你正在创建墨境账号，邮箱验证码是 ${code}，5 分钟内有效。若非本人操作，请忽略这封邮件。`,
-    html: `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1f2937;line-height:1.6;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-          <img src="https://img.inklens.art/assets/icon-192.png" alt="墨境" width="48" height="48" style="display:block;border-radius:12px;" />
-          <div>
-            <div style="font-size:18px;font-weight:700;color:#111827;">墨境</div>
-            <div style="font-size:13px;color:#6b7280;">邮箱验证码</div>
-          </div>
-        </div>
-        <p>你正在创建 <strong>墨境</strong> 账号</p>
-        <p>邮箱验证码是 <strong style="font-size:20px;color:#9f2f22;">${code}</strong></p>
-        <p>5 分钟内有效。若非本人操作，请忽略这封邮件。</p>
-      </div>`
+    ...payload
   });
+  logMailDelivery(account, result);
+}
+
+function logMailDelivery(account, result = {}) {
+  console.info(JSON.stringify({
+    event: "auth_verification_mail",
+    to: maskAccount(account, "email"),
+    accepted: Array.isArray(result.accepted) ? result.accepted.length : 0,
+    rejected: Array.isArray(result.rejected) ? result.rejected.length : 0,
+    response: String(result.response || "").slice(0, 160),
+    messageId: String(result.messageId || "")
+  }));
 }
 
 function emailConfig() {
@@ -1803,10 +2134,17 @@ function authCodeDelivery(request) {
   return "email";
 }
 
-function authCodeMessage(delivery) {
-  if (delivery === "test") return "测试模式已返回验证码，5 分钟内有效";
-  if (delivery === "onscreen") return "当前未配置邮箱服务，本机模式已直接显示验证码，可继续完成注册";
-  return "验证码已发送到邮箱，5 分钟内有效";
+function authCodeMessage(delivery, purpose = "register") {
+  const action = purpose === "reset" ? "重置密码" : "注册";
+  if (delivery === "test") return `测试模式已返回${action}验证码，5 分钟内有效`;
+  if (delivery === "onscreen") return `当前未配置邮箱服务，本机模式已直接显示${action}验证码，可继续完成操作`;
+  return `验证码已发送到邮箱，5 分钟内有效`;
+}
+
+function buildPasswordResetUrl(request, token) {
+  const origin = requestOrigin(request) || String(process.env.APP_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (!origin) throw new Error("缺少站点地址，无法生成重置链接");
+  return `${origin}/?tab=register&auth=reset-link&token=${encodeURIComponent(token)}`;
 }
 
 function isAuthTestMode() {
@@ -1874,6 +2212,72 @@ function publicUser(user) {
   };
 }
 
+function createAuthSessionToken(user) {
+  const issuedAt = Date.now();
+  const expiresAt = issuedAt + authSessionTtlMs;
+  const payload = JSON.stringify({
+    userId: String(user.id || ""),
+    type: String(user.type || "email"),
+    account: String(user.account || ""),
+    expiresAt
+  });
+  return `${base64Url(payload)}.${signAuthSessionPayload(payload)}`;
+}
+
+function verifyAuthSessionToken(token, user) {
+  const [encodedPayload = "", signature = ""] = String(token || "").split(".");
+  if (!encodedPayload || !signature) return false;
+  const payload = base64UrlDecode(encodedPayload);
+  if (!payload || !timingSafeTextEqual(signature, signAuthSessionPayload(payload))) return false;
+  const data = parseJsonObject(payload);
+  if (String(data.userId || "") !== String(user.id || "")) return false;
+  if (String(data.type || "email") !== String(user.type || "email")) return false;
+  if (String(data.account || "") !== String(user.account || "")) return false;
+  if (Number(data.expiresAt) < Date.now()) return false;
+  return true;
+}
+
+function parseJsonObject(value) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function requestAuthToken(request) {
+  const authorization = String(request.headers?.authorization || "");
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || "";
+  return bearer || String(request.headers?.["x-auth-token"] || "");
+}
+
+function signAuthSessionPayload(payload) {
+  return createHmac("sha256", authSessionSecret()).update(payload).digest("base64url");
+}
+
+function authSessionSecret() {
+  return process.env.INKLENS_AUTH_SESSION_SECRET || process.env.AUTH_SESSION_SECRET || process.env.INKLENS_SMTP_PASS || "mojing-local-session-secret";
+}
+
+function base64Url(value) {
+  return Buffer.from(String(value || ""), "utf-8").toString("base64url");
+}
+
+function base64UrlDecode(value) {
+  try {
+    return Buffer.from(String(value || ""), "base64url").toString("utf-8");
+  } catch {
+    return "";
+  }
+}
+
+function timingSafeTextEqual(left, right) {
+  const leftBuffer = Buffer.from(String(left || ""));
+  const rightBuffer = Buffer.from(String(right || ""));
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function accountClientKey(userId) {
   return safeClientKey(`account-${userId}`);
 }
@@ -1882,59 +2286,15 @@ async function migrateClientData(sourceKey, targetKey) {
   const source = normalizeExplicitClientKey(sourceKey);
   const target = normalizeExplicitClientKey(targetKey);
   if (!source || !target || source === target) return;
-  await migrateCreditStore(source, target);
-  await migrateOrderStore(source, target);
+  await migrateCreditAndOrderStores({
+    sourceKey: source,
+    targetKey: target,
+    creditStore,
+    orderStore: creditOrderStore,
+    normalizeClientKey: normalizeExplicitClientKey,
+    safeId
+  });
   await migrateHistoryStore(source, target);
-}
-
-async function migrateCreditStore(sourceKey, targetKey) {
-  const source = await creditStore.readCreditStore(sourceKey);
-  if (!source.balance && !source.ledger.length) return;
-  const sourceIsWelcomeOnly = isWelcomeOnlyCreditStore(source);
-  await creditStore.mutateCreditStore((draft) => {
-    const targetIsWelcomeOnly = isWelcomeOnlyCreditStore(draft);
-    if (sourceIsWelcomeOnly && !targetIsWelcomeOnly) return draft;
-    if (targetIsWelcomeOnly) {
-      draft.balance = 0;
-      draft.ledger = [];
-      draft.updatedAt = source.updatedAt || draft.updatedAt;
-    }
-    const seen = new Set((Array.isArray(draft.ledger) ? draft.ledger : []).map((entry) => String(entry?.id || "")));
-    for (const entry of source.ledger || []) {
-      const id = String(entry?.id || "");
-      if (!id || seen.has(id)) continue;
-      draft.ledger.push(entry);
-      seen.add(id);
-    }
-    draft.balance += Math.max(0, Number(source.balance) || 0);
-    draft.updatedAt = newestIsoDate(draft.updatedAt, source.updatedAt);
-    return draft;
-  }, targetKey);
-  await creditStore.mutateCreditStore((draft) => {
-    draft.balance = 0;
-    draft.ledger = [];
-    draft.updatedAt = new Date().toISOString();
-    return draft;
-  }, sourceKey);
-}
-
-async function migrateOrderStore(sourceKey, targetKey) {
-  const orders = await creditOrderStore.readOrders(sourceKey);
-  if (!orders.length) return;
-  await creditOrderStore.mutateOrders((draft) => {
-    const seen = new Set((Array.isArray(draft) ? draft : []).map((entry) => String(entry?.id || "")));
-    for (const order of orders) {
-      const id = String(order?.id || "");
-      if (!id || seen.has(id)) continue;
-      draft.push(order);
-      seen.add(id);
-    }
-    return draft;
-  }, targetKey);
-  await creditOrderStore.mutateOrders((draft) => {
-    draft.splice(0, draft.length);
-    return draft;
-  }, sourceKey);
 }
 
 async function migrateHistoryStore(sourceKey, targetKey) {
@@ -2167,20 +2527,14 @@ function slimStudioSampleCatalog(catalog) {
 function slimStudioSampleGroup(group) {
   return {
     id: group.id,
-    sceneId: group.sceneId,
     sampleId: group.sampleId,
     sampleTitle: group.sampleTitle,
     groupId: group.groupId,
-    group: group.group,
     title: group.title,
     subtitle: group.subtitle,
     cover: group.cover,
     coverAlt: group.coverAlt,
     count: group.count,
-    items: group.items?.[0] ? [group.items[0]] : [],
-    updatedAt: group.updatedAt,
-    sortKey: group.sortKey,
-    groupRank: group.groupRank,
     detailLoaded: false
   };
 }
@@ -2253,6 +2607,12 @@ function classifyStudioSampleGroup(group, fileName = "") {
   }
   if (/identity_child10/.test(text)) {
     return studioIdentityGroupClassification(groupName, "child10", "campus", "10岁成长", "儿童成长批次", 0);
+  }
+  if (/identity_portrait/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "portrait", "magazine", "女生写真", "个人写真批次", 0);
+  }
+  if (/identity_senior/.test(text)) {
+    return studioIdentityGroupClassification(groupName, "senior", "anniversary", "夕阳红", "长辈纪念批次", 0);
   }
   return null;
 }
@@ -2391,7 +2751,7 @@ function safeId(value) {
 }
 
 function normalizeApiBaseUrl(value) {
-  const trimmed = value.trim() || "https://img.inklens.art/v1";
+  const trimmed = value.trim() || defaultSettings.apiUrl || "https://alexai.work/v1";
   try {
     const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
     url.search = "";

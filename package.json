@@ -32,6 +32,7 @@
     "assets:compress": "node scripts/compress-frontend-images.mjs",
     "db:init": "node scripts/init-local-postgres.mjs",
     "db:migrate:file-to-postgres": "node scripts/migrate-file-storage-to-postgres.mjs",
+    "db:migrate:english-to-chinese": "node scripts/migrate-english-postgres-to-chinese.mjs",
     "templates:freeze-previews": "node scripts/freeze-template-previews.mjs",
     "templates:compress-previews": "node scripts/compress-template-previews.mjs",
     "docs:localize-images": "node scripts/localize-readme-images.mjs",

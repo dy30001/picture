@@ -37,10 +37,10 @@ for (const item of cases) {
   if (pageErrors.length) throw new Error(`${item.name}: page script error: ${pageErrors.join("; ")}`);
   await page.waitForSelector("body", { timeout: 15_000 });
   await expectText(page, ".primary-nav", "首页", `${item.name}: missing home menu label`);
-  await expectText(page, ".primary-nav", "拍摄定制", `${item.name}: missing studio menu label`);
+  await expectText(page, ".primary-nav", "影像定制", `${item.name}: missing studio menu label`);
   await expectText(page, ".primary-nav", "图片创作", `${item.name}: missing create menu label`);
   await expectText(page, ".primary-nav", "我的作品", `${item.name}: missing history menu label`);
-  await expectText(page, ".primary-nav", "登录", `${item.name}: missing register menu label`);
+  await expectText(page, ".primary-nav", "登录", `${item.name}: missing login menu label`);
   await expectText(page, ".primary-nav", "我的积分", `${item.name}: missing credits menu label`);
   await expectNotText(page, ".primary-nav", "后台管理", `${item.name}: customer frontend should not expose admin menu label`);
   if (await page.locator(".primary-nav [data-tab='admin']").count()) throw new Error(`${item.name}: customer frontend should not expose admin primary tab`);
@@ -66,22 +66,68 @@ for (const item of cases) {
   await expectHidden(page, "#secondaryNav", `${item.name}: login view should hide secondary nav`);
   await expectVisible(page, ".topbar-actions", `${item.name}: register view should keep app navigation`);
   await expectVisible(page, "#registerPanel", `${item.name}: missing register panel`);
-  await expectText(page, "#registerPanel", "登录后继续创作", `${item.name}: login panel should lead with login`);
+  await expectText(page, "#registerPanel", "登录后继续创作", `${item.name}: register tab should default to login view`);
   await expectText(page, "#registerPanel", "邮箱登录", `${item.name}: login form should be email-first`);
   await expectText(page, "#registerPanel", "立即登录", `${item.name}: login action should be primary`);
   await expectText(page, "#registerPanel", "还没有账号？创建一个", `${item.name}: login panel should expose register link`);
-  await expectNotText(page, "#registerPanel", "用户名", `${item.name}: register step should not ask for username up front`);
-  await expectNotText(page, "#registerPanel", "第 1 步", `${item.name}: register panel should stay minimal`);
+  await expectHidden(page, "#registerUsernameField", `${item.name}: login should not show username field`);
   await expectHidden(page, "#registerCodeField", `${item.name}: login should not show verification code field`);
   await clickFirst(page, "#authModeRegisterBtn", `${item.name}: register mode button did not switch`);
-  await expectText(page, "#registerPanel", "创建你的账号", `${item.name}: register panel title should explain the action`);
-  await expectText(page, "#registerPanel", "创建账号", `${item.name}: register form should switch to account creation`);
-  await expectText(page, "#registerPanel", "继续", `${item.name}: register should advance to verification`);
+  await expectText(page, "#registerPanel", "创建你的账号", `${item.name}: register panel should lead with account creation`);
+  await expectText(page, "#registerPanel", "邮箱注册", `${item.name}: register form should be email-first`);
+  await expectVisible(page, "#registerUsernameField", `${item.name}: register should show username field`);
+  await expectText(page, "#registerPanel", "用户名", `${item.name}: register should label username clearly`);
+  await expectText(page, "#registerPanel", "邮箱回执码", `${item.name}: register should expose registration code field`);
+  await expectText(page, "#registerPanel", "发送回执码", `${item.name}: register should expose an explicit code sender`);
+  await expectText(page, "#registerPanel", "创建账号", `${item.name}: register should keep account creation as the submit action`);
   await expectText(page, "#registerPanel", "已有账号？去登录", `${item.name}: register panel should allow returning to login`);
-  await expectHidden(page, "#registerCodeField", `${item.name}: register first step should not show verification code field`);
+  await expectVisible(page, "#registerCodeField", `${item.name}: register should show registration code field immediately`);
+  await expectVisible(page, "#registerPasswordConfirmField", `${item.name}: register should require confirming the password`);
+  await expectVisible(page, "#registerPasswordToggleBtn", `${item.name}: register should expose password visibility toggle`);
+  await expectVisible(page, "#registerPasswordConfirmToggleBtn", `${item.name}: register should expose confirm-password visibility toggle`);
+  await expectNotText(page, "#registerPanel", "第 1 步", `${item.name}: register panel should stay minimal`);
   await clickFirst(page, "#authModeLoginBtn", `${item.name}: login mode button did not switch back`);
   await expectText(page, "#registerPanel", "登录后继续创作", `${item.name}: login copy should restore after switching back`);
+  await clickFirst(page, "#authForgotPasswordBtn", `${item.name}: forgot password button did not switch`);
+  await expectText(page, "#registerPanel", "通过邮件重置密码", `${item.name}: forgot password should explain email reset`);
+  await expectText(page, "#registerPanel", "发送重置邮件", `${item.name}: forgot password should send reset email`);
+  await expectHidden(page, "#registerCodeField", `${item.name}: forgot password should not show code field`);
+  await expectHidden(page, "#registerUsernameField", `${item.name}: forgot password should not show username field`);
+  await expectHidden(page, "#registerPasswordField", `${item.name}: forgot password request should not show password field`);
+  await expectHidden(page, "#registerPasswordConfirmField", `${item.name}: forgot password request should not show confirm-password field`);
+  await expectText(page, "#registerPanel", "想起来了？去登录", `${item.name}: forgot password should allow returning to login`);
+  await clickFirst(page, "#authModeLoginBtn", `${item.name}: forgot password login button did not switch back`);
+  await expectText(page, "#registerPanel", "登录后继续创作", `${item.name}: login copy should restore after forgot password`);
   await expectNotText(page, "#registerPanel", "去连接设置", `${item.name}: register panel should not expose connection settings shortcut`);
+  await page.addInitScript(() => {
+    localStorage.setItem("pic.native.auth", JSON.stringify({
+      sessionToken: "visual-session-token",
+      user: {
+        id: "user_visual",
+        username: "视觉客户",
+        nickname: "视觉客户",
+        type: "email",
+        accountLabel: "vi***@example.com",
+        createdAt: "2026-05-05T00:00:00.000Z",
+        lastLoginAt: "2026-05-05T00:00:00.000Z",
+        clientKey: "account-user_visual"
+      }
+    }));
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expectHidden(page, "#authNavBtn", `${item.name}: logged-in topbar should hide login button`);
+  await expectVisible(page, "#topbarAccount", `${item.name}: logged-in topbar should show account entry`);
+  await expectText(page, "#topbarAccount", "视觉客户", `${item.name}: logged-in topbar should show username`);
+  await expectPrimaryTabs(page, item.name);
+  await clickFirst(page, "#topbarAccountBtn", `${item.name}: account menu should open`);
+  await expectVisible(page, "#topbarAccountMenu", `${item.name}: account menu should be visible after click`);
+  await expectText(page, "#topbarAccountMenu", "我的积分", `${item.name}: account menu should link to credits`);
+  await expectText(page, "#topbarAccountMenu", "退出登录", `${item.name}: account menu should allow logout`);
+  await clickFirst(page, "#topbarAccountLogoutBtn", `${item.name}: account logout did not respond`);
+  await expectVisible(page, "#authNavBtn", `${item.name}: logged-out topbar should restore login button`);
+  await expectVisible(page, "#topbarAccount", `${item.name}: logged-out topbar should keep account status in primary nav`);
+  await expectText(page, "#topbarAccount", "未登录", `${item.name}: logged-out topbar should show account status`);
+  await expectHidden(page, "#topbarAccountMenu", `${item.name}: logged-out topbar should close account menu`);
   await clickFirst(page, ".primary-nav [data-tab='create']", `${item.name}: missing create primary tab`);
   await expectText(page, "#secondaryNav", "模板库", `${item.name}: missing templates submenu`);
   await expectText(page, "#secondaryNav", "智能生图", `${item.name}: missing generate submenu`);
@@ -127,10 +173,10 @@ for (const item of cases) {
   await expectVisible(page, "#creditsPanel", `${item.name}: missing credits panel`);
   await expectVisible(page, "#creditOverviewView", `${item.name}: credits overview should be visible by default`);
   await expectText(page, "#creditOverviewView", "当前余额", `${item.name}: overview should use customer balance language`);
-  await expectText(page, "#creditOverviewView", "够拍什么", `${item.name}: overview should explain current usage directly`);
-  await expectText(page, "#creditOverviewView", "只写要求拍", `${item.name}: overview should translate balance into direct shots`);
+  await expectText(page, "#creditOverviewView", "够生成什么", `${item.name}: overview should explain current usage directly`);
+  await expectText(page, "#creditOverviewView", "文字生成", `${item.name}: overview should translate balance into direct shots`);
   await expectText(page, "#creditOverviewView", "上传照片改", `${item.name}: overview should translate balance into edits`);
-  await expectText(page, "#creditOverviewView", "只写要求拍一张：20 积分", `${item.name}: pricing should explain direct generation`);
+  await expectText(page, "#creditOverviewView", "文字生成一张：20 积分", `${item.name}: pricing should explain direct generation`);
   await expectText(page, "#creditOverviewView", "上传照片照着改：30 积分", `${item.name}: pricing should explain reference image edits`);
   await expectText(page, "#creditOverviewView", "要更大图：2K +20，4K +60", `${item.name}: pricing should explain large delivery`);
   await expectText(page, "#creditOverviewView", "积分明细", `${item.name}: ledger should be merged into overview`);
@@ -146,7 +192,7 @@ for (const item of cases) {
   await expectText(page, "#creditRechargeView", "登录后才能买积分", `${item.name}: recharge view should require login before payment`);
   await expectText(page, "#creditRechargeView", "登录购买", `${item.name}: package action should send guests to login`);
   await expectText(page, "#creditRechargeView", "适合：", `${item.name}: package cards should explain fit`);
-  await expectText(page, "#creditRechargeView", "只写要求拍", `${item.name}: package cards should explain direct shot count`);
+  await expectText(page, "#creditRechargeView", "文字生成", `${item.name}: package cards should explain direct generation count`);
   await expectText(page, "#creditRechargeView", "上传照片改", `${item.name}: package cards should explain edit count`);
   await expectVisible(page, "#creditOrdersView", `${item.name}: orders block should be visible inside recharge view`);
   await expectText(page, "#creditRechargeView", "充值记录", `${item.name}: recharge view should include credit orders`);
@@ -170,7 +216,7 @@ for (const item of cases) {
   await expectVisible(page, "#studioSampleSection", `${item.name}: sample set should be default studio view`);
   await expectHidden(page, "#studioCommand", `${item.name}: sample set should not show customer workflow shell`);
   await expectHidden(page, "#studioSceneRail", `${item.name}: sample set should not show side workflow rail`);
-  await expectText(page, "#studioSampleSection", "把想要的生活，拍成看得见的作品", `${item.name}: effect page should lead with the life-oriented slogan`);
+  await expectText(page, "#studioSampleSection", "把想要的生活，变成看得见的作品", `${item.name}: effect page should lead with the life-oriented slogan`);
   await expectText(page, "#studioSampleSection", "婚纱照", `${item.name}: missing wedding sample direction`);
   await expectText(page, "#studioSampleSection", "效果分类", `${item.name}: effect page should start with effect categories`);
   await expectText(page, "#sampleSummary", "组 /", `${item.name}: sample summary should explain the one-screen grouped view`);
@@ -204,7 +250,7 @@ for (const item of cases) {
   await expectHidden(page, ".studio-sample-modal", `${item.name}: zoom modal should close back to one-screen browser`);
   await page.evaluate(() => openStudioSection("submit"));
   await expectVisible(page, "#studioIdentitySection", `${item.name}: missing submit section`);
-  await expectText(page, "#secondaryNav", "看效果", `${item.name}: studio submenu should use customer effect naming`);
+  await expectText(page, "#secondaryNav", "样片集", `${item.name}: studio submenu should use customer sample naming`);
   await expectText(page, "#secondaryNav", "提交资料", `${item.name}: missing submit submenu`);
   await expectText(page, "#secondaryNav", "制作状态", `${item.name}: missing status submenu`);
   await expectText(page, "#secondaryNav", "查看成片", `${item.name}: missing delivery submenu`);
@@ -212,7 +258,7 @@ for (const item of cases) {
   await expectHidden(page, ".trust-strip", `${item.name}: submit section should not show sample/effect strip`);
   await expectText(page, "#studioIdentitySection", "选择组合，上传照片", `${item.name}: submit section should stay focused on customer materials`);
   await expectText(page, "#studioIdentitySection", "每人最多 9 张", `${item.name}: submit section should enforce per-person limit`);
-  await expectText(page, "#studioIdentitySection", "拍摄组合", `${item.name}: submit section should use a compact combo selector`);
+  await expectText(page, "#studioIdentitySection", "影像组合", `${item.name}: submit section should use a compact combo selector`);
   await expectText(page, "#studioIdentitySection", "风格方向", `${item.name}: submit section should use a compact style selector`);
   await expectNotText(page, "#studioIdentitySection", "三张参考照", `${item.name}: submit section should not expose old three-view flow`);
   await page.setInputFiles("#studioReferenceInput", [
@@ -418,7 +464,7 @@ async function expectPrimaryTabs(page, label) {
   })));
   const expected = [
     ["home", "首页"],
-    ["studio", "拍摄定制"],
+    ["studio", "影像定制"],
     ["create", "图片创作"],
     ["history", "我的作品"],
     ["register", "登录"],
@@ -443,16 +489,35 @@ async function expectPrimaryTabs(page, label) {
   if (tabs.some((item) => item.tab === "templates" || item.tab === "generate" || item.tab === "creatorSettings")) {
     throw new Error(`${label}: creation submenus must not be primary menus`);
   }
-  const layout = await page.locator(".primary-nav [data-tab]").evaluateAll((items) => items.map((item) => {
-    const rect = item.getBoundingClientRect();
-    return { left: rect.left, top: rect.top, width: rect.width };
-  }));
+  const layout = await page.locator(".primary-nav [data-tab]").evaluateAll((items) => items
+    .filter((item) => !item.hidden && getComputedStyle(item).display !== "none")
+    .map((item) => {
+      const rect = item.getBoundingClientRect();
+      return { left: rect.left, top: rect.top, width: rect.width };
+    }));
   const topSpread = Math.max(...layout.map((item) => item.top)) - Math.min(...layout.map((item) => item.top));
   if (topSpread > 4) throw new Error(`${label}: primary menus should stay on one horizontal row`);
   for (let index = 1; index < layout.length; index += 1) {
     if (layout[index].left <= layout[index - 1].left) throw new Error(`${label}: primary menus should be ordered left to right`);
     if (layout[index].width < 44) throw new Error(`${label}: primary menu ${index + 1} is too narrow`);
   }
+  const accountMetrics = await page.locator("#topbarAccount").first().evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const firstTab = element.closest(".primary-nav")?.querySelector("[data-tab]");
+    const tabRect = firstTab?.getBoundingClientRect();
+    const nav = element.closest(".topbar-actions").getBoundingClientRect();
+    return {
+      topDelta: tabRect ? Math.abs(rect.top - tabRect.top) : 999,
+      rightDelta: Math.abs(rect.right - nav.right),
+      width: rect.width,
+      visible: !element.hidden && getComputedStyle(element).display !== "none"
+    };
+  });
+  if (!accountMetrics.visible) return;
+  const minimumAccountWidth = label === "mobile" ? 40 : 96;
+  if (accountMetrics.width < minimumAccountWidth) throw new Error(`${label}: account status is too narrow`);
+  if (accountMetrics.topDelta > 4) throw new Error(`${label}: account status should share the primary nav row`);
+  if (label !== "mobile" && accountMetrics.rightDelta > 12) throw new Error(`${label}: account status should sit at the far right`);
 }
 
 async function expectTemplateCollectionBackgrounds(page, label) {
@@ -466,7 +531,7 @@ async function expectTemplateCollectionBackgrounds(page, label) {
       if (!target || target.startsWith("data:")) return false;
       if (new URL(target, location.href).origin !== location.origin) return false;
       const rect = card.getBoundingClientRect();
-      const nearViewport = rect.bottom > -220 && rect.top < window.innerHeight + 220;
+      const nearViewport = rect.bottom > -220 && rect.top < window.innerHeight + 220 && rect.right > 0 && rect.left < window.innerWidth;
       if (!nearViewport) return true;
       const current = image.getAttribute("src") || "";
       return !current.startsWith("data:") && image.complete && image.naturalWidth > 20 && image.naturalHeight > 20;
@@ -479,7 +544,7 @@ async function expectTemplateCollectionBackgrounds(page, label) {
         label: card.querySelector("span")?.textContent?.trim() || "",
         src: image?.getAttribute("src") || "",
         target: image?.dataset.originalSrc || "",
-        nearViewport: rect.bottom > -220 && rect.top < window.innerHeight + 220,
+        nearViewport: rect.bottom > -220 && rect.top < window.innerHeight + 220 && rect.right > 0 && rect.left < window.innerWidth,
         loaded: Boolean(image?.complete && image.naturalWidth > 20 && image.naturalHeight > 20)
       };
     }));
@@ -719,7 +784,7 @@ async function verifyImagePreviewDownload(browser, url) {
   await clickFirst(page, "#imagePreviewEdit", "image preview: missing preview edit button");
   await expectHidden(page, ".image-preview-modal", "image preview: modal did not close");
   await expectText(page, "#editModeState", "已上传 1 张照片", "image preview: edit mode did not activate");
-  await expectText(page, "#generateBtn", "开始编辑", "image preview: generate button did not switch to edit mode");
+  await expectAnyText(page, "#generateBtn", ["生成"], "image preview: generate button did not keep customer action");
   const promptValue = await page.locator("#promptInput").inputValue();
   if (!promptValue.includes("preview download check")) throw new Error("image preview: edit mode did not reuse source prompt");
   const referenceCount = await page.locator("#referenceList .reference-item img").count();
@@ -869,8 +934,14 @@ async function verifyHistoryTrash(browser, url) {
   await clickFirst(page, ".primary-nav [data-tab='history']", "history trash: missing history primary tab");
   await expectVisible(page, "[data-delete-task='trash-task']", "history trash: active record missing");
   await clickFirst(page, "[data-delete-task='trash-task']", "history trash: delete failed");
+  await expectVisible(page, ".confirm-modal", "history trash: delete confirmation missing");
+  await expectText(page, ".confirm-modal", "7 天内可在“已删除”手动恢复", "history trash: delete confirmation missing retention copy");
+  await expectVisible(page, "#historyConfirmBtn", "history trash: confirm button missing");
+  await clickFirst(page, "#historyConfirmBtn", "history trash: confirm delete failed");
   await expectHidden(page, "[data-delete-task='trash-task']", "history trash: deleted item stayed in active list");
+  await expectText(page, "#historyCount", "可恢复 7 天", "history trash: active count missing restore hint");
   await clickFirst(page, "#deletedHistoryBtn", "history trash: missing deleted toggle");
+  await expectText(page, "#historyCount", "7 天后自动清理", "history trash: deleted count missing auto cleanup hint");
   await expectVisible(page, "[data-restore-task='trash-task']", "history trash: deleted item missing");
   await page.reload({ waitUntil: "domcontentloaded" });
   await clickFirst(page, ".primary-nav [data-tab='history']", "history trash: missing history primary tab after reload");

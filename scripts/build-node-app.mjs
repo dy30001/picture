@@ -17,10 +17,7 @@ await copyPublicTree(join(root, "public", "assets"), join(dist, "public", "asset
 await copyPublicTree(join(root, "public", "template-previews"), join(dist, "public", "template-previews"), { optional: true });
 await copyIfExists(join(root, "index.html"), join(dist, "index.html"));
 await copyIfExists(join(root, "manifest.webmanifest"), join(dist, "manifest.webmanifest"));
-for (const file of ["index.mjs", "template-store.mjs"]) {
-  await copyIfExists(join(root, "server", file), join(dist, "server", file));
-}
-await copyServerCredits(join(root, "server", "credits"), join(dist, "server", "credits"));
+await copyPublicTree(join(root, "server"), join(dist, "server"));
 await copyIfExists(join(root, "scripts", "open-workbench.mjs"), join(dist, "scripts", "open-workbench.mjs"));
 await copyIfExists(join(root, "启动图片生成工作台.command"), join(dist, "启动图片生成工作台.command"));
 await chmod(join(dist, "启动图片生成工作台.command"), 0o755);
@@ -62,14 +59,5 @@ async function copyPublicTree(fromDir, toDir, { optional = false } = {}) {
   } catch (error) {
     if (optional && error?.code === "ENOENT") return;
     throw error;
-  }
-}
-
-async function copyServerCredits(fromDir, toDir) {
-  await mkdir(toDir, { recursive: true });
-  const entries = await readdir(fromDir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    await copyIfExists(join(fromDir, entry.name), join(toDir, entry.name));
   }
 }

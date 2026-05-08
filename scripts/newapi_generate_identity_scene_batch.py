@@ -90,6 +90,22 @@ SCENES: dict[str, dict[str, Any]] = {
         "identity": "uploaded",
         "backdrops": ["明亮生日棚", "书桌窗边", "校园走廊", "操场边", "图书馆窗光", "家庭客厅", "户外草坪", "画室角落", "横版成长合照"],
         "interactions": ["看镜头微笑", "低头看蛋糕", "抱着书", "背书包站立", "坐在窗边", "手拿气球", "自然奔跑", "画画或读书", "横版生日记录"]
+    },
+    "portrait": {
+        "label": "女生写真",
+        "subject": "一位二十多岁东亚成年女性，脸部、年龄感和气质以参考图为准",
+        "wardrobe": "端庄全身着装的法式胶片、杂志肖像、轻国风或干净日常写真造型，非性感、非私房",
+        "identity": "female",
+        "backdrops": ["窗边阅读空间", "浅灰摄影棚", "花店门口", "城市咖啡馆外", "米白窗光室内", "东方素色屏风", "春日公园", "复古街角", "横版杂志封面"],
+        "interactions": ["自然看向镜头", "坐在窗边侧身", "手捧小束花", "整理耳边头发", "低头微笑", "扶着素色屏风", "走在树影下", "回头看镜头", "横版肖像收束"]
+    },
+    "senior": {
+        "label": "夕阳红",
+        "subject": "一对65到75岁左右的东亚长辈夫妻，健康、真实、温和",
+        "wardrobe": "质感针织、衬衫、长裙、西裤、旗袍或中式礼服，端庄不过度年轻化",
+        "identity": "uploaded",
+        "backdrops": ["公园金色晨光", "温暖客厅窗边", "中式园林廊下", "城市河岸步道", "浅色摄影棚", "旅行古城街口", "家庭纪念空间", "旗袍礼服室内", "横版纪念合照"],
+        "interactions": ["并肩看向镜头", "自然牵手散步", "坐在窗边微笑", "站在园林廊下", "互相整理衣领", "旅行中并肩停留", "一起看老照片", "端庄站姿合照", "横版家庭纪念感"]
     }
 }
 
@@ -104,6 +120,7 @@ Output requirement:
 
 Global quality rules:
 - Keep face, body proportion, age, relationship, and wardrobe coherent across the batch.
+- Keep every subject fully clothed, tasteful, non-sexual, client-ready, and suitable for a family photo studio catalog.
 - Use natural lens detail, real skin texture, realistic fabric, believable shadows, and restrained color grading.
 - Avoid AI glamour, over-retouching, porcelain skin, plastic skin, oil painting, illustration, CG render, fantasy glow, duplicate people, deformed hands, watermarks, text, logos, and signage gibberish.
 """
@@ -146,7 +163,7 @@ Shot request:
 {shot['prompt']}
 
 Negative:
-- No extra or missing main subjects, no face swap, no adult styling for children, no wedding-romance posture for friends, no text, no watermark, no logo.
+- No lingerie, swimwear, revealing outfit, boudoir mood, sensual pose, extra or missing main subjects, face swap, adult styling for children, wedding-romance posture for friends, text, watermark, or logo.
 """
 
 
@@ -183,6 +200,8 @@ def report_path(scene_id: str, job_id: str) -> Path:
         "travel": "旅行人像照",
         "landmark": "地标人像照",
         "child10": "10岁照",
+        "portrait": "女生写真",
+        "senior": "夕阳红",
     }
     label = report_labels.get(scene_id, scene_id)
     return REPORT_ROOT / f"{label}-{job_id.replace('_', '-')}-执行报告.md"

@@ -2113,8 +2113,10 @@ h3 {
 
 .register-guide-minimal {
   display: grid;
-  gap: 18px;
-  max-width: 620px;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(320px, 0.78fr);
+  align-items: start;
+  gap: 14px;
+  max-width: 860px;
   margin: 0 auto;
 }
 
@@ -2124,19 +2126,19 @@ h3 {
 }
 
 .register-panel-head h2 {
-  font-size: 42px;
+  font-size: 32px;
   line-height: 1.04;
 }
 
 .register-panel-head p {
   color: var(--muted);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.45;
 }
 
 .register-console-minimal {
   grid-template-columns: minmax(0, 1fr);
-  max-width: 520px;
+  max-width: none;
 }
 
 .register-form-panel {
@@ -2230,6 +2232,51 @@ h3 {
   min-height: 40px;
   padding: 0 8px;
   white-space: nowrap;
+}
+
+.password-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 6px;
+  align-items: center;
+}
+
+.password-input-row input {
+  min-width: 0;
+}
+
+.password-visibility-btn {
+  min-height: 40px;
+  min-width: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.password-visibility-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-visibility-btn .eye-slash {
+  opacity: 0;
+}
+
+.password-visibility-btn.is-visible .eye-slash {
+  opacity: 1;
+}
+
+.register-helper-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -2px;
 }
 
 .register-message {
@@ -2369,7 +2416,7 @@ body.register-focus .brand-mark {
 
 .credits-layout {
   display: grid;
-  grid-template-columns: minmax(250px, 0.78fr) minmax(0, 1.22fr) minmax(290px, 0.94fr);
+  grid-template-columns: minmax(300px, 0.8fr) minmax(420px, 1fr);
   gap: 10px;
   align-items: start;
 }
@@ -2729,7 +2776,7 @@ textarea:focus {
 
 .credit-package-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -3277,6 +3324,38 @@ textarea:focus {
 
 .small-modal {
   width: min(468px, 100%);
+}
+
+.confirm-modal {
+  display: grid;
+  gap: 12px;
+}
+
+.confirm-note {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(201, 165, 106, 0.28);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 250, 240, 0.76);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.confirm-note strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.confirm-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.primary-btn.danger-btn {
+  border-color: #991b1b;
+  background: linear-gradient(180deg, #bd2b2b, #991b1b);
+  box-shadow: 0 10px 20px rgba(153, 27, 27, 0.16);
 }
 
 .image-preview-modal {
@@ -4961,7 +5040,7 @@ body::after {
 }
 
 .credits-layout {
-  grid-template-columns: minmax(280px, 0.76fr) minmax(0, 1.24fr);
+  grid-template-columns: minmax(300px, 0.82fr) minmax(420px, 1fr);
   gap: 12px;
 }
 
@@ -6829,8 +6908,13 @@ h2 {
 .generate-layout .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 368px;
-  grid-template-areas: none;
+  grid-template-areas:
+    "upload supplement"
+    "prompt params"
+    "cost cost"
+    "result result";
   gap: 14px 16px;
+  align-items: stretch;
   padding: 18px;
   border: 1px solid rgba(17, 23, 35, 0.08);
   border-radius: 18px;
@@ -6838,11 +6922,40 @@ h2 {
   box-shadow: 0 16px 28px rgba(17, 23, 35, 0.06);
 }
 
+.generate-layout .composer > .generate-main-column,
+.generate-layout .composer > .generate-side-rail {
+  display: contents;
+}
+
 .generate-main-column,
 .generate-side-rail {
   display: grid;
   gap: 14px;
   align-content: start;
+}
+
+.generate-layout .generate-primary-zone {
+  grid-area: upload;
+}
+
+.generate-layout .prompt-box {
+  grid-area: prompt;
+}
+
+.generate-layout .prompt-supplement-module {
+  grid-area: supplement;
+}
+
+.generate-layout .quick-params {
+  grid-area: params;
+}
+
+.generate-layout .credit-cost-bar {
+  grid-area: cost;
+}
+
+.generate-layout .generate-result-panel {
+  grid-area: result;
 }
 
 .generate-helper-panel {
@@ -6953,8 +7066,12 @@ h2 {
   font-weight: 800;
 }
 
+.generate-layout .edit-module-head h3 {
+  margin: 6px 0 4px;
+  font-size: 15px;
+}
+
 .generate-layout .edit-module h3 {
-  margin: 0 0 4px;
   font-size: 15px;
 }
 
@@ -7175,6 +7292,8 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-content: start;
+  align-self: stretch;
+  margin: 0;
   padding: 14px;
   border: 1px solid rgba(17, 23, 35, 0.08);
   border-radius: 16px;
@@ -7190,7 +7309,8 @@ h2 {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 4px;
+  gap: 12px;
+  min-height: 58px;
 }
 
 .param-panel-head .ghost-btn {
@@ -7213,6 +7333,7 @@ h2 {
 .generate-layout .reference-box {
   display: grid;
   gap: 12px;
+  align-content: start;
   padding: 14px;
   border: 1px solid rgba(17, 23, 35, 0.08);
   border-radius: 16px;
@@ -7246,7 +7367,7 @@ h2 {
 
 .generate-layout .credit-cost-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(280px, 0.65fr) minmax(360px, 0.35fr);
   gap: 14px;
   align-items: center;
   padding: 14px 16px;
@@ -7306,8 +7427,12 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
+}
+
+.generate-layout #creditRechargeShortcut[hidden] {
+  display: none;
 }
 
 .generate-layout .generation-timer {
@@ -7328,7 +7453,29 @@ h2 {
 }
 
 .generate-layout .checkout-generate-btn {
+  display: grid;
+  align-content: center;
+  justify-items: center;
   min-width: 148px;
+  gap: 2px;
+  line-height: 1.05;
+  text-align: center;
+}
+
+.generate-layout .checkout-generate-btn span,
+.generate-layout .checkout-generate-btn small {
+  display: block;
+}
+
+.generate-layout .checkout-generate-btn span {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.generate-layout .checkout-generate-btn small {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.84;
 }
 
 .generate-layout .checkout-generate-btn[data-state="shortage"] {
@@ -7356,6 +7503,7 @@ h2 {
 .generate-result-panel {
   display: grid;
   gap: 12px;
+  align-content: start;
   padding: 14px;
   border: 1px solid rgba(17, 23, 35, 0.08);
   border-radius: 16px;
@@ -7523,6 +7671,13 @@ h2 {
 
   .generate-layout .composer {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "upload"
+      "prompt"
+      "supplement"
+      "params"
+      "cost"
+      "result";
   }
 
   .generate-layout .edit-module-head,
@@ -12742,5 +12897,189 @@ html {
   #studioSampleSection .sample-group-stage {
     height: auto !important;
     min-height: 0 !important;
+  }
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1 1 auto;
+  width: min(1120px, 100%);
+  justify-content: flex-end;
+  min-width: min(820px, 62vw);
+}
+
+.primary-nav {
+  display: grid;
+  align-items: center;
+  width: min(1120px, 100%);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  padding: 7px;
+}
+
+.topbar-account {
+  position: relative;
+  display: flex;
+  grid-column: 7;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 132px;
+}
+
+.topbar-account-main {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 48px;
+  padding: 7px 12px;
+  border: 1px solid rgba(184, 137, 69, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink);
+  text-align: right;
+  box-shadow: none;
+}
+
+.topbar-account.logged-out .topbar-account-main {
+  cursor: default;
+}
+
+.topbar-account-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.topbar-account-main strong {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-account-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 4px;
+  min-width: 136px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 34px rgba(24, 28, 36, 0.12);
+}
+
+.topbar-account-menu[hidden] {
+  display: none;
+}
+
+.topbar-account-action {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.topbar-account-action:hover {
+  background: rgba(159, 47, 34, 0.08);
+}
+
+.topbar-account-action.danger {
+  color: #b91c1c;
+}
+
+@media (max-width: 980px) {
+  .topbar-actions {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .primary-nav {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .topbar-account {
+    grid-column: 7;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .primary-nav {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+    overflow-x: auto;
+    padding: 3px;
+  }
+
+  .topbar-account {
+    grid-column: 7;
+  }
+
+  .topbar-account-main {
+    align-content: center;
+    min-height: 38px;
+    padding: 0 2px;
+    text-align: center;
+  }
+
+  .topbar-account-label {
+    display: none;
+  }
+
+  .topbar-account,
+  .topbar-account-main {
+    min-width: 0;
+  }
+}
+
+/* 2026-05-05 QA fixes: keep desktop sample cards and account/payment panels compact. */
+@media (min-width: 1101px) {
+  #studioSampleSection .sample-group-card {
+    min-height: 148px !important;
+    grid-template-columns: minmax(112px, 0.38fr) minmax(0, 0.62fr) !important;
+    align-content: center;
+  }
+
+  #studioSampleSection .sample-group-card strong,
+  #studioSampleSection .sample-group-card span,
+  #studioSampleSection .sample-group-card em {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  #studioSampleSection .sample-group-card img {
+    align-self: center;
+  }
+
+  .register-guide-minimal {
+    min-height: 0;
+  }
+
+  .recharge-panel {
+    max-width: 760px;
+  }
+}
+
+@media (max-width: 960px) {
+  .register-guide-minimal {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+  }
+
+  .credit-package-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,6 +1,9 @@
 import { normalizeCreditOrder } from "./orders.mjs";
+import { postgresSchema } from "../persistence/postgres.mjs";
 
 let orderWriteQueue = Promise.resolve();
+const t = postgresSchema.tables;
+const o = postgresSchema.creditOrders;
 
 function clientKeyOf(safeClientKey, value) {
   return safeClientKey(value || "local");
@@ -10,12 +13,15 @@ export function createPostgresCreditOrderStore({ db, safeClientKey }) {
   async function readOrders(clientKey = "local") {
     const key = clientKeyOf(safeClientKey, clientKey);
     const result = await db.query(
-      `SELECT id, package_id, package_name, credits, bonus, amount_cny, provider,
-              provider_session_id, provider_payment_id, status, ledger_id, failure_reason,
-              created_at, updated_at
-       FROM credit_orders
-       WHERE client_key = $1
-       ORDER BY created_at DESC`,
+      `SELECT ${o.id} AS id, ${o.packageId} AS package_id, ${o.packageName} AS package_name,
+              ${o.credits} AS credits, ${o.bonus} AS bonus, ${o.amountCny} AS amount_cny,
+              ${o.provider} AS provider, ${o.providerSessionId} AS provider_session_id,
+              ${o.providerPaymentId} AS provider_payment_id, ${o.status} AS status,
+              ${o.ledgerId} AS ledger_id, ${o.failureReason} AS failure_reason,
+              ${o.createdAt} AS created_at, ${o.updatedAt} AS updated_at
+       FROM ${t.creditOrders}
+       WHERE ${o.clientKey} = $1
+       ORDER BY ${o.createdAt} DESC`,
       [key]
     );
     return result.rows.map((row) => normalizeCreditOrder({
@@ -39,7 +45,7 @@ export function createPostgresCreditOrderStore({ db, safeClientKey }) {
   async function writeOrders(orders, clientKey = "local") {
     const key = clientKeyOf(safeClientKey, clientKey);
     await db.withTransaction(async (tx) => {
-      await tx.query("DELETE FROM credit_orders WHERE client_key = $1", [key]);
+      await tx.query(`DELETE FROM ${t.creditOrders} WHERE ${o.clientKey} = $1`, [key]);
       for (const order of Array.isArray(orders) ? orders : []) {
         await insertOrder(tx, key, order);
       }
@@ -51,12 +57,15 @@ export function createPostgresCreditOrderStore({ db, safeClientKey }) {
     const run = orderWriteQueue.then(async () => {
       return await db.withTransaction(async (tx) => {
         const existing = await tx.query(
-          `SELECT id, package_id, package_name, credits, bonus, amount_cny, provider,
-                  provider_session_id, provider_payment_id, status, ledger_id, failure_reason,
-                  created_at, updated_at
-           FROM credit_orders
-           WHERE client_key = $1
-           ORDER BY created_at DESC`,
+          `SELECT ${o.id} AS id, ${o.packageId} AS package_id, ${o.packageName} AS package_name,
+                  ${o.credits} AS credits, ${o.bonus} AS bonus, ${o.amountCny} AS amount_cny,
+                  ${o.provider} AS provider, ${o.providerSessionId} AS provider_session_id,
+                  ${o.providerPaymentId} AS provider_payment_id, ${o.status} AS status,
+                  ${o.ledgerId} AS ledger_id, ${o.failureReason} AS failure_reason,
+                  ${o.createdAt} AS created_at, ${o.updatedAt} AS updated_at
+           FROM ${t.creditOrders}
+           WHERE ${o.clientKey} = $1
+           ORDER BY ${o.createdAt} DESC`,
           [key]
         );
         const orders = existing.rows.map((row) => normalizeCreditOrder({
@@ -77,7 +86,7 @@ export function createPostgresCreditOrderStore({ db, safeClientKey }) {
         }));
         const result = await mutator(orders);
         trimOrders(orders);
-        await tx.query("DELETE FROM credit_orders WHERE client_key = $1", [key]);
+        await tx.query(`DELETE FROM ${t.creditOrders} WHERE ${o.clientKey} = $1`, [key]);
         for (const order of orders) {
           await insertOrder(tx, key, order);
         }
@@ -94,9 +103,10 @@ export function createPostgresCreditOrderStore({ db, safeClientKey }) {
 async function insertOrder(tx, clientKey, order) {
   const normalized = normalizeCreditOrder(order);
   await tx.query(
-    `INSERT INTO credit_orders (
-      id, client_key, package_id, package_name, credits, bonus, amount_cny, provider,
-      provider_session_id, provider_payment_id, status, ledger_id, failure_reason, created_at, updated_at
+    `INSERT INTO ${t.creditOrders} (
+      ${o.id}, ${o.clientKey}, ${o.packageId}, ${o.packageName}, ${o.credits}, ${o.bonus},
+      ${o.amountCny}, ${o.provider}, ${o.providerSessionId}, ${o.providerPaymentId},
+      ${o.status}, ${o.ledgerId}, ${o.failureReason}, ${o.createdAt}, ${o.updatedAt}
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8,
       $9, $10, $11, $12, $13, $14, $15

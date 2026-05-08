@@ -30,3 +30,15 @@ export function hashVerificationCode(code) {
 export function verifyVerificationCode(code, codeHash) {
   return verifySecret(code, codeHash);
 }
+
+export function randomToken(bytes = 24) {
+  return randomBytes(bytes).toString("base64url");
+}
+
+export function hashOpaqueToken(token) {
+  return hashSecret(token, "token");
+}
+
+export function verifyOpaqueToken(token, tokenHash) {
+  return verifySecret(token, tokenHash);
+}

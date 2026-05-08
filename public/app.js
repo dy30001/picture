@@ -13,6 +13,8 @@ const keys = {
 const appVersion = "20260504-home-vision";
 const studioRequiredReferenceCount = 3;
 const studioStaticSamplePhotoCount = 9;
+const historyTrashRetentionDays = 7;
+const historyTrashRetentionMs = historyTrashRetentionDays * 24 * 60 * 60 * 1000;
 const sampleStatusLabels = ["待查看", "已查看", "已入围", "已淘汰", "待重生", "已转正"];
 const legacyHistoryKeys = ["alexai-replica-tasks", "gpt-image-node-tasks"];
 const referenceImageLimits = {
@@ -44,7 +46,7 @@ const studioOrderCombos = [
 ];
 
 const defaults = {
-  settings: { apiUrl: "https://img.inklens.art/v1", apiKey: "", apiMode: "images", mainModelId: "gpt-5.5", modelId: "gpt-image-2", timeoutSeconds: 120 },
+  settings: { apiUrl: "https://img.inklens.art/v1", apiKey: "", apiMode: "images", mainModelId: "gpt-5.5", modelId: "gpt-image-2", timeoutSeconds: 300 },
   params: { size: "auto", quality: "auto", outputFormat: "png", count: 1 },
   studio: {
     selectedSceneId: "wedding",
@@ -76,7 +78,7 @@ const defaults = {
     customerLabel: "",
     status: "draft",
     statusLabel: "待提交",
-    statusHint: "客户看效果，提交资料",
+    statusHint: "客户看样片集，提交资料",
     submittedAt: "",
     updatedAt: "",
     photoCount: 0,
@@ -100,7 +102,7 @@ const defaults = {
 };
 
 const studioFlow = [
-  { key: "sample", title: "看效果", note: "成片方向，只看样片" },
+  { key: "sample", title: "样片集", note: "成片方向，只看样片" },
   { key: "submit", title: "提交资料", note: "按人上传照片，选好组合和风格" },
   { key: "status", title: "制作状态", note: "当前状态清楚显示" },
   { key: "delivery", title: "查看成片", note: "正式结果直接展示和下载" }
@@ -313,7 +315,7 @@ const studioSamplePreviewSets = {
 
 const studioWorkflowProof = [
   {
-    title: "看效果",
+    title: "样片集",
     note: "场景和样片清楚呈现，风格一眼定",
     image: "./assets/studio-showcase-portrait-review.jpg"
   },
@@ -358,13 +360,16 @@ const state = {
   payment: { ...defaults.payment },
   creditOrders: [],
   auth: normalizeAuth(readStore(keys.auth, defaults.auth)),
-  authView: "login",
-  authRegisterStep: "credentials",
+  authView: "register",
+  authResetToken: "",
+  authResetLinkSent: false,
   authMessage: "",
   authMessageKind: "",
   authSubmitting: false,
   authCodeSending: false,
   authCodeCooldown: 0,
+  authPasswordVisible: false,
+  authPasswordConfirmVisible: false,
   authReturn: null,
   creditEstimate: null,
   creditEstimateError: "",
@@ -383,7 +388,7 @@ let authCodeTimerId = 0;
 
 const secondaryMenus = {
   studio: [
-    { label: "看效果", tab: "studio", anchor: "sample" },
+    { label: "样片集", tab: "studio", anchor: "sample" },
     { label: "提交资料", tab: "studio", anchor: "submit" },
     { label: "制作状态", tab: "studio", anchor: "status" },
     { label: "查看成片", tab: "studio", anchor: "delivery" }
@@ -405,7 +410,7 @@ const secondaryMenus = {
 const createToolModes = {
   generate: {
     title: "智能生图",
-    hint: "上传照片、描述画面、直接开拍；右侧可加换背景、换装和修复。",
+    hint: "上传照片、描述画面、直接生成；右侧可加换背景、换装和修复。",
     placeholder: "写下想要的结果，也可以补人物、场景、镜头和气质",
     status: "已进入智能生图"
   }
@@ -543,11 +548,12 @@ document.addEventListener("DOMContentLoaded", () => {
     "formatSelect", "countInput", "sizeInput", "editImageInput", "editModeState", "promptOptionGrid", "promptOptionHint", "promptOptionPreview", "clearPromptOptionsBtn", "referenceInput", "referenceList", "generateBtn",
     "generationTimer", "historyList", "historyTitle", "historyCount", "clearHistoryBtn", "deletedHistoryBtn", "generateResultSection", "generateResultHint", "generateResultList", "generateResultHistoryBtn",
     "generateSummaryTitle", "generateSummaryHint", "generateModeBadge", "generateReferenceBadge", "generatePromptBadge", "generateBalanceBadge", "generateBackToTemplatesBtn", "generateModeTags",
-    "openSizeBtn", "creditCostBar", "creditCostStatus", "creditCostHint", "creditRechargeShortcut", "secondaryNav", "creditsPanel", "creditOverviewView", "creditRechargeView", "creditOrdersView", "creditLedgerView", "creditRefreshBtn", "creditUpdatedAt", "creditBalance", "creditDirectUse", "creditEditUse", "creditOverviewBuyBtn", "openCreditsBtn", "topCreditBalance",
+    "openSizeBtn", "creditCostBar", "creditCostStatus", "creditCostHint", "creditRechargeShortcut", "secondaryNav", "creditsPanel", "creditOverviewView", "creditRechargeView", "creditOrdersView", "creditLedgerView", "creditRefreshBtn", "creditUpdatedAt", "creditBalance", "creditDirectUse", "creditEditUse", "creditOverviewBuyBtn", "openCreditsBtn", "topCreditBalance", "authNavBtn", "topbarAccount", "topbarAccountBtn", "topbarAccountName", "topbarAccountMenu", "topbarAccountCreditsBtn", "topbarAccountLogoutBtn",
     "creditStatus", "creditPackages", "creditLedger", "creditLedgerCount", "paymentStatusHint", "paymentStatusBadge", "creditOrderCount", "creditOrderList", "creditRecordsPanel", "creditOrdersSection", "creditLedgerSection", "creditOrderSummaryHint", "creditLedgerSummaryHint", "modalRoot",
     "templateCollections",
-    "authModeRegisterBtn", "authModeLoginBtn", "registerPanelEyebrow", "registerPanelTitle", "registerModeTitle", "registerFlowNote", "registerUsernameField", "registerUsernameInput",
-    "registerEmailField", "registerEmailInput", "registerCodeField", "registerCodeInput", "sendCodeBtn", "registerPasswordField", "registerPasswordInput",
+    "authModeRegisterBtn", "authModeLoginBtn", "authForgotPasswordBtn", "registerPanelEyebrow", "registerPanelTitle", "registerModeTitle", "registerFlowNote", "registerUsernameField", "registerUsernameInput",
+    "registerEmailField", "registerEmailInput", "registerCodeField", "registerCodeInput", "sendCodeBtn", "registerPasswordField", "registerPasswordInput", "registerPasswordToggleBtn",
+    "registerPasswordConfirmField", "registerPasswordConfirmInput", "registerPasswordConfirmToggleBtn",
     "registerMessage", "registerAccountCard", "registerAccountName", "registerAccountMeta", "registerStartCreateBtn", "registerLogoutBtn", "siteFooterPoints"
   ]) dom[id] = document.getElementById(id);
   dom.primaryTabs = Array.from(document.querySelectorAll(".primary-tab"));
@@ -608,6 +614,7 @@ function bindEvents() {
   dom.categoryFilter.addEventListener("change", () => {
     state.category = dom.categoryFilter.value;
     state.limit = 24;
+    renderTemplateCollections();
     renderTemplates();
     renderCreateGenerateOverview();
     focusTemplateDetails();
@@ -640,14 +647,29 @@ function bindEvents() {
   dom.openSizeBtn.addEventListener("click", openSize);
   dom.authModeRegisterBtn?.addEventListener("click", () => switchAuthView("register"));
   dom.authModeLoginBtn?.addEventListener("click", handleAuthModeLoginAction);
+  dom.authForgotPasswordBtn?.addEventListener("click", () => switchAuthView("reset"));
   dom.registerUsernameInput?.addEventListener("input", renderRegisterPanel);
   dom.registerEmailInput?.addEventListener("input", renderRegisterPanel);
   dom.registerCodeInput?.addEventListener("input", renderRegisterPanel);
   dom.registerPasswordInput?.addEventListener("input", renderRegisterPanel);
+  dom.registerPasswordConfirmInput?.addEventListener("input", renderRegisterPanel);
+  dom.registerPasswordToggleBtn?.addEventListener("click", () => toggleAuthPasswordVisibility("password"));
+  dom.registerPasswordConfirmToggleBtn?.addEventListener("click", () => toggleAuthPasswordVisibility("confirm"));
   dom.sendCodeBtn?.addEventListener("click", () => void sendAuthCode());
   dom.registerNowBtn?.addEventListener("click", () => void submitAuth());
   dom.registerStartCreateBtn?.addEventListener("click", goToCreateWorkspace);
   dom.registerLogoutBtn?.addEventListener("click", logoutAuth);
+  dom.topbarAccountBtn?.addEventListener("click", toggleTopbarAccountMenu);
+  dom.topbarAccountCreditsBtn?.addEventListener("click", () => {
+    closeTopbarAccountMenu();
+    state.creditAnchor = "overview";
+    switchTab("credits");
+  });
+  dom.topbarAccountLogoutBtn?.addEventListener("click", () => {
+    closeTopbarAccountMenu();
+    logoutAuth();
+  });
+  document.addEventListener("click", handleTopbarAccountOutsideClick);
   dom.creditRechargeShortcut.addEventListener("click", () => {
     state.creditAnchor = "packages";
     switchTab("credits");
@@ -763,7 +785,7 @@ function normalizeStudioOrderRecord(item) {
     comboId: String(item.comboId || "other"),
     comboLabel: String(item.comboLabel || "定制组合"),
     sceneId: String(item.sceneId || "portrait"),
-    sceneLabel: String(item.sceneLabel || "拍摄定制"),
+    sceneLabel: String(item.sceneLabel || "影像定制"),
     peopleCount: Math.max(1, Number(item.peopleCount) || people.length || 1),
     people,
     styleIds: Array.isArray(item.styleIds) ? item.styleIds.map(String) : [],
@@ -985,6 +1007,20 @@ function normalizeStudioSampleGroup(scene, item, index) {
     }))
     .filter((entry) => entry.src);
   const cover = String(source.cover || items[0]?.src || "");
+  const fallbackItem = cover ? [{
+    id: `${groupId}-cover`,
+    src: cover,
+    previewSrc: cover,
+    fullSrc: String(source.fullSrc || ""),
+    alt: String(source.coverAlt || `${scene.name} · ${title}`),
+    label: "封面",
+    title,
+    sampleId,
+    sampleTitle: String(source.sampleTitle || sample?.title || scene.name),
+    groupId,
+    groupTitle: title,
+    group: String(source.group || "")
+  }] : [];
   return {
     id: String(source.id || safeClientId(`group-${scene.id}-${groupId || index + 1}`)),
     sceneId: scene.id,
@@ -996,7 +1032,7 @@ function normalizeStudioSampleGroup(scene, item, index) {
     cover,
     coverAlt: String(source.coverAlt || `${scene.name} · ${title}`),
     count: Number(source.count) || items.length,
-    items,
+    items: items.length ? items : fallbackItem,
     detailLoaded: source.detailLoaded === true || (items.length > 1 && items.length >= Number(source.count || 0))
   };
 }
@@ -1223,6 +1259,7 @@ function renderTabs() {
   state.tab = normalizeAppTab(state.tab);
   const primaryTab = tabGroup(state.tab);
   const hasSecondaryMenu = (secondaryMenus[primaryTab] || []).length > 0;
+  renderTopbarAccount();
   dom.primaryTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === primaryTab));
   renderSecondaryNav(primaryTab);
   document.body.classList.remove("register-focus");
@@ -1246,7 +1283,24 @@ function renderTabs() {
   dom.historyPanel.classList.toggle("active", state.tab === "history");
   dom.creditsPanel.classList.toggle("active", state.tab === "credits");
   if (state.tab === "studio") renderStudioSections();
-  if (state.tab === "credits") renderCreditSections();
+  if (state.tab === "credits") renderCredits();
+}
+
+function renderTopbarAccount() {
+  const loggedIn = isLoggedIn();
+  const accountName = String(state.auth.user?.username || state.auth.user?.nickname || "已登录");
+  if (dom.authNavBtn) {
+    dom.authNavBtn.hidden = loggedIn;
+    dom.authNavBtn.textContent = "登录";
+  }
+  if (dom.topbarAccount) {
+    dom.topbarAccount.hidden = false;
+    dom.topbarAccount.classList.toggle("logged-out", !loggedIn);
+    dom.topbarAccount.classList.toggle("logged-in", loggedIn);
+  }
+  if (dom.topbarAccountBtn) dom.topbarAccountBtn.setAttribute("aria-expanded", loggedIn && !dom.topbarAccountMenu?.hidden ? "true" : "false");
+  if (dom.topbarAccountName) dom.topbarAccountName.textContent = loggedIn ? accountName : "未登录";
+  if (!loggedIn) closeTopbarAccountMenu();
 }
 
 function renderSecondaryNav(primaryTab) {
@@ -1265,10 +1319,7 @@ function renderSecondaryNav(primaryTab) {
       if (tab === "studio") state.studioAnchor = button.dataset.anchor || "sample";
       if (tab === "generate" && button.dataset.createMode) state.createMode = normalizeCreateMode(button.dataset.createMode);
       if (tab === "credits") state.creditAnchor = normalizeCreditAnchor(button.dataset.anchor || "overview");
-      if (tab === "register" && button.dataset.authView) {
-        state.authView = button.dataset.authView === "login" ? "login" : "register";
-        if (state.authView === "register") state.authRegisterStep = "credentials";
-      }
+      if (tab === "register" && button.dataset.authView) state.authView = button.dataset.authView === "login" ? "login" : "register";
       switchTab(tab);
       if (tab === "generate" && button.dataset.createMode) applyCreateMode(button.dataset.createMode);
       if (tab === "studio") focusStudioAnchor(state.studioAnchor);
@@ -1406,7 +1457,7 @@ function renderStudioWorkOrder(order, combo, orderScene, buckets) {
     ? `账号：${state.auth.user?.username || state.auth.user?.nickname || "已登录"}`
     : "账号：待登录";
   dom.studioNextActionBtn.textContent = action.label;
-  if (dom.studioStartBtn) dom.studioStartBtn.textContent = "看效果";
+  if (dom.studioStartBtn) dom.studioStartBtn.textContent = "样片集";
 }
 
 function renderStudioOverview(order, combo, orderScene, buckets) {
@@ -1435,7 +1486,7 @@ function renderStudioSubmitSection(order, combo, orderScene, buckets) {
   if (dom.identityCheckGrid) {
     dom.identityCheckGrid.innerHTML = `
       <label class="order-select-field">
-        <span>拍摄组合</span>
+        <span>影像组合</span>
         <select data-order-combo-select>
           ${studioOrderCombos.map((item) => `<option value="${attr(item.id)}" ${item.id === combo.id ? "selected" : ""}>${esc(item.label)} · ${item.peopleCount} 人</option>`).join("")}
         </select>
@@ -2983,6 +3034,7 @@ function renderTemplateCollections() {
     });
   });
   hydrateTemplateImages(dom.templateCollections);
+  dom.templateCollections.querySelectorAll("img[data-template-preview-lazy]").forEach(loadTemplatePreviewImage);
 }
 
 function categoryCounts(templates) {
@@ -3118,7 +3170,7 @@ function renderCreateOverview() {
     dom.createFlowHint.textContent = hasPrompt
       ? activeCount
         ? `已准备 ${activeCount} 张照片和画面描述。`
-        : "画面描述已填写，可以开拍。"
+        : "画面描述已填写，可以生成。"
       : state.category !== "all"
         ? `正在查看 ${state.category} 分类。`
         : "先选风格，再开始生成。";
@@ -3137,20 +3189,32 @@ function renderGenerateOverview() {
     : state.creditEstimateError
       ? "积分预估失败"
       : "正在估算积分";
+  const needsUpload = optionCount && !activeCount && needsReference;
+  const hasGenerationInput = Boolean(promptLength);
+  const modeBadgeText = !hasGenerationInput
+    ? activeCount
+      ? "照片已上传"
+      : "等待上传"
+    : needsUpload
+      ? "等待上传"
+      : activeCount
+        ? optionCount
+          ? "可生成"
+          : "可编辑"
+        : "可生成";
+  const summaryTitleText = !hasGenerationInput
+    ? activeCount
+      ? "照片已上传"
+      : "上传照片，描述画面"
+    : needsUpload
+      ? "需要照片"
+      : activeCount
+        ? optionCount
+          ? "可以生成"
+          : "照片可编辑"
+        : "可以生成";
   if (dom.generateModeBadge) {
-    dom.generateModeBadge.textContent = !promptLength
-      ? activeCount
-        ? "照片已上传"
-        : "等待上传"
-      : optionCount && !activeCount && needsReference
-        ? "等待上传"
-        : activeCount
-          ? optionCount
-            ? "可开拍"
-            : "可编辑"
-          : optionCount
-            ? "可开拍"
-            : "可开拍";
+    dom.generateModeBadge.textContent = modeBadgeText;
   }
   if (dom.generateReferenceBadge) dom.generateReferenceBadge.textContent = `${activeCount} 张`;
   if (dom.generatePromptBadge) dom.generatePromptBadge.textContent = promptLength ? `${promptLength} 字` : "待写";
@@ -3165,19 +3229,7 @@ function renderGenerateOverview() {
   }
   if (dom.promptInput) dom.promptInput.placeholder = selectedCreateMode().placeholder || "写下想要的结果，也可以补人物、场景、镜头和气质";
   if (dom.generateSummaryTitle) {
-    dom.generateSummaryTitle.textContent = !promptLength
-      ? activeCount
-        ? "照片已上传"
-        : "上传照片，描述画面"
-      : optionCount && !activeCount && needsReference
-        ? "需要照片"
-        : activeCount
-          ? optionCount
-            ? "可以开拍"
-            : "照片可编辑"
-          : optionCount
-            ? "可以开拍"
-            : "可以开拍";
+    dom.generateSummaryTitle.textContent = summaryTitleText;
   }
   if (dom.generateSummaryHint) {
     dom.generateSummaryHint.textContent = !promptLength
@@ -3209,7 +3261,9 @@ function renderGenerateResults() {
       </div>`;
     return;
   }
-  if (latestTask?.status === "running") {
+  if (latestTask?.status === "queued") {
+    dom.generateResultHint.textContent = "已进入系统队列。";
+  } else if (latestTask?.status === "running") {
     dom.generateResultHint.textContent = "正在出图。";
   } else if (latestTask?.status === "failed") {
     dom.generateResultHint.textContent = "这次未出图，可调整后重试。";
@@ -3249,9 +3303,11 @@ function generateResultCard(task, label) {
     `${task.params.size} · ${task.params.quality} · ${task.params.outputFormat} · ${task.params.count} 张`,
     task.creditCost ? `扣费 ${formatCredits(task.creditCost)}` : ""
   ].filter(Boolean).join(" · ");
-  const statusClass = task.status === "failed" ? "failed" : task.status === "running" ? "running" : "succeeded";
+  const statusClass = task.status === "failed" ? "failed" : task.status === "queued" || task.status === "running" ? "running" : "succeeded";
   const statusText = task.status === "failed"
     ? "这次没出成"
+    : task.status === "queued"
+      ? "排队中"
     : task.status === "running"
       ? "正在出图"
       : hasImages
@@ -3263,7 +3319,7 @@ function generateResultCard(task, label) {
           <img src="${attr(image)}" alt="${attr(task.prompt)}" />
           <span>${task.images.length > 1 ? `第 ${index + 1} 张` : "点击放大"}</span>
         </button>`).join("")}</div>`
-    : `<div class="generate-result-empty">${esc(statusText)}${task.status === "running" ? "，在这里看结果。" : task.status === "failed" ? "，改一下还能开拍。" : "，但这次没有收到图片。"}</div>`;
+    : `<div class="generate-result-empty">${esc(statusText)}${task.status === "queued" ? "，系统会按顺序生成。" : task.status === "running" ? "，在这里看结果。" : task.status === "failed" ? "，改一下还能生成。" : "，但这次没有收到图片。"}</div>`;
   const actions = hasImages
     ? `
       <div class="generate-result-actions">
@@ -3272,7 +3328,7 @@ function generateResultCard(task, label) {
         <button class="ghost-btn" type="button" data-edit-task="${attr(task.id)}" data-edit-index="0">继续编辑</button>
         <button class="ghost-btn" type="button" data-open-history="1">看全部作品</button>
       </div>`
-    : task.status === "running"
+    : task.status === "queued" || task.status === "running"
       ? `
       <div class="generate-result-actions">
         <button class="ghost-btn" type="button" data-open-history="1">看全部作品</button>
@@ -3315,10 +3371,10 @@ function renderTemplates(error = "") {
   dom.templateCount.textContent = `${filtered.length} / ${categoryTotal} 个模板`;
   dom.templateHint.textContent = state.templateSelectionMode === "studio"
     ? state.category !== "all"
-      ? `拍摄定制 · ${state.category} 更好定调`
-    : "拍摄定制 · 写真分类和风格定调"
+      ? `影像定制 · ${state.category} 更好定调`
+    : "影像定制 · 写真分类和风格定调"
     : state.category !== "all"
-      ? `${state.category} 分类 · 选中即开拍`
+      ? `${state.category} 分类 · 选中即生成`
     : state.featuredOnly
       ? "精选模板，直接查看"
       : "模板库已按分类整理";
@@ -3383,7 +3439,7 @@ function templateCard(item) {
       <div class="template-body">
         <div class="meta-row">${badges}</div>
         <h3>${esc(item.title)}</h3>
-        <p>${esc(item.description || "点一下，直接开拍")}</p>
+        <p>${esc(item.description || "点一下，直接生成")}</p>
         <div class="template-card-foot">
           <span>${esc(templateCardHint(item))}</span>
           <em>${esc(item.featured ? "精选" : "可直接用")}</em>
@@ -3414,7 +3470,7 @@ function templateCardHint(item) {
     "10岁照": "适合成长纪念和亲子方向",
     "夕阳红": "适合纪念合照和旅行留念",
     "女生写真": "适合头像、生日和个人形象"
-  }[item.category] || "选中就能开拍";
+  }[item.category] || "选中就能生成";
 }
 
 function templatePreviewImage({ source, fallback, alt, referrerPolicy = "" }) {
@@ -3701,10 +3757,7 @@ function switchPrimary(primary) {
   if (primary === "studio") state.studioAnchor = "sample";
   if (primary === "create") state.templateSelectionMode = "create";
   if (primary === "history") state.historyMode = "active";
-  if (primary === "register") {
-    state.authView = "login";
-    state.authRegisterStep = "credentials";
-  }
+  if (primary === "register") state.authView = "login";
   if (primary === "credits") state.creditAnchor = "overview";
   switchTab(defaultTabs[primary] || "home");
 }
@@ -3748,6 +3801,7 @@ function startHomeRepairFlow() {
 
 function goToRegisterPanel(message = "登录后可继续，还没有账号可创建", returnTarget = null) {
   state.authReturn = returnTarget || (state.tab === "studio" ? { tab: "studio", studioAnchor: state.studioAnchor || "submit" } : state.authReturn);
+  state.authView = "login";
   switchTab("register");
   renderRegisterPanel();
   dom.registerEmailInput?.focus();
@@ -3760,46 +3814,68 @@ function goToCreateWorkspace(message = "已进入图片创作") {
   status(message);
 }
 
-function currentRegisterStep() {
-  return state.authRegisterStep === "verify" ? "verify" : "credentials";
-}
-
 function renderRegisterPanel() {
   const isRegister = state.authView === "register";
-  const registerStep = currentRegisterStep();
-  const verifyingEmail = isRegister && registerStep === "verify";
+  const isReset = state.authView === "reset";
+  const isResetLink = state.authView === "reset-link";
+  const needsPasswordConfirm = isRegister || isResetLink;
   const draft = currentAuthDraft();
   const user = state.auth.user?.id ? state.auth.user : null;
-  if (dom.registerPanelEyebrow) dom.registerPanelEyebrow.textContent = isRegister ? (verifyingEmail ? "验证邮箱" : "创建账号") : "登录";
-  if (dom.registerPanelTitle) dom.registerPanelTitle.textContent = isRegister ? (verifyingEmail ? "完成邮箱验证" : "创建你的账号") : "登录后继续创作";
-  if (dom.registerModeTitle) dom.registerModeTitle.textContent = isRegister ? (verifyingEmail ? "输入验证码" : "创建账号") : "邮箱登录";
-  if (dom.authModeRegisterBtn) dom.authModeRegisterBtn.hidden = isRegister;
-  if (dom.authModeLoginBtn) dom.authModeLoginBtn.hidden = !isRegister;
+  if (dom.registerPanelEyebrow) dom.registerPanelEyebrow.textContent = isReset || isResetLink ? "找回密码" : isRegister ? "创建账号" : "登录";
+  if (dom.registerPanelTitle) dom.registerPanelTitle.textContent = isResetLink ? "设置新密码" : isReset ? "通过邮件重置密码" : isRegister ? "创建你的账号" : "登录后继续创作";
+  if (dom.registerModeTitle) dom.registerModeTitle.textContent = isResetLink ? "重置密码" : isReset ? "邮箱找回密码" : isRegister ? "邮箱注册" : "邮箱登录";
+  if (dom.authModeRegisterBtn) dom.authModeRegisterBtn.hidden = isRegister || isReset || isResetLink;
+  if (dom.authModeLoginBtn) dom.authModeLoginBtn.hidden = !isRegister && !isReset && !isResetLink;
   if (dom.authModeRegisterBtn) dom.authModeRegisterBtn.textContent = "还没有账号？创建一个";
-  if (dom.authModeLoginBtn) dom.authModeLoginBtn.textContent = verifyingEmail ? "返回上一步" : "已有账号？去登录";
-  if (dom.registerUsernameField) dom.registerUsernameField.hidden = true;
-  if (dom.registerEmailField) dom.registerEmailField.hidden = verifyingEmail;
-  if (dom.registerPasswordField) dom.registerPasswordField.hidden = verifyingEmail;
-  if (dom.registerCodeField) dom.registerCodeField.hidden = !verifyingEmail;
+  if (dom.authModeLoginBtn) dom.authModeLoginBtn.textContent = isReset || isResetLink ? "想起来了？去登录" : "已有账号？去登录";
+  if (dom.registerUsernameField) dom.registerUsernameField.hidden = !isRegister;
+  if (dom.registerEmailField) dom.registerEmailField.hidden = isResetLink;
+  if (dom.registerPasswordField) dom.registerPasswordField.hidden = isReset;
+  if (dom.registerPasswordConfirmField) dom.registerPasswordConfirmField.hidden = !needsPasswordConfirm;
+  if (dom.registerCodeField) dom.registerCodeField.hidden = !isRegister;
   if (dom.registerFlowNote) {
-    dom.registerFlowNote.textContent = isRegister
-      ? verifyingEmail
-        ? `验证码已发到 ${maskEmailAccount(draft.account) || "你的邮箱"}，输入 6 位验证码完成创建。`
-        : "填写邮箱和密码，验证码会发到你的邮箱。"
-      : "用邮箱和密码登录；还没有账号就创建一个。";
+    dom.registerFlowNote.textContent = isResetLink
+      ? "请设置并确认新密码，保存后即可回到登录页。"
+      : isReset
+        ? state.authResetLinkSent
+          ? "重置邮件已发送，请打开邮箱里的链接继续设置新密码。"
+          : "填写注册邮箱，我们会把重置密码链接发到你的邮箱。"
+      : isRegister
+        ? "填写用户名和邮箱，收取邮箱回执码，设置并确认密码完成注册。"
+        : "用邮箱和密码登录；还没有账号就创建一个。";
   }
-  if (dom.registerPasswordInput) dom.registerPasswordInput.autocomplete = isRegister ? "new-password" : "current-password";
+  if (dom.registerUsernameInput) {
+    dom.registerUsernameInput.placeholder = "设置一个用户名";
+  }
+  if (dom.registerPasswordInput) {
+    dom.registerPasswordInput.autocomplete = isRegister || isReset || isResetLink ? "new-password" : "current-password";
+    dom.registerPasswordInput.placeholder = isRegister ? "设置登录密码" : isResetLink ? "设置新密码" : "输入密码";
+    dom.registerPasswordInput.type = state.authPasswordVisible ? "text" : "password";
+  }
+  if (dom.registerPasswordConfirmInput) {
+    dom.registerPasswordConfirmInput.autocomplete = "new-password";
+    dom.registerPasswordConfirmInput.placeholder = isResetLink ? "再输入一次新密码" : "再输入一次密码";
+    dom.registerPasswordConfirmInput.type = state.authPasswordConfirmVisible ? "text" : "password";
+  }
+  if (dom.registerCodeInput) dom.registerCodeInput.placeholder = "输入 6 位注册码";
+  renderAuthPasswordToggle(dom.registerPasswordToggleBtn, state.authPasswordVisible);
+  renderAuthPasswordToggle(dom.registerPasswordConfirmToggleBtn, state.authPasswordConfirmVisible);
   if (dom.registerNowBtn) {
     dom.registerNowBtn.textContent = state.authSubmitting
-      ? (isRegister ? (verifyingEmail ? "创建中..." : "继续中...") : "登录中...")
-      : (isRegister ? (verifyingEmail ? "完成创建" : "继续") : "立即登录");
-    dom.registerNowBtn.disabled = state.authSubmitting || state.authCodeSending || !authReadyToSubmit(isRegister, draft);
+      ? (isResetLink ? "保存中..." : isReset ? "发送中..." : isRegister ? "创建中..." : "登录中...")
+      : (isResetLink ? "保存新密码" : isReset ? "发送重置邮件" : isRegister ? "创建账号" : "立即登录");
+    dom.registerNowBtn.disabled = state.authSubmitting || state.authCodeSending || !authReadyToSubmit(state.authView, draft);
   }
   if (dom.sendCodeBtn) {
-    dom.sendCodeBtn.hidden = !verifyingEmail;
-    dom.sendCodeBtn.disabled = state.authSubmitting || state.authCodeSending || state.authCodeCooldown > 0 || !draft.account || draft.password.length < 6;
-    dom.sendCodeBtn.textContent = state.authCodeSending ? "发送中..." : state.authCodeCooldown > 0 ? `${state.authCodeCooldown}s` : "重新发送";
+    dom.sendCodeBtn.hidden = !isRegister;
+    dom.sendCodeBtn.disabled = state.authSubmitting || state.authCodeSending || state.authCodeCooldown > 0 || !draft.account;
+    dom.sendCodeBtn.textContent = state.authCodeSending
+      ? "发送中..."
+      : state.authCodeCooldown > 0
+        ? `${state.authCodeCooldown}s 后重发`
+        : "发送回执码";
   }
+  if (dom.authForgotPasswordBtn) dom.authForgotPasswordBtn.hidden = isRegister || isReset || isResetLink;
   if (dom.registerMessage) {
     dom.registerMessage.hidden = !state.authMessage;
     dom.registerMessage.textContent = state.authMessage;
@@ -3817,73 +3893,100 @@ function renderRegisterPanel() {
 }
 
 function handleAuthModeLoginAction() {
-  if (state.authView === "register" && currentRegisterStep() === "verify") {
-    state.authRegisterStep = "credentials";
-    clearAuthMessage();
-    renderRegisterPanel();
-    dom.registerEmailInput?.focus();
-    return;
-  }
   switchAuthView("login");
 }
 
 function switchAuthView(view) {
-  state.authView = view === "login" ? "login" : "register";
-  state.authRegisterStep = "credentials";
+  state.authView = ["login", "register", "reset", "reset-link"].includes(view) ? view : "login";
+  state.authResetLinkSent = false;
+  if (view !== "reset-link") state.authResetToken = "";
+  state.authPasswordVisible = false;
+  state.authPasswordConfirmVisible = false;
   clearAuthMessage();
   renderRegisterPanel();
-  dom.registerEmailInput?.focus();
+  (view === "reset-link" ? dom.registerPasswordInput : dom.registerEmailInput)?.focus();
 }
 
-async function sendAuthCode({ advance = false } = {}) {
+async function sendAuthCode() {
   const account = String(dom.registerEmailInput?.value || "").trim();
+  const purpose = "register";
   state.authCodeSending = true;
   clearAuthMessage();
   renderRegisterPanel();
-  let shouldFocusCode = false;
   try {
-    const data = await postJson("/api/auth/verification-code", { type: "email", account });
+    const data = await postJson("/api/auth/verification-code", { type: "email", account, purpose });
     if (data.code && dom.registerCodeInput) dom.registerCodeInput.value = data.code;
-    setAuthMessage(data.message || `验证码已发送到 ${data.accountLabel || "邮箱"}，5 分钟内有效`, "ok");
+    setAuthMessage(`注册码已发送到 ${data.accountLabel || maskEmailAccount(account) || "你的邮箱"}，5 分钟内有效。请打开邮箱收件箱或垃圾邮件查看。`, "ok");
     startAuthCodeCooldown();
-    if (advance && state.authView === "register") {
-      state.authRegisterStep = "verify";
-      shouldFocusCode = true;
-    }
+    dom.registerCodeInput?.focus();
   } catch (error) {
     setAuthMessage(errorMessage(error), "error");
   } finally {
     state.authCodeSending = false;
     renderRegisterPanel();
-    if (shouldFocusCode) dom.registerCodeInput?.focus();
   }
 }
 
 async function submitAuth() {
   const isRegister = state.authView === "register";
-  if (isRegister && currentRegisterStep() === "credentials") {
-    await sendAuthCode({ advance: true });
+  const isReset = state.authView === "reset";
+  const isResetLink = state.authView === "reset-link";
+  const draft = currentAuthDraft();
+  if ((isRegister || isResetLink) && draft.password !== draft.confirmPassword) {
+    setAuthMessage("两次输入的密码不一致", "error");
+    renderRegisterPanel();
+    dom.registerPasswordConfirmInput?.focus();
     return;
   }
   state.authSubmitting = true;
   clearAuthMessage();
   renderRegisterPanel();
   try {
-    const data = await postJson(isRegister ? "/api/auth/register" : "/api/auth/login", {
-      type: "email",
-      account: String(dom.registerEmailInput?.value || "").trim(),
-      username: String(dom.registerUsernameInput?.value || "").trim(),
-      code: String(dom.registerCodeInput?.value || "").trim(),
-      password: String(dom.registerPasswordInput?.value || ""),
-      clientKey: localClientKey
-    });
-    state.auth = normalizeAuth({ user: { ...data.user, clientKey: data.clientKey } });
+    const data = await postJson(
+      isResetLink ? "/api/auth/password-reset/confirm" : isReset ? "/api/auth/password-reset/request" : isRegister ? "/api/auth/register" : "/api/auth/login",
+      isResetLink
+        ? {
+            token: state.authResetToken,
+            password: String(dom.registerPasswordInput?.value || "")
+          }
+        : isReset
+          ? {
+              type: "email",
+              account: String(dom.registerEmailInput?.value || "").trim()
+            }
+          : {
+              type: "email",
+              account: String(dom.registerEmailInput?.value || "").trim(),
+              username: String(dom.registerUsernameInput?.value || "").trim(),
+              code: String(dom.registerCodeInput?.value || "").trim(),
+              password: String(dom.registerPasswordInput?.value || ""),
+              clientKey: localClientKey
+            }
+    );
+    if (isReset) {
+      state.authResetLinkSent = true;
+      setAuthMessage(data.resetUrl ? `测试模式已返回重置链接：${data.resetUrl}` : (data.message || "重置邮件已发送，请打开邮箱继续设置新密码"), "ok");
+      renderRegisterPanel();
+      status("重置邮件已发送");
+      return;
+    }
+    if (isResetLink) {
+      if (dom.registerPasswordInput) dom.registerPasswordInput.value = "";
+      if (dom.registerPasswordConfirmInput) dom.registerPasswordConfirmInput.value = "";
+      state.authResetToken = "";
+      switchAuthView("login");
+      setAuthMessage(data.message || "密码已重置，请用新密码登录", "ok");
+      renderRegisterPanel();
+      status("密码已重置，请重新登录");
+      return;
+    }
+    state.auth = normalizeAuth({ user: { ...data.user, clientKey: data.clientKey }, sessionToken: data.sessionToken });
     tryWriteStore(keys.auth, state.auth);
     if (dom.registerUsernameInput) dom.registerUsernameInput.value = "";
     if (dom.registerEmailInput) dom.registerEmailInput.value = "";
     if (dom.registerCodeInput) dom.registerCodeInput.value = "";
     if (dom.registerPasswordInput) dom.registerPasswordInput.value = "";
-    state.authRegisterStep = "credentials";
+    if (dom.registerPasswordConfirmInput) dom.registerPasswordConfirmInput.value = "";
     const authReturn = state.authReturn;
     state.authReturn = null;
     await Promise.allSettled([loadPersistentHistory(false), refreshCreditCenter(false), loadStudioOrders(false)]);
@@ -3908,6 +4011,7 @@ async function submitAuth() {
 }
 
 function logoutAuth() {
+  closeTopbarAccountMenu();
   state.auth = { user: null };
   state.authReturn = null;
   tryWriteStore(keys.auth, state.auth);
@@ -3915,9 +4019,9 @@ function logoutAuth() {
   state.deletedHistory = [];
   persistHistory();
   persistDeletedHistory();
-  state.authRegisterStep = "credentials";
   renderHistory();
   clearAuthMessage();
+  renderTabs();
   renderRegisterPanel();
   state.studioOrders = { loaded: true, list: [], total: 0, updatedAt: "", error: "" };
   renderStudio();
@@ -3930,16 +4034,52 @@ function currentAuthDraft() {
     username: String(dom.registerUsernameInput?.value || "").trim(),
     account: String(dom.registerEmailInput?.value || "").trim(),
     code: String(dom.registerCodeInput?.value || "").trim(),
-    password: String(dom.registerPasswordInput?.value || "")
+    password: String(dom.registerPasswordInput?.value || ""),
+    confirmPassword: String(dom.registerPasswordConfirmInput?.value || "")
   };
 }
 
-function authReadyToSubmit(isRegister, draft) {
-  if (isRegister) {
-    if (currentRegisterStep() === "verify") return Boolean(draft.account && draft.code && draft.password.length >= 6);
-    return Boolean(draft.account && draft.password.length >= 6);
+function authReadyToSubmit(view, draft) {
+  if (view === "register") {
+    return Boolean(
+      draft.username.length >= 2 &&
+      draft.username.length <= 24 &&
+      draft.account &&
+      draft.code &&
+      draft.password.length >= 6 &&
+      draft.confirmPassword.length >= 6 &&
+      draft.password === draft.confirmPassword
+    );
+  }
+  if (view === "reset") {
+    return Boolean(draft.account);
+  }
+  if (view === "reset-link") {
+    return Boolean(
+      state.authResetToken &&
+      draft.password.length >= 6 &&
+      draft.confirmPassword.length >= 6 &&
+      draft.password === draft.confirmPassword
+    );
   }
   return Boolean(draft.account && draft.password.length >= 6);
+}
+
+function toggleAuthPasswordVisibility(field) {
+  if (field === "confirm") {
+    state.authPasswordConfirmVisible = !state.authPasswordConfirmVisible;
+  } else {
+    state.authPasswordVisible = !state.authPasswordVisible;
+  }
+  renderRegisterPanel();
+}
+
+function renderAuthPasswordToggle(button, visible) {
+  if (!button) return;
+  button.setAttribute("aria-pressed", visible ? "true" : "false");
+  button.setAttribute("aria-label", visible ? "隐藏密码" : "显示密码");
+  button.title = visible ? "隐藏密码" : "显示密码";
+  button.classList.toggle("is-visible", visible);
 }
 
 function maskEmailAccount(value) {
@@ -3948,6 +4088,23 @@ function maskEmailAccount(value) {
   const [name = "", domain = ""] = email.split("@");
   const visible = name.length <= 2 ? name : `${name.slice(0, 2)}***`;
   return `${visible}@${domain}`;
+}
+
+function toggleTopbarAccountMenu() {
+  if (!isLoggedIn() || !dom.topbarAccountMenu) return;
+  dom.topbarAccountMenu.hidden = !dom.topbarAccountMenu.hidden;
+  if (dom.topbarAccountBtn) dom.topbarAccountBtn.setAttribute("aria-expanded", dom.topbarAccountMenu.hidden ? "false" : "true");
+}
+
+function closeTopbarAccountMenu() {
+  if (dom.topbarAccountMenu) dom.topbarAccountMenu.hidden = true;
+  if (dom.topbarAccountBtn) dom.topbarAccountBtn.setAttribute("aria-expanded", "false");
+}
+
+function handleTopbarAccountOutsideClick(event) {
+  if (!dom.topbarAccount || dom.topbarAccount.hidden) return;
+  if (dom.topbarAccount.contains(event.target)) return;
+  closeTopbarAccountMenu();
 }
 
 function setAuthMessage(message, kind) {
@@ -4210,6 +4367,7 @@ async function generateImage() {
     task.creditUnitCost = Math.max(0, Number(data.creditUnitCost) || 0);
     task.creditLedgerId = String(data.creditLedgerId || "");
     task.status = "succeeded";
+    updateHistoryTask(task);
     if (Number.isFinite(Number(data.creditBalance))) {
       state.credits.balance = Math.max(0, Number(data.creditBalance) || 0);
       renderCredits();
@@ -4222,14 +4380,22 @@ async function generateImage() {
   } catch (error) {
     task.status = "failed";
     task.error = errorMessage(error);
+    updateHistoryTask(task);
     void loadCredits();
     status(`生成失败：${task.error}，耗时 ${formatElapsed(task)}`);
   } finally {
     task.finishedAt = Date.now();
+    updateHistoryTask(task);
     stopGenerationTimer(task);
     persistHistory();
     renderHistory();
   }
+}
+
+function updateHistoryTask(task) {
+  const index = state.history.findIndex((item) => item.id === task.id);
+  if (index >= 0) state.history[index] = { ...state.history[index], ...task };
+  else state.history.unshift(task);
 }
 
 function normalizeImages(data) {
@@ -4263,7 +4429,9 @@ function renderHistory() {
   const deletedMode = state.historyMode === "deleted";
   const list = currentHistoryList();
   if (dom.historyTitle) dom.historyTitle.textContent = deletedMode ? "已删除作品" : "我的作品";
-  dom.historyCount.textContent = `${list.length} 条${deletedMode ? "已删除" : ""}`;
+  dom.historyCount.textContent = deletedMode
+    ? `${list.length} 条已删除 · 可恢复，${historyTrashRetentionDays} 天后自动清理`
+    : `${list.length} 条 · 删除后进垃圾箱，可恢复 ${historyTrashRetentionDays} 天`;
   dom.clearHistoryBtn.textContent = deletedMode ? "清空已删除" : "清空";
   dom.deletedHistoryBtn.textContent = deletedMode ? "返回" : "已删除";
   if (!list.length) {
@@ -4296,7 +4464,7 @@ function startGenerationTimer(task) {
   stopGenerationTimer();
   generationRunning = true;
   dom.generateBtn.disabled = true;
-  dom.generateBtn.textContent = "生成中";
+  setGenerateButton("生成中", "结果会显示在下方", "running");
   updateGenerationTimer(task);
   generationTimerId = window.setInterval(() => updateGenerationTimer(task), 1000);
 }
@@ -4362,9 +4530,22 @@ function mergeHistory(serverHistory) {
 }
 
 function mergeDeletedHistory(serverHistory) {
+  const expiredIds = [];
+  const keepFreshDeleted = (task) => {
+    if (!task?.deletedAt) return true;
+    const expired = Date.now() - Number(task.deletedAt) >= historyTrashRetentionMs;
+    if (expired) expiredIds.push(task.id);
+    return !expired;
+  };
   const byId = new Map();
-  for (const task of state.deletedHistory) byId.set(task.id, normalizeHistoryTask({ ...task, deletedAt: task.deletedAt || Date.now() }));
-  for (const task of serverHistory) byId.set(task.id, normalizeHistoryTask(task));
+  for (const task of state.deletedHistory) {
+    const normalized = normalizeHistoryTask({ ...task, deletedAt: task.deletedAt || Date.now() });
+    if (keepFreshDeleted(normalized)) byId.set(normalized.id, normalized);
+  }
+  for (const task of serverHistory) {
+    const normalized = normalizeHistoryTask(task);
+    if (keepFreshDeleted(normalized)) byId.set(normalized.id, normalized);
+  }
   state.deletedHistory = [...byId.values()]
     .sort((left, right) => Number(right.deletedAt || right.createdAt || 0) - Number(left.deletedAt || left.createdAt || 0))
     .slice(0, 100);
@@ -4373,6 +4554,9 @@ function mergeDeletedHistory(serverHistory) {
   persistHistory();
   persistDeletedHistory();
   renderHistory();
+  for (const id of [...new Set(expiredIds)]) {
+    void apiFetch(`/api/history/${encodeURIComponent(id)}/permanent`, { method: "DELETE" }).catch(() => {});
+  }
 }
 
 function normalizeHistoryTask(task) {
@@ -4382,7 +4566,7 @@ function normalizeHistoryTask(task) {
     params: { ...defaults.params, ...(task.params || {}) },
     references: Array.isArray(task.references) ? task.references : [],
     settingsSummary: String(task.settingsSummary || task.settingsSnapshot || ""),
-    status: ["running", "succeeded", "failed"].includes(task.status) ? task.status : "succeeded",
+    status: ["queued", "running", "succeeded", "failed"].includes(task.status) ? task.status : "succeeded",
     images: Array.isArray(task.images) ? task.images : [],
     error: String(task.error || ""),
     revisedPrompt: String(task.revisedPrompt || ""),
@@ -4406,7 +4590,7 @@ function historyCard(task) {
   const deletedMode = state.historyMode === "deleted";
   const image = task.images?.[0]
     ? `<button class="image-preview-btn" data-preview-task="${attr(task.id)}" data-preview-index="0" type="button" aria-label="预览图片"><img src="${attr(task.images[0])}" alt="${attr(task.prompt)}" /><span>点击放大</span></button>`
-    : `<div class="history-placeholder">${task.status === "running" ? "生成中" : "无图片"}</div>`;
+    : `<div class="history-placeholder">${task.status === "queued" ? "排队中" : task.status === "running" ? "生成中" : "无图片"}</div>`;
   const settingsPart = task.settingsSummary ? `${esc(task.settingsSummary)} · ` : "";
   const creditPart = task.creditCost ? ` · ${esc(formatCredits(task.creditCost))}` : "";
   const saveButton = task.images?.[0] ? `<button type="button" data-download-task="${attr(task.id)}" data-download-index="0">保存</button>` : "";
@@ -4417,7 +4601,7 @@ function historyCard(task) {
     <article class="history-card ${attr(task.status)}">
       <div class="history-image">${image}</div>
       <div class="history-body">
-        <div class="meta-row"><span>${task.status === "succeeded" ? "成功" : task.status === "failed" ? "失败" : "生成中"}</span><span data-elapsed-task="${attr(task.id)}">耗时 ${formatElapsed(task)}</span><span>${time(task.createdAt)}</span></div>
+        <div class="meta-row"><span>${task.status === "succeeded" ? "成功" : task.status === "failed" ? "失败" : task.status === "queued" ? "排队中" : "生成中"}</span><span data-elapsed-task="${attr(task.id)}">耗时 ${formatElapsed(task)}</span><span>${time(task.createdAt)}</span></div>
         <p>${esc(task.error || task.prompt)}</p>
         <small>${settingsPart}${esc(task.params.size)} · ${esc(task.params.quality)} · ${esc(task.params.outputFormat)} · ${task.params.count} 张${creditPart}</small>
         <div class="row-actions">${deletedMode ? deletedActions : activeActions}</div>
@@ -4547,6 +4731,28 @@ function findHistoryTask(id) {
   return state.history.find((item) => item.id === id) || state.deletedHistory.find((item) => item.id === id);
 }
 
+function confirmHistoryAction({ title, body, confirmLabel = "确认", danger = false, onConfirm }) {
+  openModal(`
+    <section class="modal-card small-modal confirm-modal" role="dialog" aria-modal="true" aria-labelledby="historyConfirmTitle">
+      <div class="section-head compact">
+        <div><span class="eyebrow">操作确认</span><h2 id="historyConfirmTitle">${esc(title)}</h2><p>${esc(body)}</p></div>
+        <button class="icon-btn" data-close-modal type="button">×</button>
+      </div>
+      <div class="confirm-note">
+        <strong>删除后进入垃圾箱</strong>
+        <span>7 天内可在“已删除”手动恢复；超过 7 天会自动清理。</span>
+      </div>
+      <div class="modal-actions confirm-actions">
+        <button class="ghost-btn" data-close-modal type="button">取消</button>
+        <button class="primary-btn ${danger ? "danger-btn" : ""}" id="historyConfirmBtn" type="button">${esc(confirmLabel)}</button>
+      </div>
+    </section>`);
+  document.getElementById("historyConfirmBtn")?.addEventListener("click", () => {
+    closeModal();
+    onConfirm?.();
+  });
+}
+
 function reuseTask(id) {
   const task = state.history.find((item) => item.id === id);
   if (!task) return;
@@ -4565,12 +4771,23 @@ function reuseTask(id) {
 function deleteTask(id) {
   const task = state.history.find((item) => item.id === id);
   if (!task) return;
+  confirmHistoryAction({
+    title: "删除这条作品？",
+    body: "这条作品会先进入已删除，不会立刻永久删除。",
+    confirmLabel: "移入垃圾箱",
+    onConfirm: () => moveTaskToTrash(id)
+  });
+}
+
+function moveTaskToTrash(id) {
+  const task = state.history.find((item) => item.id === id);
+  if (!task) return;
   state.history = state.history.filter((item) => item.id !== id);
   state.deletedHistory = [{ ...task, deletedAt: Date.now() }, ...state.deletedHistory.filter((item) => item.id !== id)].slice(0, 100);
   persistHistory();
   persistDeletedHistory();
   renderHistory();
-  status("已移到已删除");
+  status(`已移到已删除，${historyTrashRetentionDays} 天内可恢复`);
   void apiFetch(`/api/history/${encodeURIComponent(id)}`, { method: "DELETE" })
     .then((response) => {
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -4580,6 +4797,26 @@ function deleteTask(id) {
 
 function clearHistory() {
   if (state.historyMode === "deleted") {
+    if (!state.deletedHistory.length) return;
+    confirmHistoryAction({
+      title: "清空已删除？",
+      body: "这会永久清除垃圾箱里的全部作品，清除后不能恢复。",
+      confirmLabel: "永久清空",
+      danger: true,
+      onConfirm: clearDeletedHistory
+    });
+    return;
+  }
+  if (!state.history.length) return;
+  confirmHistoryAction({
+    title: "清空全部作品？",
+    body: "全部作品会先进入已删除，不会立刻永久删除。",
+    confirmLabel: "全部移入垃圾箱",
+    onConfirm: moveAllHistoryToTrash
+  });
+}
+
+function clearDeletedHistory() {
     state.deletedHistory = [];
     persistDeletedHistory();
     renderHistory();
@@ -4590,7 +4827,9 @@ function clearHistory() {
       })
       .catch((error) => status(`本机已清空，服务端同步失败：${errorMessage(error)}`));
     return;
-  }
+}
+
+function moveAllHistoryToTrash() {
   if (!state.history.length) return;
   const now = Date.now();
   state.deletedHistory = [
@@ -4601,7 +4840,7 @@ function clearHistory() {
   persistHistory();
   persistDeletedHistory();
   renderHistory();
-  status("历史记录已移到已删除");
+  status(`历史记录已移到已删除，${historyTrashRetentionDays} 天内可恢复`);
   void apiFetch("/api/history", { method: "DELETE" })
     .then((response) => {
       if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
@@ -4629,6 +4868,18 @@ function restoreTask(id) {
 }
 
 function purgeTask(id) {
+  const task = state.deletedHistory.find((item) => item.id === id);
+  if (!task) return;
+  confirmHistoryAction({
+    title: "永久清除这条作品？",
+    body: "这条作品会从已删除中清除，清除后不能恢复。",
+    confirmLabel: "永久清除",
+    danger: true,
+    onConfirm: () => purgeTaskPermanently(id)
+  });
+}
+
+function purgeTaskPermanently(id) {
   state.deletedHistory = state.deletedHistory.filter((item) => item.id !== id);
   persistDeletedHistory();
   renderHistory();
@@ -4832,6 +5083,16 @@ function normalizeCreditEstimate(data) {
   };
 }
 
+function setGenerateButton(label, meta = "", stateName = "") {
+  if (!dom.generateBtn) return;
+  if (stateName) dom.generateBtn.dataset.state = stateName;
+  const safeLabel = esc(label || "生成");
+  const safeMeta = esc(meta || "");
+  dom.generateBtn.innerHTML = safeMeta
+    ? `<span>${safeLabel}</span><small>${safeMeta}</small>`
+    : `<span>${safeLabel}</span>`;
+}
+
 function renderCreditEstimate() {
   if (!dom.creditCostStatus) return;
   const estimate = state.creditEstimate;
@@ -4842,33 +5103,39 @@ function renderCreditEstimate() {
   const waiting = !estimate && !hasError;
   const shortage = Boolean(estimate && !estimate.enough);
   let buttonState = "ready";
-  let buttonText = "开拍";
+  let buttonLabel = "生成";
+  let buttonMeta = "积分计算中";
   let hintText = "成功出图才扣积分";
 
   if (hasError) {
-    dom.creditCostStatus.textContent = "没算出来";
+    dom.creditCostStatus.textContent = "暂未扣除";
     hintText = "刷新后可重试";
     buttonState = "error";
-    buttonText = "稍后重试";
+    buttonLabel = "稍后重试";
+    buttonMeta = "积分没算出来";
   } else if (waiting) {
     dom.creditCostStatus.textContent = "正在计算";
-    hintText = "本次积分预估可查看";
+    hintText = "积分会显示在生成按钮上";
     buttonState = "pending";
-    buttonText = "积分计算中";
+    buttonLabel = "生成";
+    buttonMeta = "积分计算中";
   } else {
-    dom.creditCostStatus.textContent = `${formatCredits(estimate.estimatedCost)}`;
+    const estimatedCost = formatCredits(estimate.estimatedCost);
+    dom.creditCostStatus.textContent = "成功后扣除";
+    buttonMeta = estimatedCost;
     hintText = shortage
-      ? `当前积分 ${formatCredits(estimate.balance)} · 还差 ${formatCredits(estimate.shortage)} · 买够即可开拍`
-      : `${estimate.referenceCount ? "照着照片改" : "直接拍一张"} · 当前积分 ${formatCredits(estimate.balance)} · 单张 ${formatCredits(estimate.unitCost)}`;
+      ? `当前积分 ${formatCredits(estimate.balance)} · 还差 ${formatCredits(estimate.shortage)}`
+      : `${estimate.referenceCount ? "按照片生成" : "直接生成"} · 当前积分 ${formatCredits(estimate.balance)}`;
     if (shortage) {
       buttonState = "shortage";
-      buttonText = "去充值";
+      buttonLabel = "生成";
     } else if (needsReference) {
       buttonState = "needs-reference";
-      buttonText = "上传原图";
+      buttonLabel = "上传照片";
+      buttonMeta = "再生成";
     } else if (activeCount) {
       buttonState = "edit";
-      buttonText = "开始编辑";
+      buttonLabel = "生成";
     }
   }
 
@@ -4876,13 +5143,15 @@ function renderCreditEstimate() {
   dom.creditCostBar.classList.toggle("warning", hasError || shortage);
 
   if (!generationRunning && dom.generateBtn) {
-    dom.generateBtn.disabled = waiting || hasError ? true : false;
-    dom.generateBtn.dataset.state = buttonState;
-    dom.generateBtn.textContent = buttonText;
+    dom.generateBtn.disabled = waiting || hasError || shortage ? true : false;
+    setGenerateButton(buttonLabel, buttonMeta, buttonState);
   } else if (dom.generateBtn) {
     dom.generateBtn.dataset.state = "running";
   }
-  if (dom.creditRechargeShortcut && !generationRunning) dom.creditRechargeShortcut.textContent = shortage ? "看套餐" : "充值";
+  if (dom.creditRechargeShortcut && !generationRunning) {
+    dom.creditRechargeShortcut.hidden = !shortage;
+    dom.creditRechargeShortcut.textContent = "充值";
+  }
   renderCreateGenerateOverview();
 }
 
@@ -4915,7 +5184,7 @@ function creditPackageCard(item) {
       </div>
       <p>适合：${esc(item.bestFor || "日常出图")}</p>
       <div class="credit-package-shot-grid">
-        <span><strong>约 ${esc(item.standardShots || 0)} 张</strong><em>只写要求拍</em></span>
+        <span><strong>约 ${esc(item.standardShots || 0)} 张</strong><em>文字生成</em></span>
         <span><strong>约 ${esc(item.editShots || 0)} 张</strong><em>上传照片改</em></span>
       </div>
       <span class="credit-package-usage">含 ${esc(formatCredits(item.credits))}${item.bonus ? ` · 多送 ${esc(formatCredits(item.bonus))}` : ""}</span>
@@ -5166,6 +5435,8 @@ function apiFetch(input, init = {}) {
   const headers = new Headers(init.headers || {});
   const clientKey = currentClientKey();
   if (clientKey) headers.set("X-Client-Key", clientKey);
+  const token = currentAuthToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   return fetch(input, { ...init, headers });
 }
 
@@ -5193,8 +5464,9 @@ function readStore(key, fallback) {
 
 function normalizeAuth(value) {
   const user = value?.user && typeof value.user === "object" ? value.user : null;
-  if (!user) return { user: null };
+  if (!user) return { user: null, sessionToken: "" };
   return {
+    sessionToken: String(value.sessionToken || value.token || ""),
     user: {
       id: String(user.id || ""),
       username: String(user.username || user.nickname || ""),
@@ -5233,7 +5505,7 @@ function normalizeSettings(value) {
     apiMode: settings.apiMode === "responses" ? "responses" : "images",
     mainModelId: String(settings.mainModelId || defaults.settings.mainModelId),
     modelId: String(settings.modelId || defaults.settings.modelId),
-    timeoutSeconds: Math.max(1, Number(settings.timeoutSeconds) || defaults.settings.timeoutSeconds)
+    timeoutSeconds: Math.max(defaults.settings.timeoutSeconds, Number(settings.timeoutSeconds) || defaults.settings.timeoutSeconds)
   };
 }
 
@@ -5270,11 +5542,15 @@ function createClientKey() {
 
 function currentClientKey() {
   const accountClientKey = normalizeClientKey(state.auth.user?.clientKey || "");
-  return accountClientKey || localClientKey;
+  return isLoggedIn() ? accountClientKey : localClientKey;
+}
+
+function currentAuthToken() {
+  return String(state.auth.sessionToken || "").trim();
 }
 
 function isLoggedIn() {
-  return Boolean(state.auth.user?.id && normalizeClientKey(state.auth.user?.clientKey || ""));
+  return Boolean(state.auth.user?.id && normalizeClientKey(state.auth.user?.clientKey || "") && currentAuthToken());
 }
 
 function keyFingerprint(value) {
@@ -5306,6 +5582,15 @@ function consumeRuntimeQueryState() {
   const params = new URLSearchParams(window.location.search);
   const requestedTab = normalizeQueryTab(params.get("tab"));
   if (requestedTab) state.tab = requestedTab;
+  if (requestedTab === "register") state.authView = "register";
+  const authMode = String(params.get("auth") || "").trim();
+  const resetToken = String(params.get("token") || "").trim();
+  if (authMode === "reset-link" && resetToken) {
+    state.tab = "register";
+    state.authView = "reset-link";
+    state.authResetToken = resetToken;
+    state.authResetLinkSent = false;
+  }
   const paymentKind = normalizePaymentReturnKind(params.get("payment"));
   const tradeNo = String(params.get("trade_no") || "");
   const outTradeNo = String(params.get("out_trade_no") || "");
@@ -5319,8 +5604,10 @@ function consumeRuntimeQueryState() {
     };
     state.tab = "credits";
   }
-  if (!requestedTab && !resolvedPaymentKind) return;
+  if (!requestedTab && !resolvedPaymentKind && !(authMode === "reset-link" && resetToken)) return;
   params.delete("tab");
+  params.delete("auth");
+  params.delete("token");
   params.delete("payment");
   params.delete("order");
   params.delete("session_id");
@@ -5614,7 +5901,7 @@ function formatCredits(value) {
 
 function creditBalanceStatusText(balance) {
   const value = Math.max(0, Number(balance) || 0);
-  if (value >= 20) return `还能拍约 ${Math.floor(value / 20)} 张`;
+  if (value >= 20) return `还能生成约 ${Math.floor(value / 20)} 张`;
   if (value > 0) return "还差一张，需要买积分";
   return "还没有余额";
 }

@@ -1,100 +1,224 @@
 import { Pool } from "pg";
 
+function quoteIdentifier(value) {
+  return `"${String(value || "").replace(/"/g, "\"\"")}"`;
+}
+
+export const postgresSchema = {
+  databaseName: "墨境图片客户库",
+  tables: {
+    authUsers: quoteIdentifier("客户账号"),
+    verificationCodes: quoteIdentifier("账号验证码"),
+    loginFailures: quoteIdentifier("登录失败记录"),
+    creditAccounts: quoteIdentifier("积分账户"),
+    creditLedgers: quoteIdentifier("积分流水"),
+    creditOrders: quoteIdentifier("积分订单"),
+    historyTasks: quoteIdentifier("生图历史任务")
+  },
+  rawTables: {
+    authUsers: "客户账号",
+    verificationCodes: "账号验证码",
+    loginFailures: "登录失败记录",
+    creditAccounts: "积分账户",
+    creditLedgers: "积分流水",
+    creditOrders: "积分订单",
+    historyTasks: "生图历史任务"
+  },
+  authUsers: {
+    id: quoteIdentifier("账号编号"),
+    accountType: quoteIdentifier("账号类型"),
+    account: quoteIdentifier("账号"),
+    accountLabel: quoteIdentifier("账号显示名"),
+    username: quoteIdentifier("用户名"),
+    nickname: quoteIdentifier("昵称"),
+    passwordHash: quoteIdentifier("密码哈希"),
+    createdAt: quoteIdentifier("创建时间"),
+    lastLoginAt: quoteIdentifier("最后登录时间")
+  },
+  verificationCodes: {
+    accountType: quoteIdentifier("账号类型"),
+    account: quoteIdentifier("账号"),
+    purpose: quoteIdentifier("用途"),
+    codeHash: quoteIdentifier("验证码哈希"),
+    delivery: quoteIdentifier("发送方式"),
+    sentAt: quoteIdentifier("发送时间"),
+    expiresAt: quoteIdentifier("过期时间"),
+    createdAt: quoteIdentifier("创建时间"),
+    updatedAt: quoteIdentifier("更新时间")
+  },
+  loginFailures: {
+    id: quoteIdentifier("记录编号"),
+    accountType: quoteIdentifier("账号类型"),
+    account: quoteIdentifier("账号"),
+    clientIp: quoteIdentifier("客户端IP"),
+    createdAt: quoteIdentifier("创建时间")
+  },
+  creditAccounts: {
+    clientKey: quoteIdentifier("客户键"),
+    balance: quoteIdentifier("余额"),
+    createdAt: quoteIdentifier("创建时间"),
+    updatedAt: quoteIdentifier("更新时间")
+  },
+  creditLedgers: {
+    id: quoteIdentifier("流水编号"),
+    clientKey: quoteIdentifier("客户键"),
+    type: quoteIdentifier("类型"),
+    packageId: quoteIdentifier("套餐编号"),
+    orderId: quoteIdentifier("订单编号"),
+    taskId: quoteIdentifier("任务编号"),
+    provider: quoteIdentifier("支付渠道"),
+    title: quoteIdentifier("标题"),
+    reason: quoteIdentifier("原因"),
+    credits: quoteIdentifier("积分变动"),
+    balanceAfter: quoteIdentifier("变动后余额"),
+    amountCny: quoteIdentifier("金额元"),
+    imageCount: quoteIdentifier("图片数量"),
+    unitCost: quoteIdentifier("单张成本"),
+    status: quoteIdentifier("状态"),
+    createdAt: quoteIdentifier("创建时间")
+  },
+  creditOrders: {
+    id: quoteIdentifier("订单编号"),
+    clientKey: quoteIdentifier("客户键"),
+    packageId: quoteIdentifier("套餐编号"),
+    packageName: quoteIdentifier("套餐名称"),
+    credits: quoteIdentifier("积分"),
+    bonus: quoteIdentifier("赠送积分"),
+    amountCny: quoteIdentifier("金额元"),
+    provider: quoteIdentifier("支付渠道"),
+    providerSessionId: quoteIdentifier("渠道会话编号"),
+    providerPaymentId: quoteIdentifier("渠道支付编号"),
+    status: quoteIdentifier("状态"),
+    ledgerId: quoteIdentifier("流水编号"),
+    failureReason: quoteIdentifier("失败原因"),
+    createdAt: quoteIdentifier("创建时间"),
+    updatedAt: quoteIdentifier("更新时间")
+  },
+  historyTasks: {
+    clientKey: quoteIdentifier("客户键"),
+    id: quoteIdentifier("任务编号"),
+    prompt: quoteIdentifier("提示词"),
+    paramsJson: quoteIdentifier("参数JSON"),
+    referencesJson: quoteIdentifier("参考图JSON"),
+    status: quoteIdentifier("状态"),
+    imagesJson: quoteIdentifier("图片JSON"),
+    error: quoteIdentifier("错误信息"),
+    revisedPrompt: quoteIdentifier("优化提示词"),
+    creditCost: quoteIdentifier("积分成本"),
+    creditUnitCost: quoteIdentifier("单张积分成本"),
+    creditLedgerId: quoteIdentifier("积分流水编号"),
+    createdAt: quoteIdentifier("创建时间"),
+    finishedAt: quoteIdentifier("完成时间"),
+    deletedAt: quoteIdentifier("删除时间")
+  }
+};
+
+const t = postgresSchema.tables;
+const u = postgresSchema.authUsers;
+const v = postgresSchema.verificationCodes;
+const f = postgresSchema.loginFailures;
+const a = postgresSchema.creditAccounts;
+const l = postgresSchema.creditLedgers;
+const o = postgresSchema.creditOrders;
+const h = postgresSchema.historyTasks;
+
 const schemaStatements = [
-  `CREATE TABLE IF NOT EXISTS auth_users (
-    id TEXT PRIMARY KEY,
-    account_type TEXT NOT NULL,
-    account TEXT NOT NULL,
-    account_label TEXT NOT NULL DEFAULT '',
-    username TEXT NOT NULL,
-    nickname TEXT NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_login_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `CREATE TABLE IF NOT EXISTS ${t.authUsers} (
+    ${u.id} TEXT PRIMARY KEY,
+    ${u.accountType} TEXT NOT NULL,
+    ${u.account} TEXT NOT NULL,
+    ${u.accountLabel} TEXT NOT NULL DEFAULT '',
+    ${u.username} TEXT NOT NULL,
+    ${u.nickname} TEXT NOT NULL,
+    ${u.passwordHash} TEXT NOT NULL,
+    ${u.createdAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ${u.lastLoginAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  "CREATE UNIQUE INDEX IF NOT EXISTS auth_users_account_unique ON auth_users (account_type, account)",
-  `CREATE TABLE IF NOT EXISTS auth_verification_codes (
-    account_type TEXT NOT NULL,
-    account TEXT NOT NULL,
-    code_hash TEXT NOT NULL,
-    delivery TEXT NOT NULL DEFAULT 'email',
-    sent_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (account_type, account)
+  `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdentifier("客户账号_账号唯一索引")} ON ${t.authUsers} (${u.accountType}, ${u.account})`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdentifier("客户账号_用户名唯一索引")} ON ${t.authUsers} (LOWER(${u.username}))`,
+  `CREATE TABLE IF NOT EXISTS ${t.verificationCodes} (
+    ${v.accountType} TEXT NOT NULL,
+    ${v.account} TEXT NOT NULL,
+    ${v.purpose} TEXT NOT NULL DEFAULT 'register',
+    ${v.codeHash} TEXT NOT NULL,
+    ${v.delivery} TEXT NOT NULL DEFAULT 'email',
+    ${v.sentAt} TIMESTAMPTZ NOT NULL,
+    ${v.expiresAt} TIMESTAMPTZ NOT NULL,
+    ${v.createdAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ${v.updatedAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (${v.accountType}, ${v.account}, ${v.purpose})
   )`,
-  `CREATE TABLE IF NOT EXISTS auth_login_failures (
-    id BIGSERIAL PRIMARY KEY,
-    account_type TEXT NOT NULL,
-    account TEXT NOT NULL,
-    client_ip TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `CREATE TABLE IF NOT EXISTS ${t.loginFailures} (
+    ${f.id} BIGSERIAL PRIMARY KEY,
+    ${f.accountType} TEXT NOT NULL,
+    ${f.account} TEXT NOT NULL,
+    ${f.clientIp} TEXT NOT NULL DEFAULT '',
+    ${f.createdAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  "CREATE INDEX IF NOT EXISTS auth_login_failures_account_idx ON auth_login_failures (account_type, account, created_at DESC)",
-  "CREATE INDEX IF NOT EXISTS auth_login_failures_ip_idx ON auth_login_failures (client_ip, created_at DESC)",
-  `CREATE TABLE IF NOT EXISTS credit_accounts (
-    client_key TEXT PRIMARY KEY,
-    balance INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `CREATE INDEX IF NOT EXISTS ${quoteIdentifier("登录失败记录_账号索引")} ON ${t.loginFailures} (${f.accountType}, ${f.account}, ${f.createdAt} DESC)`,
+  `CREATE INDEX IF NOT EXISTS ${quoteIdentifier("登录失败记录_IP索引")} ON ${t.loginFailures} (${f.clientIp}, ${f.createdAt} DESC)`,
+  `CREATE TABLE IF NOT EXISTS ${t.creditAccounts} (
+    ${a.clientKey} TEXT PRIMARY KEY,
+    ${a.balance} INTEGER NOT NULL DEFAULT 0,
+    ${a.createdAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ${a.updatedAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  `CREATE TABLE IF NOT EXISTS credit_ledgers (
-    id TEXT PRIMARY KEY,
-    client_key TEXT NOT NULL REFERENCES credit_accounts(client_key) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    package_id TEXT NOT NULL DEFAULT '',
-    order_id TEXT NOT NULL DEFAULT '',
-    task_id TEXT NOT NULL DEFAULT '',
-    provider TEXT NOT NULL DEFAULT '',
-    title TEXT NOT NULL DEFAULT '',
-    reason TEXT NOT NULL DEFAULT '',
-    credits INTEGER NOT NULL DEFAULT 0,
-    balance_after INTEGER NOT NULL DEFAULT 0,
-    amount_cny NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    image_count INTEGER NOT NULL DEFAULT 0,
-    unit_cost INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'succeeded',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `CREATE TABLE IF NOT EXISTS ${t.creditLedgers} (
+    ${l.id} TEXT PRIMARY KEY,
+    ${l.clientKey} TEXT NOT NULL REFERENCES ${t.creditAccounts}(${a.clientKey}) ON DELETE CASCADE,
+    ${l.type} TEXT NOT NULL,
+    ${l.packageId} TEXT NOT NULL DEFAULT '',
+    ${l.orderId} TEXT NOT NULL DEFAULT '',
+    ${l.taskId} TEXT NOT NULL DEFAULT '',
+    ${l.provider} TEXT NOT NULL DEFAULT '',
+    ${l.title} TEXT NOT NULL DEFAULT '',
+    ${l.reason} TEXT NOT NULL DEFAULT '',
+    ${l.credits} INTEGER NOT NULL DEFAULT 0,
+    ${l.balanceAfter} INTEGER NOT NULL DEFAULT 0,
+    ${l.amountCny} NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    ${l.imageCount} INTEGER NOT NULL DEFAULT 0,
+    ${l.unitCost} INTEGER NOT NULL DEFAULT 0,
+    ${l.status} TEXT NOT NULL DEFAULT 'succeeded',
+    ${l.createdAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  "CREATE INDEX IF NOT EXISTS credit_ledgers_client_idx ON credit_ledgers (client_key, created_at DESC)",
-  `CREATE TABLE IF NOT EXISTS credit_orders (
-    id TEXT PRIMARY KEY,
-    client_key TEXT NOT NULL,
-    package_id TEXT NOT NULL DEFAULT '',
-    package_name TEXT NOT NULL DEFAULT '',
-    credits INTEGER NOT NULL DEFAULT 0,
-    bonus INTEGER NOT NULL DEFAULT 0,
-    amount_cny NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    provider TEXT NOT NULL DEFAULT 'pending',
-    provider_session_id TEXT NOT NULL DEFAULT '',
-    provider_payment_id TEXT NOT NULL DEFAULT '',
-    status TEXT NOT NULL DEFAULT 'draft',
-    ledger_id TEXT NOT NULL DEFAULT '',
-    failure_reason TEXT NOT NULL DEFAULT '',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  `CREATE INDEX IF NOT EXISTS ${quoteIdentifier("积分流水_客户索引")} ON ${t.creditLedgers} (${l.clientKey}, ${l.createdAt} DESC)`,
+  `CREATE TABLE IF NOT EXISTS ${t.creditOrders} (
+    ${o.id} TEXT PRIMARY KEY,
+    ${o.clientKey} TEXT NOT NULL,
+    ${o.packageId} TEXT NOT NULL DEFAULT '',
+    ${o.packageName} TEXT NOT NULL DEFAULT '',
+    ${o.credits} INTEGER NOT NULL DEFAULT 0,
+    ${o.bonus} INTEGER NOT NULL DEFAULT 0,
+    ${o.amountCny} NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    ${o.provider} TEXT NOT NULL DEFAULT 'pending',
+    ${o.providerSessionId} TEXT NOT NULL DEFAULT '',
+    ${o.providerPaymentId} TEXT NOT NULL DEFAULT '',
+    ${o.status} TEXT NOT NULL DEFAULT 'draft',
+    ${o.ledgerId} TEXT NOT NULL DEFAULT '',
+    ${o.failureReason} TEXT NOT NULL DEFAULT '',
+    ${o.createdAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ${o.updatedAt} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
-  "CREATE INDEX IF NOT EXISTS credit_orders_client_idx ON credit_orders (client_key, created_at DESC)",
-  `CREATE TABLE IF NOT EXISTS history_tasks (
-    client_key TEXT NOT NULL,
-    id TEXT NOT NULL,
-    prompt TEXT NOT NULL DEFAULT '',
-    params_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-    references_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-    status TEXT NOT NULL DEFAULT 'succeeded',
-    images_json JSONB NOT NULL DEFAULT '[]'::jsonb,
-    error TEXT NOT NULL DEFAULT '',
-    revised_prompt TEXT NOT NULL DEFAULT '',
-    credit_cost INTEGER NOT NULL DEFAULT 0,
-    credit_unit_cost INTEGER NOT NULL DEFAULT 0,
-    credit_ledger_id TEXT NOT NULL DEFAULT '',
-    created_at BIGINT NOT NULL,
-    finished_at BIGINT,
-    deleted_at BIGINT,
-    PRIMARY KEY (client_key, id)
+  `CREATE INDEX IF NOT EXISTS ${quoteIdentifier("积分订单_客户索引")} ON ${t.creditOrders} (${o.clientKey}, ${o.createdAt} DESC)`,
+  `CREATE TABLE IF NOT EXISTS ${t.historyTasks} (
+    ${h.clientKey} TEXT NOT NULL,
+    ${h.id} TEXT NOT NULL,
+    ${h.prompt} TEXT NOT NULL DEFAULT '',
+    ${h.paramsJson} JSONB NOT NULL DEFAULT '{}'::jsonb,
+    ${h.referencesJson} JSONB NOT NULL DEFAULT '[]'::jsonb,
+    ${h.status} TEXT NOT NULL DEFAULT 'succeeded',
+    ${h.imagesJson} JSONB NOT NULL DEFAULT '[]'::jsonb,
+    ${h.error} TEXT NOT NULL DEFAULT '',
+    ${h.revisedPrompt} TEXT NOT NULL DEFAULT '',
+    ${h.creditCost} INTEGER NOT NULL DEFAULT 0,
+    ${h.creditUnitCost} INTEGER NOT NULL DEFAULT 0,
+    ${h.creditLedgerId} TEXT NOT NULL DEFAULT '',
+    ${h.createdAt} BIGINT NOT NULL,
+    ${h.finishedAt} BIGINT,
+    ${h.deletedAt} BIGINT,
+    PRIMARY KEY (${h.clientKey}, ${h.id})
   )`,
-  "CREATE INDEX IF NOT EXISTS history_tasks_client_idx ON history_tasks (client_key, created_at DESC)"
+  `CREATE INDEX IF NOT EXISTS ${quoteIdentifier("生图历史任务_客户索引")} ON ${t.historyTasks} (${h.clientKey}, ${h.createdAt} DESC)`
 ];
 
 function text(value) {
@@ -144,6 +268,30 @@ export function postgresAdminConfigFromEnv(env = process.env) {
 export async function ensurePostgresSchema(executor) {
   for (const statement of schemaStatements) {
     await executor.query(statement);
+  }
+  await ensureAuthVerificationCodeSchema(executor);
+}
+
+async function ensureAuthVerificationCodeSchema(executor) {
+  await executor.query(`ALTER TABLE ${t.verificationCodes} ADD COLUMN IF NOT EXISTS ${v.purpose} TEXT NOT NULL DEFAULT 'register'`);
+  await executor.query(`UPDATE ${t.verificationCodes} SET ${v.purpose} = 'register' WHERE ${v.purpose} IS NULL OR ${v.purpose} = ''`);
+  const currentPrimaryKey = await executor.query(`
+    SELECT kcu.column_name
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+     AND tc.table_schema = kcu.table_schema
+    WHERE tc.table_name = $1
+      AND tc.constraint_type = 'PRIMARY KEY'
+    ORDER BY kcu.ordinal_position
+  `, [postgresSchema.rawTables.verificationCodes]);
+  const columns = currentPrimaryKey.rows.map((row) => String(row.column_name || ""));
+  if (columns.join(",") !== "账号类型,账号,用途") {
+    await executor.query(`ALTER TABLE ${t.verificationCodes} DROP CONSTRAINT IF EXISTS ${quoteIdentifier("账号验证码_pkey")}`);
+    await executor.query(`ALTER TABLE ${t.verificationCodes} DROP CONSTRAINT IF EXISTS ${quoteIdentifier("账号验证码主键")}`);
+    await executor.query(
+      `ALTER TABLE ${t.verificationCodes} ADD CONSTRAINT ${quoteIdentifier("账号验证码主键")} PRIMARY KEY (${v.accountType}, ${v.account}, ${v.purpose})`
+    );
   }
 }
 

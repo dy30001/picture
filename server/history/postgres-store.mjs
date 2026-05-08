@@ -1,4 +1,8 @@
+import { postgresSchema } from "../persistence/postgres.mjs";
+
 let historyWriteQueue = Promise.resolve();
+const t = postgresSchema.tables;
+const h = postgresSchema.historyTasks;
 
 function safeTime(value) {
   const date = value instanceof Date ? value : new Date(value || Date.now());
@@ -33,7 +37,7 @@ function normalizeHistoryRecord(task) {
     prompt: String(task?.prompt || ""),
     params: sanitizeParams(task?.params),
     references: historyReferences(task?.references),
-    status: ["running", "succeeded", "failed"].includes(task?.status) ? task.status : "succeeded",
+    status: ["queued", "running", "succeeded", "failed"].includes(task?.status) ? task.status : "succeeded",
     images: Array.isArray(task?.images) ? task.images.map(String) : [],
     error: String(task?.error || ""),
     revisedPrompt: String(task?.revisedPrompt || task?.revised_prompt || ""),
@@ -59,11 +63,15 @@ export function createPostgresHistoryStore({ db, safeClientKey }) {
   async function readHistoryStore(clientKey = "local") {
     const key = clientKeyOf(safeClientKey, clientKey);
     const result = await db.query(
-      `SELECT id, prompt, params_json, references_json, status, images_json, error, revised_prompt,
-              credit_cost, credit_unit_cost, credit_ledger_id, created_at, finished_at, deleted_at
-       FROM history_tasks
-       WHERE client_key = $1
-       ORDER BY created_at DESC`,
+      `SELECT ${h.id} AS id, ${h.prompt} AS prompt, ${h.paramsJson} AS params_json,
+              ${h.referencesJson} AS references_json, ${h.status} AS status,
+              ${h.imagesJson} AS images_json, ${h.error} AS error,
+              ${h.revisedPrompt} AS revised_prompt, ${h.creditCost} AS credit_cost,
+              ${h.creditUnitCost} AS credit_unit_cost, ${h.creditLedgerId} AS credit_ledger_id,
+              ${h.createdAt} AS created_at, ${h.finishedAt} AS finished_at, ${h.deletedAt} AS deleted_at
+       FROM ${t.historyTasks}
+       WHERE ${h.clientKey} = $1
+       ORDER BY ${h.createdAt} DESC`,
       [key]
     );
     return result.rows.map((row) => normalizeHistoryRecord({
@@ -87,7 +95,7 @@ export function createPostgresHistoryStore({ db, safeClientKey }) {
   async function writeHistoryStore(history, clientKey = "local") {
     const key = clientKeyOf(safeClientKey, clientKey);
     await db.withTransaction(async (tx) => {
-      await tx.query("DELETE FROM history_tasks WHERE client_key = $1", [key]);
+      await tx.query(`DELETE FROM ${t.historyTasks} WHERE ${h.clientKey} = $1`, [key]);
       for (const item of Array.isArray(history) ? history : []) {
         await insertHistoryTask(tx, key, item);
       }
@@ -99,11 +107,15 @@ export function createPostgresHistoryStore({ db, safeClientKey }) {
     const run = historyWriteQueue.then(async () => {
       return await db.withTransaction(async (tx) => {
         const result = await tx.query(
-          `SELECT id, prompt, params_json, references_json, status, images_json, error, revised_prompt,
-                  credit_cost, credit_unit_cost, credit_ledger_id, created_at, finished_at, deleted_at
-           FROM history_tasks
-           WHERE client_key = $1
-           ORDER BY created_at DESC`,
+          `SELECT ${h.id} AS id, ${h.prompt} AS prompt, ${h.paramsJson} AS params_json,
+                  ${h.referencesJson} AS references_json, ${h.status} AS status,
+                  ${h.imagesJson} AS images_json, ${h.error} AS error,
+                  ${h.revisedPrompt} AS revised_prompt, ${h.creditCost} AS credit_cost,
+                  ${h.creditUnitCost} AS credit_unit_cost, ${h.creditLedgerId} AS credit_ledger_id,
+                  ${h.createdAt} AS created_at, ${h.finishedAt} AS finished_at, ${h.deletedAt} AS deleted_at
+           FROM ${t.historyTasks}
+           WHERE ${h.clientKey} = $1
+           ORDER BY ${h.createdAt} DESC`,
           [key]
         );
         const history = result.rows.map((row) => normalizeHistoryRecord({
@@ -124,7 +136,7 @@ export function createPostgresHistoryStore({ db, safeClientKey }) {
         }));
         const mutateResult = await mutator(history);
         trimHistoryStore(history);
-        await tx.query("DELETE FROM history_tasks WHERE client_key = $1", [key]);
+        await tx.query(`DELETE FROM ${t.historyTasks} WHERE ${h.clientKey} = $1`, [key]);
         for (const item of history) {
           await insertHistoryTask(tx, key, item);
         }
@@ -141,9 +153,10 @@ export function createPostgresHistoryStore({ db, safeClientKey }) {
 async function insertHistoryTask(tx, clientKey, task) {
   const normalized = normalizeHistoryRecord(task);
   await tx.query(
-    `INSERT INTO history_tasks (
-      client_key, id, prompt, params_json, references_json, status, images_json, error,
-      revised_prompt, credit_cost, credit_unit_cost, credit_ledger_id, created_at, finished_at, deleted_at
+    `INSERT INTO ${t.historyTasks} (
+      ${h.clientKey}, ${h.id}, ${h.prompt}, ${h.paramsJson}, ${h.referencesJson}, ${h.status},
+      ${h.imagesJson}, ${h.error}, ${h.revisedPrompt}, ${h.creditCost}, ${h.creditUnitCost},
+      ${h.creditLedgerId}, ${h.createdAt}, ${h.finishedAt}, ${h.deletedAt}
     ) VALUES (
       $1, $2, $3, $4::jsonb, $5::jsonb, $6, $7::jsonb, $8,
       $9, $10, $11, $12, $13, $14, $15

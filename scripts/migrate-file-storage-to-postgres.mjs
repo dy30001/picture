@@ -7,7 +7,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPostgresCreditOrderStore } from "../server/credits/postgres-orders.mjs";
 import { createPostgresCreditStore } from "../server/credits/postgres-store.mjs";
-import { createPostgresPersistence } from "../server/persistence/postgres.mjs";
+import { createPostgresPersistence, postgresSchema } from "../server/persistence/postgres.mjs";
 import { createPostgresHistoryStore } from "../server/history/postgres-store.mjs";
 
 const dataDir = new URL("../data/", import.meta.url);
@@ -72,24 +72,27 @@ async function listJsonFiles(folderName) {
 }
 
 async function migrateUsers(db) {
+  const t = postgresSchema.tables;
+  const u = postgresSchema.authUsers;
   const authFile = join(dataDir.pathname, "auth", "users.json");
   const parsed = await readJsonFile(authFile, { users: [] });
   const users = Array.isArray(parsed?.users) ? parsed.users : [];
   let count = 0;
   for (const user of users) {
     await db.query(
-      `INSERT INTO auth_users (
-        id, account_type, account, account_label, username, nickname, password_hash, created_at, last_login_at
+      `INSERT INTO ${t.authUsers} (
+        ${u.id}, ${u.accountType}, ${u.account}, ${u.accountLabel}, ${u.username},
+        ${u.nickname}, ${u.passwordHash}, ${u.createdAt}, ${u.lastLoginAt}
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      ON CONFLICT (id) DO UPDATE SET
-        account_type = EXCLUDED.account_type,
-        account = EXCLUDED.account,
-        account_label = EXCLUDED.account_label,
-        username = EXCLUDED.username,
-        nickname = EXCLUDED.nickname,
-        password_hash = EXCLUDED.password_hash,
-        created_at = EXCLUDED.created_at,
-        last_login_at = EXCLUDED.last_login_at`,
+      ON CONFLICT (${u.id}) DO UPDATE SET
+        ${u.accountType} = EXCLUDED.${u.accountType},
+        ${u.account} = EXCLUDED.${u.account},
+        ${u.accountLabel} = EXCLUDED.${u.accountLabel},
+        ${u.username} = EXCLUDED.${u.username},
+        ${u.nickname} = EXCLUDED.${u.nickname},
+        ${u.passwordHash} = EXCLUDED.${u.passwordHash},
+        ${u.createdAt} = EXCLUDED.${u.createdAt},
+        ${u.lastLoginAt} = EXCLUDED.${u.lastLoginAt}`,
       [
         String(user.id || ""),
         String(user.type || "email"),

@@ -25,20 +25,30 @@
         <div class="topbar-actions">
           <nav class="primary-nav" aria-label="一级菜单">
             <button class="primary-tab active" data-tab="home" type="button">首页</button>
-            <button class="primary-tab" data-tab="studio" type="button">拍摄定制</button>
+            <button class="primary-tab" data-tab="studio" type="button">影像定制</button>
             <button class="primary-tab" data-tab="create" type="button">图片创作</button>
             <button class="primary-tab" data-tab="history" type="button">我的作品</button>
-            <button class="primary-tab" data-tab="register" type="button">登录</button>
+            <button class="primary-tab" data-tab="register" id="authNavBtn" type="button">登录</button>
             <button class="primary-tab credit-nav-tab" data-tab="credits" id="openCreditsBtn" type="button">
               <span>我的积分</span>
               <strong id="topCreditBalance">读取中</strong>
             </button>
+            <div class="topbar-account logged-out" id="topbarAccount">
+              <button class="topbar-account-main" id="topbarAccountBtn" type="button" aria-expanded="false">
+                <span class="topbar-account-label">当前账号</span>
+                <strong id="topbarAccountName">未登录</strong>
+              </button>
+              <div class="topbar-account-menu" id="topbarAccountMenu" hidden>
+                <button class="topbar-account-action" id="topbarAccountCreditsBtn" type="button">我的积分</button>
+                <button class="topbar-account-action danger" id="topbarAccountLogoutBtn" type="button">退出登录</button>
+              </div>
+            </div>
           </nav>
         </div>
       </header>
 
-      <nav class="tabs" id="secondaryNav" aria-label="二级菜单" data-default-menu="看效果,提交资料,制作状态,查看成片"></nav>
-      <section class="trust-strip" id="trustStrip" aria-label="拍摄卖点">
+      <nav class="tabs" id="secondaryNav" aria-label="二级菜单" data-default-menu="样片集,提交资料,制作状态,查看成片"></nav>
+      <section class="trust-strip" id="trustStrip" aria-label="影像定制卖点">
         <span>生活愿景成片</span>
         <span>补上重要时刻</span>
         <span>正式作品交付</span>
@@ -49,7 +59,7 @@
           <div class="home-hero-copy">
             <span class="eyebrow">墨境 AI 摄影棚</span>
             <h2 id="homeHeroTitle">让向往的生活，先在照片里发生</h2>
-            <p>旧照修复、亲人同框、爱人补拍、写真定制，都交付成可以保存的正式作品。</p>
+            <p>旧照修复、亲人同框、爱人合影、写真定制，都交付成可以保存的正式作品。</p>
             <div class="home-hero-actions">
               <button class="primary-btn" id="homeStartStudioBtn" type="button">定制我的照片</button>
               <button class="ghost-btn" id="homeRepairPhotoBtn" type="button">修复老照片</button>
@@ -58,7 +68,7 @@
           <div class="home-hero-meter" aria-label="首页愿景摘要">
             <span>旧照修复</span>
             <span>亲人同框</span>
-            <span>爱人补拍</span>
+            <span>爱人合影</span>
           </div>
         </section>
 
@@ -93,7 +103,7 @@
           <div class="home-storyline-steps">
             <span>旧照焕新</span>
             <span>亲人同框</span>
-            <span>爱人补拍</span>
+            <span>爱人合影</span>
             <span>正式成片</span>
           </div>
         </section>
@@ -106,11 +116,11 @@
               <div class="studio-command-heading">
                 <span class="eyebrow">客户平台</span>
                 <h2>资料到位，成果交付</h2>
-                <p>客户选择拍摄内容、上传照片、查看状态和成片；制作细节留给后台。</p>
+                <p>客户选择影像内容、上传照片、查看状态和成片；制作细节留给后台。</p>
               </div>
               <div class="studio-command-metrics" aria-label="当前项目摘要">
                 <article class="studio-command-metric">
-                  <span>拍摄组合</span>
+                  <span>影像组合</span>
                   <strong id="studioSummaryScene">读取中</strong>
                 </article>
                 <article class="studio-command-metric">
@@ -139,8 +149,8 @@
                   <span id="studioCurrentCredits">积分读取中</span>
                 </div>
                 <div class="work-order-actions">
-                  <button class="ghost-btn small" id="studioStartBtn" type="button">看效果</button>
-                  <button class="primary-btn" id="studioNextActionBtn" type="button">开拍</button>
+                  <button class="ghost-btn small" id="studioStartBtn" type="button">样片集</button>
+                  <button class="primary-btn" id="studioNextActionBtn" type="button">提交定制</button>
                 </div>
               </section>
             </div>
@@ -169,8 +179,8 @@
             <section class="studio-stage-panel studio-stage-panel-wide" id="studioSampleSection" aria-labelledby="studioSampleTitle">
               <div class="studio-stage-panel-head">
                 <div>
-                  <span class="eyebrow">看效果</span>
-                  <h2 id="studioSampleTitle">把想要的生活，拍成看得见的作品</h2>
+                  <span class="eyebrow">样片集</span>
+                  <h2 id="studioSampleTitle">把想要的生活，变成看得见的作品</h2>
                   <p>场景、样片组和适合人群放在这里，一眼看见想留下的生活画面。</p>
                 </div>
                 <button class="primary-btn" id="openGenerationFlowBtn" type="button" hidden>去提交资料</button>
@@ -185,7 +195,7 @@
               <section class="studio-card" id="sampleCard">
                 <div class="studio-card-topline">
                   <p id="sampleSummary">选择效果分类，查看对应样片组</p>
-                  <span class="sample-step-pill">02 看效果</span>
+                  <span class="sample-step-pill">02 样片集</span>
                 </div>
                 <div class="sample-preview-panel" id="samplePreviewPanel" aria-label="样片预览"></div>
                 <div class="sample-direction-list" id="sampleDirectionList"></div>
@@ -270,7 +280,7 @@
         </div>
         <div class="template-summary">
           <strong id="templateCount">0 个模板</strong>
-          <span id="templateHint">热门风格，直接开拍</span>
+          <span id="templateHint">热门风格，直接生成</span>
         </div>
         <section class="template-grid" id="templateGrid" aria-live="polite"></section>
         <button class="load-more" id="loadMoreBtn" type="button">加载更多</button>
@@ -280,7 +290,7 @@
         <section class="generate-brief" aria-label="智能生图当前状态">
           <div class="generate-brief-copy">
             <span class="eyebrow">智能生图</span>
-            <h2 id="generateSummaryTitle">模板风格，智能生图开拍</h2>
+            <h2 id="generateSummaryTitle">模板风格，智能生成</h2>
             <p id="generateSummaryHint">模板一定调，画面就出彩。</p>
           </div>
           <div class="generate-brief-stats">
@@ -330,14 +340,17 @@
             </label>
             <div class="credit-cost-bar" id="creditCostBar">
               <div class="credit-cost-main">
-                <span>本次开拍</span>
-                <strong id="creditCostStatus">加载中</strong>
+                <span>积分</span>
+                <strong id="creditCostStatus">成功后扣除</strong>
                 <p id="creditCostHint">成功出图才扣积分</p>
               </div>
               <div class="credit-cost-actions">
                 <div class="generation-timer"><span>生成耗时</span><strong id="generationTimer">未开始</strong></div>
-                <button class="ghost-btn" id="creditRechargeShortcut" type="button">充值</button>
-                <button class="primary-btn checkout-generate-btn" id="generateBtn" type="button">开拍</button>
+                <button class="ghost-btn" id="creditRechargeShortcut" type="button" hidden>充值</button>
+                <button class="primary-btn checkout-generate-btn" id="generateBtn" type="button">
+                  <span>生成</span>
+                  <small>积分计算中</small>
+                </button>
               </div>
             </div>
             <section class="generate-result-panel" id="generateResultSection" aria-label="当前结果">
@@ -406,8 +419,8 @@
       <section class="panel" id="registerPanel" hidden>
         <section class="register-guide register-guide-minimal">
           <div class="register-panel-head">
-            <span class="eyebrow" id="registerPanelEyebrow">登录</span>
-            <h2 id="registerPanelTitle">登录后继续创作</h2>
+            <span class="eyebrow" id="registerPanelEyebrow">创建账号</span>
+            <h2 id="registerPanelTitle">创建你的账号</h2>
             <p id="registerFlowNote">用邮箱登录；还没有账号就创建一个。</p>
           </div>
           <div class="register-console register-console-minimal">
@@ -418,21 +431,50 @@
                 <button class="inline-link-btn" id="authModeRegisterBtn" type="button">还没有账号？创建一个</button>
               </div>
               <div class="register-field-grid">
+                <label id="registerUsernameField" hidden>
+                  <span>用户名</span>
+                  <input id="registerUsernameInput" autocomplete="username" minlength="2" maxlength="24" placeholder="设置一个用户名" />
+                </label>
                 <label id="registerEmailField">
                   <span>邮箱</span>
                   <input id="registerEmailInput" autocomplete="email" type="email" placeholder="you@company.com" />
                 </label>
                 <label id="registerCodeField" class="register-code-field" hidden>
-                  <span>邮箱验证码</span>
+                  <span>邮箱回执码</span>
                   <div class="register-code-row">
-                    <input id="registerCodeInput" inputmode="numeric" maxlength="6" placeholder="输入 6 位验证码" />
-                    <button id="sendCodeBtn" class="ghost-btn" type="button">重新发送</button>
+                    <input id="registerCodeInput" inputmode="numeric" maxlength="6" placeholder="输入 6 位注册码" />
+                    <button id="sendCodeBtn" class="ghost-btn" type="button">发送回执码</button>
                   </div>
                 </label>
                 <label id="registerPasswordField">
                   <span>密码</span>
-                  <input id="registerPasswordInput" autocomplete="current-password" minlength="6" type="password" placeholder="输入密码" />
+                  <div class="password-input-row">
+                    <input id="registerPasswordInput" autocomplete="current-password" minlength="6" type="password" placeholder="输入密码" />
+                    <button class="ghost-btn icon-btn password-visibility-btn" id="registerPasswordToggleBtn" type="button" aria-label="显示密码" aria-pressed="false" title="显示密码">
+                      <svg class="password-visibility-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2.2 12c1.8-3.2 5.2-6 9.8-6s8 2.8 9.8 6c-1.8 3.2-5.2 6-9.8 6s-8-2.8-9.8-6Z"></path>
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                        <path class="eye-slash" d="M4 4l16 16"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </label>
+                <label id="registerPasswordConfirmField" hidden>
+                  <span>确认密码</span>
+                  <div class="password-input-row">
+                    <input id="registerPasswordConfirmInput" autocomplete="new-password" minlength="6" type="password" placeholder="再输入一次密码" />
+                    <button class="ghost-btn icon-btn password-visibility-btn" id="registerPasswordConfirmToggleBtn" type="button" aria-label="显示密码" aria-pressed="false" title="显示密码">
+                      <svg class="password-visibility-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2.2 12c1.8-3.2 5.2-6 9.8-6s8 2.8 9.8 6c-1.8 3.2-5.2 6-9.8 6s-8-2.8-9.8-6Z"></path>
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                        <path class="eye-slash" d="M4 4l16 16"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </label>
+              </div>
+              <div class="register-helper-row">
+                <button class="inline-link-btn" id="authForgotPasswordBtn" type="button">忘记密码</button>
               </div>
               <div class="register-message" id="registerMessage" hidden></div>
               <div class="register-actions">
@@ -481,9 +523,9 @@
               </div>
               <article class="credit-guide-card credit-use-card">
                 <span class="eyebrow">现在能做</span>
-                <h3>够拍什么</h3>
+                <h3>够生成什么</h3>
                 <div class="credit-use-grid">
-                  <span><strong id="creditDirectUse">--</strong><em>只写要求拍</em></span>
+                  <span><strong id="creditDirectUse">--</strong><em>文字生成</em></span>
                   <span><strong id="creditEditUse">--</strong><em>上传照片改</em></span>
                   <span><strong>失败不扣</strong><em>只扣成功图</em></span>
                 </div>
@@ -491,7 +533,7 @@
               </article>
             </div>
             <div class="credit-note-grid">
-              <span>只写要求拍一张：20 积分</span>
+              <span>文字生成一张：20 积分</span>
               <span>上传照片照着改：30 积分</span>
               <span>想要更清晰：+10 积分</span>
               <span>要更大图：2K +20，4K +60</span>
@@ -508,12 +550,12 @@
 
           <section class="credit-page recharge-panel" id="creditRechargeView" hidden>
             <div class="credit-page-head">
-              <div><span class="eyebrow">买积分</span><h2>选择套餐</h2><p>按这次拍摄量选。</p></div>
+              <div><span class="eyebrow">买积分</span><h2>选择套餐</h2><p>按这次生成量选。</p></div>
             </div>
             <article class="credit-payment-card">
               <div class="credit-action-status">
-                <span class="payment-status-badge" id="paymentStatusBadge">暂未开放</span>
-                <p id="paymentStatusHint">付款暂未开放，套餐可查看</p>
+                <span class="payment-status-badge disabled" id="paymentStatusBadge">登录购买</span>
+                <p id="paymentStatusHint">登录后才能买积分</p>
               </div>
             </article>
             <div class="credit-package-grid" id="creditPackages"></div>
@@ -539,7 +581,7 @@
           </div>
         </div>
         <div class="site-footer-points" id="siteFooterPoints" aria-label="客户卖点">
-          <span>参考照只服务本次拍摄</span>
+          <span>参考照只服务本次定制</span>
           <span>样片定稿后直出正式成片</span>
           <span>正式成片统一交付</span>
         </div>
